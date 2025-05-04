@@ -151,13 +151,9 @@ export async function POST(req: NextRequest) {
         status: "DRAFT",
         expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : null,
         subtotal,
-        tax,
-        discount,
-        shipping: 0, // Default to 0, can be updated later
-        total,
+        totalAmount: total,
         notes,
         createdById: session.user.id,
-        updatedById: session.user.id,
         items: {
           create: orderItems,
         },
@@ -207,3 +203,10 @@ async function generateOrderNumber() {
   const sequentialNumber = (count + 1).toString().padStart(4, '0');
   return `PO-${year}${month}${day}-${sequentialNumber}`;
 }
+
+
+
+
+
+
+

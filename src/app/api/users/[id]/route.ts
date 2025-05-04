@@ -29,10 +29,10 @@ export async function GET(
         name: true,
         email: true,
         role: true,
-        isActive: true,
+        // Remove isActive
         createdAt: true,
         updatedAt: true,
-        lastLogin: true,
+
       },
     });
     
@@ -73,7 +73,7 @@ export async function PATCH(
     
     // Parse request body
     const body = await req.json();
-    const { name, email, role, isActive } = body;
+    const { name, email, role } = body;
     
     // Validate required fields
     if (!name || !email) {
@@ -116,14 +116,14 @@ export async function PATCH(
         name,
         email,
         role,
-        isActive,
+        // Remove isActive
       },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
-        isActive: true,
+        // Remove isActive
         createdAt: true,
         updatedAt: true,
       },
@@ -196,3 +196,5 @@ export async function DELETE(
     );
   }
 }
+
+

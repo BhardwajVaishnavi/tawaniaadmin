@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     // if (!session) {
     //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     // }
-
+    
     // Get query parameters
     const searchParams = req.nextUrl.searchParams;
     const source = searchParams.get("source");
@@ -61,24 +61,33 @@ export async function GET(req: NextRequest) {
 
     // Transform the data to match our expected format
     const damagedItems = qualityControlItems.map(item => {
-      const source = item.qualityControl?.type === "RECEIVING" ? "inward" :
-                    item.qualityControl?.type === "RETURN" ? "outward" : "other";
+      // The item doesn't have direct qualityControl and product properties
+      // We need to access them through the included data
+      // TypeScript is complaining because these properties don't exist on the base model
+      
+      // Get the related quality control from the included data
+      // This is available because we specified it in the include part of our query
+      const qualityControlData = (item as any).qualityControl;
+      const productData = (item as any).product;
+      
+      const sourceType = qualityControlData?.type === "RECEIVING" ? "inward" :
+                    qualityControlData?.type === "RETURN" ? "outward" : "other";
 
       // Calculate the value based on the product's cost price and quantity
-      const value = item.failedQuantity * (item.product?.costPrice || 0);
+      const value = item.failedQuantity * (productData?.costPrice || 0);
 
       return {
         id: item.id,
         productId: item.productId,
-        productName: item.product?.name || "Unknown Product",
-        productSku: item.product?.sku || "",
+        productName: productData?.name || "Unknown Product",
+        productSku: productData?.sku || "",
         quantity: item.failedQuantity,
         reason: item.reason || "Quality control failure",
-        reportedDate: item.qualityControl?.inspectionDate?.toISOString() || new Date().toISOString(),
+        reportedDate: qualityControlData?.inspectionDate?.toISOString() || new Date().toISOString(),
         status: item.status.toLowerCase(),
-        location: item.qualityControl?.warehouse?.name || "Unknown Location",
+        location: qualityControlData?.warehouse?.name || "Unknown Location",
         value: value,
-        source,
+        source: sourceType,
         sourceReferenceId: "",
         sourceReference: ""
       };
@@ -179,10 +188,11 @@ export async function POST(req: NextRequest) {
             warehouseId: data.warehouseId,
             quantity: data.quantity,
             costPrice: product.costPrice,
-            wholesalePrice: product.wholesalePrice,
+            // Remove wholesalePrice
             retailPrice: product.retailPrice,
             condition: "DAMAGED",
-            status: "ACTIVE"
+            status: "AVAILABLE", // Changed from "ACTIVE" to match enum
+            inventoryMethod: "FIFO" // Add required field
           }
         });
       }
@@ -240,3 +250,7 @@ export async function POST(req: NextRequest) {
     }, { status: 500 });
   }
 }
+
+
+
+

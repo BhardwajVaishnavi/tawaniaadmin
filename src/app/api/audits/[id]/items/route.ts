@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { AuditItemStatus } from '@prisma/client';
 
 export async function GET(
   req: NextRequest,
@@ -213,10 +214,12 @@ export async function PUT(
         // Calculate variance
         const variance = actualQuantity - auditItem.expectedQuantity;
 
-        // Determine status
-        let status = "COUNTED";
+        // Determine status using the correct enum values from Prisma
+        let status: AuditItemStatus;
         if (variance !== 0) {
-          status = "DISCREPANCY";
+          status = AuditItemStatus.DISCREPANCY;
+        } else {
+          status = AuditItemStatus.COUNTED;
         }
 
         // Update audit item
@@ -225,8 +228,8 @@ export async function PUT(
             id,
           },
           data: {
-            actualQuantity,
-            variance,
+            countedQuantity: actualQuantity,
+            discrepancy: variance,
             status,
             notes: notes || null,
             countedById: session.user.id,
@@ -268,3 +271,6 @@ export async function PUT(
     );
   }
 }
+
+
+

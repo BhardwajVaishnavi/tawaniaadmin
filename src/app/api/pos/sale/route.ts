@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
             productId: item.productId,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            discount: item.discount,
+            // discount: item.discount,  // Remove this as it doesn't exist in the schema
             discountAmount: (item.unitPrice * item.quantity * item.discount) / 100,
             taxAmount: 0,
             totalPrice,
@@ -167,3 +167,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+

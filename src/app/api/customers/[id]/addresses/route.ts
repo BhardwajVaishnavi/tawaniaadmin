@@ -20,7 +20,7 @@ export async function GET(
     const customerId = params.id;
 
     // Get customer addresses
-    const addresses = await prisma.customerAddress.findMany({
+    const addresses = await prisma.address.findMany({
       where: {
         customerId,
       },
@@ -98,10 +98,10 @@ export async function POST(
     const result = await prisma.$transaction(async (tx) => {
       // If this address is set as default, unset any existing default addresses of the same type
       if (isDefault) {
-        await tx.customerAddress.updateMany({
+        await tx.address.updateMany({
           where: {
             customerId,
-            addressType,
+            type: addressType,
             isDefault: true,
           },
           data: {
@@ -111,18 +111,16 @@ export async function POST(
       }
 
       // Create address
-      const address = await tx.customerAddress.create({
+      const address = await tx.address.create({
         data: {
           customerId,
-          addressType: addressType || "SHIPPING",
+          type: addressType || "SHIPPING",
           isDefault: isDefault || false,
-          addressLine1,
-          addressLine2,
+          street: addressLine1,
           city,
           state,
           postalCode,
           country,
-          phone,
         },
       });
 
@@ -138,3 +136,5 @@ export async function POST(
     );
   }
 }
+
+

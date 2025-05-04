@@ -40,9 +40,18 @@ export async function GET(
       );
     }
     
+    // Build the query for zones
+    const zoneQuery: any = {
+      where: { warehouseId },
+    };
+    
+    if (zoneId) {
+      zoneQuery.where.id = zoneId;
+    }
+    
     // Get all zones for the warehouse
     const zones = await prisma.warehouseZone.findMany({
-      where: { warehouseId },
+      ...zoneQuery,
       include: {
         aisles: {
           include: {
@@ -65,26 +74,20 @@ export async function GET(
                       }
                     : undefined,
                 },
-                where: shelfId ? { id: shelfId } : undefined,
               },
-              where: aisleId ? { id: aisleId } : undefined,
             },
-            where: aisleId ? { id: aisleId } : undefined,
           },
-          where: aisleId ? { id: aisleId } : undefined,
         },
-        where: zoneId ? { id: zoneId } : undefined,
       },
-      where: zoneId ? { id: zoneId } : undefined,
     });
     
     // Flatten the structure to get all bins
-    let allBins: any[] = [];
+    let allBins: Array<any> = [];
     
-    zones.forEach(zone => {
-      zone.aisles.forEach(aisle => {
-        aisle.shelves.forEach(shelf => {
-          shelf.bins.forEach(bin => {
+    zones.forEach((zone: any) => {
+      zone.aisles.forEach((aisle: any) => {
+        aisle.shelves.forEach((shelf: any) => {
+          shelf.bins.forEach((bin: any) => {
             allBins.push({
               ...bin,
               shelf: {
@@ -238,3 +241,4 @@ export async function POST(
     );
   }
 }
+

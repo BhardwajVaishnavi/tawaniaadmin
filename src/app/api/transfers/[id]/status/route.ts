@@ -72,38 +72,11 @@ export async function PATCH(
             product: true,
           },
         },
-        sourceWarehouse: true,
-        destinationWarehouse: true,
-        sourceStore: true,
-        destinationStore: true,
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        approvedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        rejectedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        completedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        fromWarehouse: true,
+        toWarehouse: true,
+        fromStore: true,
+        toStore: true,
+        // Remove createdBy, approvedBy, rejectedBy, completedBy
       },
     });
 
@@ -122,8 +95,7 @@ export async function PATCH(
       entityType: "Transfer",
       entityId: id,
       action: status === "APPROVED" ? "APPROVAL" : 
-              status === "REJECTED" ? "REJECTION" : 
-              status === "COMPLETED" ? "COMPLETED" : "UPDATE",
+              status === "REJECTED" ? "REJECTION" : "UPDATE",
       details: {
         status,
         reason,
@@ -149,31 +121,19 @@ async function processCompletedTransfer(transfer: any, userId: string) {
     let sourceInventoryQuery: any = {};
     let destinationInventoryQuery: any = {};
 
-    if (transfer.sourceWarehouseId) {
+    if (transfer.fromWarehouseId) {
       sourceInventoryQuery = {
         productId: item.productId,
-        warehouseId: transfer.sourceWarehouseId,
+        warehouseId: transfer.fromWarehouseId,
       };
-    } else if (transfer.sourceStoreId) {
+    } else if (transfer.fromStoreId) {
       sourceInventoryQuery = {
         productId: item.productId,
-        storeId: transfer.sourceStoreId,
+        storeId: transfer.fromStoreId,
       };
     }
 
-    if (transfer.destinationWarehouseId) {
-      destinationInventoryQuery = {
-        productId: item.productId,
-        warehouseId: transfer.destinationWarehouseId,
-      };
-    } else if (transfer.destinationStoreId) {
-      destinationInventoryQuery = {
-        productId: item.productId,
-        storeId: transfer.destinationStoreId,
-      };
-    }
-
-    // Update source inventory (reduce quantity and release reserved)
+    // Process source inventory
     if (Object.keys(sourceInventoryQuery).length > 0) {
       const sourceInventory = await prisma.inventoryItem.findFirst({
         where: sourceInventoryQuery,
@@ -209,7 +169,19 @@ async function processCompletedTransfer(transfer: any, userId: string) {
       }
     }
 
-    // Update destination inventory (increase quantity)
+    // Process destination inventory
+    if (transfer.toWarehouseId) {
+      destinationInventoryQuery = {
+        productId: item.productId,
+        warehouseId: transfer.toWarehouseId,
+      };
+    } else if (transfer.toStoreId) {
+      destinationInventoryQuery = {
+        productId: item.productId,
+        storeId: transfer.toStoreId,
+      };
+    }
+
     if (Object.keys(destinationInventoryQuery).length > 0) {
       const destinationInventory = await prisma.inventoryItem.findFirst({
         where: destinationInventoryQuery,
@@ -247,12 +219,12 @@ async function processCompletedTransfer(transfer: any, userId: string) {
           },
         });
       } else {
-        // Create new inventory item
+        // Create new inventory
         const newInventory = await prisma.inventoryItem.create({
           data: {
             productId: item.productId,
-            ...(transfer.destinationWarehouseId ? { warehouseId: transfer.destinationWarehouseId } : {}),
-            ...(transfer.destinationStoreId ? { storeId: transfer.destinationStoreId } : {}),
+            warehouseId: transfer.toWarehouseId || null,
+            storeId: transfer.toStoreId || null,
             quantity: item.requestedQuantity,
             reservedQuantity: 0,
             costPrice: item.destinationCostPrice || item.sourceCostPrice,
@@ -278,12 +250,12 @@ async function processCompletedTransfer(transfer: any, userId: string) {
       }
     }
 
-    // Update transfer item status
+    // Update transfer item - remove completedQuantity if it doesn't exist in schema
     await prisma.transferItem.update({
       where: { id: item.id },
       data: {
-        status: "COMPLETED",
-        completedQuantity: item.requestedQuantity,
+        // Remove completedQuantity
+        // completedQuantity: item.requestedQuantity,
       },
     });
   }
@@ -295,15 +267,15 @@ async function releaseReservedInventory(transfer: any) {
     // Determine source based on transfer type
     let sourceInventoryQuery: any = {};
 
-    if (transfer.sourceWarehouseId) {
+    if (transfer.fromWarehouseId) {
       sourceInventoryQuery = {
         productId: item.productId,
-        warehouseId: transfer.sourceWarehouseId,
+        warehouseId: transfer.fromWarehouseId,
       };
-    } else if (transfer.sourceStoreId) {
+    } else if (transfer.fromStoreId) {
       sourceInventoryQuery = {
         productId: item.productId,
-        storeId: transfer.sourceStoreId,
+        storeId: transfer.fromStoreId,
       };
     }
 
@@ -339,13 +311,7 @@ async function releaseReservedInventory(transfer: any) {
         });
       }
     }
-
-    // Update transfer item status
-    await prisma.transferItem.update({
-      where: { id: item.id },
-      data: {
-        status: "REJECTED",
-      },
-    });
   }
 }
+
+

@@ -41,39 +41,44 @@ export async function PUT(req: NextRequest) {
       );
     }
     
-    // Update settings in a transaction
-    await prisma.$transaction([
-      prisma.setting.upsert({
-        where: { key: 'loyalty_points_per_dollar' },
-        update: { value: pointsPerDollar.toString() },
-        create: { key: 'loyalty_points_per_dollar', value: pointsPerDollar.toString() },
-      }),
-      prisma.setting.upsert({
-        where: { key: 'loyalty_redemption_rate' },
-        update: { value: pointsRedemptionRate.toString() },
-        create: { key: 'loyalty_redemption_rate', value: pointsRedemptionRate.toString() },
-      }),
-      prisma.setting.upsert({
-        where: { key: 'loyalty_minimum_redemption' },
-        update: { value: minimumPointsRedemption.toString() },
-        create: { key: 'loyalty_minimum_redemption', value: minimumPointsRedemption.toString() },
-      }),
-      prisma.setting.upsert({
-        where: { key: 'loyalty_welcome_bonus' },
-        update: { value: welcomeBonus.toString() },
-        create: { key: 'loyalty_welcome_bonus', value: welcomeBonus.toString() },
-      }),
-      prisma.setting.upsert({
-        where: { key: 'loyalty_birthday_bonus' },
-        update: { value: birthdayBonus.toString() },
-        create: { key: 'loyalty_birthday_bonus', value: birthdayBonus.toString() },
-      }),
-      prisma.setting.upsert({
-        where: { key: 'loyalty_referral_bonus' },
-        update: { value: referralBonus.toString() },
-        create: { key: 'loyalty_referral_bonus', value: referralBonus.toString() },
-      }),
-    ]);
+    // Find active loyalty program or create one if it doesn't exist
+    const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
+      where: { isActive: true },
+    });
+    
+    if (loyaltyProgram) {
+      // Update existing loyalty program
+      await prisma.loyaltyProgram.update({
+        where: { id: loyaltyProgram.id },
+        data: {
+          // Store all settings in the description as JSON
+          description: JSON.stringify({
+            pointsPerDollar,
+            pointsRedemptionRate,
+            minimumPointsRedemption,
+            welcomeBonus,
+            birthdayBonus,
+            referralBonus,
+          }),
+        },
+      });
+    } else {
+      // Create new loyalty program with settings
+      await prisma.loyaltyProgram.create({
+        data: {
+          name: "Default Loyalty Program",
+          description: JSON.stringify({
+            pointsPerDollar,
+            pointsRedemptionRate,
+            minimumPointsRedemption,
+            welcomeBonus,
+            birthdayBonus,
+            referralBonus,
+          }),
+          isActive: true,
+        },
+      });
+    }
     
     return NextResponse.json({
       message: "Loyalty settings updated successfully",
@@ -94,3 +99,68 @@ export async function PUT(req: NextRequest) {
     );
   }
 }
+
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    // Check if user is authenticated
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    
+    // Get loyalty program settings
+    const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
+      where: { isActive: true },
+    });
+    
+    if (!loyaltyProgram) {
+      return NextResponse.json({
+        settings: {
+          pointsPerDollar: 1,
+          pointsRedemptionRate: 0.01,
+          minimumPointsRedemption: 100,
+          welcomeBonus: 50,
+          birthdayBonus: 100,
+          referralBonus: 50,
+        }
+      });
+    }
+    
+    // Parse settings from description
+    let settings = {
+      pointsPerDollar: 1,
+      pointsRedemptionRate: 0.01,
+      minimumPointsRedemption: 100,
+      welcomeBonus: 50,
+      birthdayBonus: 100,
+      referralBonus: 50,
+    };
+    
+    try {
+      if (loyaltyProgram.description) {
+        const parsedSettings = JSON.parse(loyaltyProgram.description);
+        settings = {
+          ...settings,
+          ...parsedSettings
+        };
+      }
+    } catch (e) {
+      console.error("Error parsing loyalty program description:", e);
+    }
+    
+    return NextResponse.json({ settings });
+  } catch (error) {
+    console.error("Error fetching loyalty settings:", error);
+    return NextResponse.json(
+      { message: "Failed to fetch loyalty settings", error: (error as Error).message },
+      { status: 500 }
+    );
+  }
+}
+
+
+

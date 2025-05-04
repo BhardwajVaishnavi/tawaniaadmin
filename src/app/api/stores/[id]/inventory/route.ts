@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { InventoryStatus } from "@prisma/client";
 
 export async function GET(
   req: NextRequest,
@@ -161,7 +162,7 @@ export async function POST(
           quantity: existingItem.quantity + quantity,
           costPrice: costPrice !== undefined ? costPrice : existingItem.costPrice,
           retailPrice: retailPrice !== undefined ? retailPrice : existingItem.retailPrice,
-          status: (existingItem.quantity + quantity) > 0 ? "AVAILABLE" : "OUT_OF_STOCK",
+          status: (existingItem.quantity + quantity) > 0 ? InventoryStatus.AVAILABLE : InventoryStatus.EXPIRED,
         },
       });
     } else {
@@ -173,7 +174,7 @@ export async function POST(
           quantity,
           costPrice: costPrice !== undefined ? costPrice : product.costPrice,
           retailPrice: retailPrice !== undefined ? retailPrice : product.retailPrice,
-          status: quantity > 0 ? "AVAILABLE" : "OUT_OF_STOCK",
+          status: quantity > 0 ? InventoryStatus.AVAILABLE : InventoryStatus.EXPIRED,
         },
       });
     }

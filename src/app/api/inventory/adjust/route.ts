@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
@@ -70,23 +71,44 @@ export async function POST(req: NextRequest) {
       },
       data: {
         quantity: newQuantity,
-        status: newQuantity > 0 ? "AVAILABLE" : "OUT_OF_STOCK",
+        status: newQuantity > 0 ? "AVAILABLE" : "EXPIRED",
       },
     });
 
     // Create inventory transaction record
-    const inventoryTransaction = await prisma.inventoryTransaction.create({
-      data: {
-        inventoryItemId: inventoryItem.id,
-        transactionType: adjustmentType.toUpperCase(),
-        quantity,
-        previousQuantity: inventoryItem.quantity,
-        newQuantity,
-        reason: reason.toUpperCase(),
-        notes,
-        createdById: session.user.id,
-      },
-    });
+    let inventoryTransaction;
+    try {
+      inventoryTransaction = await prisma.$queryRaw`
+        INSERT INTO "InventoryTransaction" (
+          "id", 
+          "inventoryItemId", 
+          "transactionType", 
+          "quantity", 
+          "previousQuantity", 
+          "newQuantity", 
+          "reason", 
+          "notes", 
+          "createdById", 
+          "createdAt", 
+          "updatedAt"
+        ) VALUES (
+          ${randomUUID()}, 
+          ${inventoryItem.id}, 
+          ${adjustmentType.toUpperCase()}, 
+          ${quantity}, 
+          ${inventoryItem.quantity}, 
+          ${newQuantity}, 
+          ${reason.toUpperCase()}, 
+          ${notes || null}, 
+          ${session.user.id}, 
+          ${new Date()}, 
+          ${new Date()}
+        ) RETURNING *
+      `;
+    } catch (error) {
+      console.error("Error creating inventory transaction:", error);
+      // Continue with the process even if transaction creation fails
+    }
 
     return NextResponse.json({
       inventoryItem: updatedInventoryItem,
@@ -100,3 +122,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+
+

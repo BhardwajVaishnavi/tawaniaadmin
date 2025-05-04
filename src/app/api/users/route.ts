@@ -42,9 +42,10 @@ export async function GET(req: NextRequest) {
       filters.role = role;
     }
 
-    if (status) {
-      filters.isActive = status === "active";
-    }
+    // Remove isActive filter
+    // if (status) {
+    //   filters.isActive = status === "active";
+    // }
 
     // Check if the User model exists in Prisma
     if (!('user' in prisma)) {
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
         try {
           // @ts-ignore - Dynamically access the model
           const users = await prisma.user.findMany({
-            where: { isActive: true },
+            where: {}, // Remove isActive filter
             select: {
               id: true,
               name: true,
@@ -95,10 +96,9 @@ export async function GET(req: NextRequest) {
               name: true,
               email: true,
               role: true,
-              isActive: true,
+              // Remove isActive
               createdAt: true,
               updatedAt: true,
-              lastLogin: true,
             },
             orderBy: { name: 'asc' },
             skip: (page - 1) * pageSize,
@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
 
     // Parse request body
     const body = await req.json();
-    const { name, email, password, role, isActive } = body;
+    const { name, email, password, role } = body;
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -207,14 +207,14 @@ export async function POST(req: NextRequest) {
         email,
         password: hashedPassword,
         role: role || "STAFF",
-        isActive: isActive !== undefined ? isActive : true,
+        // Remove isActive
       },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
-        isActive: true,
+        // Remove isActive
         createdAt: true,
         updatedAt: true,
       },
@@ -232,3 +232,8 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+
+
+
+

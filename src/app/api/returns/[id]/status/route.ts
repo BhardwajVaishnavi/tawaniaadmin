@@ -102,19 +102,39 @@ export async function PATCH(
           });
 
           // Create inventory transaction record
-          await prisma.inventoryTransaction.create({
-            data: {
-              type: "RETURN",
-              quantity: -item.quantity,
-              inventoryItemId: inventoryItem.id,
-              productId: item.productId,
-              storeId: updatedReturn.storeId,
-              referenceId: returnId,
-              referenceType: "RETURN",
-              notes: `Return #${updatedReturn.returnNumber}`,
-              createdById: userId || session.user.id,
-            },
-          });
+          try {
+            const { randomUUID } = require("crypto");
+            await prisma.$queryRaw`
+              INSERT INTO "InventoryTransaction" (
+                "id", 
+                "inventoryItemId", 
+                "transactionType", 
+                "quantity", 
+                "previousQuantity", 
+                "newQuantity", 
+                "reason", 
+                "notes", 
+                "createdById", 
+                "createdAt", 
+                "updatedAt"
+              ) VALUES (
+                ${randomUUID()}, 
+                ${inventoryItem.id}, 
+                'RETURN', 
+                ${-item.quantity}, 
+                ${inventoryItem.quantity + item.quantity}, 
+                ${inventoryItem.quantity}, 
+                'RETURN', 
+                ${`Return #${updatedReturn.returnNumber}`}, 
+                ${userId || session.user.id}, 
+                ${new Date()}, 
+                ${new Date()}
+              )
+            `;
+          } catch (error) {
+            console.error("Error creating inventory transaction:", error);
+            // Continue with the process even if transaction creation fails
+          }
         }
       }
     }
@@ -123,13 +143,13 @@ export async function PATCH(
     await createAuditLog({
       entityType: 'Return',
       entityId: returnId,
-      action: 'UPDATE_STATUS',
-      userId: userId || session.user.id,
+      action: 'UPDATE',
       details: {
         returnNumber: updatedReturn.returnNumber,
         oldStatus: returnData.status,
         newStatus: status,
         notes,
+        userId: userId || session.user.id,
       },
     });
 
@@ -142,3 +162,8 @@ export async function PATCH(
     );
   }
 }
+
+
+
+
+

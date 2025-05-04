@@ -20,7 +20,7 @@ export async function GET(
     const { id: customerId, addressId } = params;
 
     // Get address
-    const address = await prisma.customerAddress.findUnique({
+    const address = await prisma.address.findUnique({
       where: {
         id: addressId,
       },
@@ -88,7 +88,7 @@ export async function PUT(
     }
 
     // Check if address exists
-    const existingAddress = await prisma.customerAddress.findUnique({
+    const existingAddress = await prisma.address.findUnique({
       where: {
         id: addressId,
       },
@@ -113,10 +113,10 @@ export async function PUT(
     const result = await prisma.$transaction(async (tx) => {
       // If this address is set as default, unset any existing default addresses of the same type
       if (isDefault && !existingAddress.isDefault) {
-        await tx.customerAddress.updateMany({
+        await tx.address.updateMany({
           where: {
             customerId,
-            addressType: addressType || existingAddress.addressType,
+            type: addressType || existingAddress.type,
             isDefault: true,
           },
           data: {
@@ -126,20 +126,18 @@ export async function PUT(
       }
 
       // Update address
-      const updatedAddress = await tx.customerAddress.update({
+      const updatedAddress = await tx.address.update({
         where: {
           id: addressId,
         },
         data: {
-          addressType: addressType || undefined,
+          type: addressType || undefined,
           isDefault: isDefault !== undefined ? isDefault : undefined,
-          addressLine1,
-          addressLine2,
+          street: addressLine1,
           city,
           state,
           postalCode,
           country,
-          phone,
         },
       });
 
@@ -173,7 +171,7 @@ export async function DELETE(
     const { id: customerId, addressId } = params;
 
     // Check if address exists
-    const existingAddress = await prisma.customerAddress.findUnique({
+    const existingAddress = await prisma.address.findUnique({
       where: {
         id: addressId,
       },
@@ -195,7 +193,7 @@ export async function DELETE(
     }
 
     // Delete address
-    await prisma.customerAddress.delete({
+    await prisma.address.delete({
       where: {
         id: addressId,
       },
@@ -212,3 +210,5 @@ export async function DELETE(
     );
   }
 }
+
+

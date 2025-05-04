@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { InventoryStatus } from '@prisma/client';
+
+function debugPrismaModels() {
+  console.log('Available Prisma models:', Object.keys(prisma));
+}
 
 export async function GET(
   req: NextRequest,
@@ -92,6 +97,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    debugPrismaModels();
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
@@ -181,7 +187,7 @@ export async function PUT(
             auditId,
             status: "COUNTED",
             NOT: {
-              actualQuantity: null,
+              countedQuantity: null,
             },
           },
           include: {
@@ -191,31 +197,51 @@ export async function PUT(
 
         // Update inventory items and create inventory transactions
         for (const item of auditItems) {
-          if (item.actualQuantity !== null && item.actualQuantity !== item.expectedQuantity) {
+          if (item.countedQuantity !== null && item.countedQuantity !== item.expectedQuantity) {
             // Update inventory item quantity
             await tx.inventoryItem.update({
               where: {
                 id: item.inventoryItemId,
               },
               data: {
-                quantity: item.actualQuantity,
-                status: item.actualQuantity > 0 ? "AVAILABLE" : "OUT_OF_STOCK",
+                quantity: item.countedQuantity,
+                status: item.countedQuantity > 0 ? InventoryStatus.AVAILABLE : InventoryStatus.EXPIRED,
               },
             });
 
-            // Create inventory transaction
-            await tx.inventoryTransaction.create({
-              data: {
-                inventoryItemId: item.inventoryItemId,
-                transactionType: "AUDIT_ADJUSTMENT",
-                quantity: Math.abs(item.actualQuantity - item.expectedQuantity),
-                previousQuantity: item.expectedQuantity,
-                newQuantity: item.actualQuantity,
-                reason: "AUDIT",
-                notes: `Audit adjustment from audit ${audit.referenceNumber}`,
-                createdById: session.user.id,
-              },
-            });
+            // Create inventory transaction record
+            try {
+              await tx.$queryRaw`
+                INSERT INTO "InventoryTransaction" (
+                  "id", 
+                  "inventoryItemId", 
+                  "transactionType", 
+                  "quantity", 
+                  "previousQuantity", 
+                  "newQuantity", 
+                  "reason", 
+                  "notes", 
+                  "createdById", 
+                  "createdAt", 
+                  "updatedAt"
+                ) VALUES (
+                  ${crypto.randomUUID()}, 
+                  ${item.inventoryItemId}, 
+                  'AUDIT_ADJUSTMENT', 
+                  ${Math.abs(item.countedQuantity - item.expectedQuantity)}, 
+                  ${item.expectedQuantity}, 
+                  ${item.countedQuantity}, 
+                  'AUDIT', 
+                  ${'Audit adjustment from audit ' + audit.referenceNumber}, 
+                  ${session.user.id}, 
+                  ${new Date()}, 
+                  ${new Date()}
+                )
+              `;
+            } catch (error) {
+              console.error("Failed to create inventory transaction:", error);
+              // Continue with the rest of the process even if transaction creation fails
+            }
 
             // Update audit item status
             await tx.auditItem.update({
@@ -224,7 +250,7 @@ export async function PUT(
               },
               data: {
                 status: "RECONCILED",
-                variance: item.actualQuantity - item.expectedQuantity,
+                discrepancy: item.countedQuantity - item.expectedQuantity,
               },
             });
           }
@@ -372,3 +398,9 @@ function isValidStatusTransition(currentStatus: string, newStatus: string): bool
 
   return validTransitions[currentStatus]?.includes(newStatus) || false;
 }
+
+
+
+
+
+

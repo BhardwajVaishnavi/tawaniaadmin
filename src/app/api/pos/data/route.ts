@@ -50,7 +50,6 @@ export async function GET(req: NextRequest) {
           storeId: true,
           quantity: true,
           retailPrice: true,
-          wholesalePrice: true,
           costPrice: true,
         },
       }),
@@ -61,7 +60,6 @@ export async function GET(req: NextRequest) {
           name: true,
           email: true,
           phone: true,
-          type: true,
         },
         orderBy: { name: 'asc' },
       }),
@@ -81,3 +79,5 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+

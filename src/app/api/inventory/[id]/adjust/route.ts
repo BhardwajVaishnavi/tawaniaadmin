@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
 
 export async function POST(
   req: NextRequest,
@@ -92,17 +93,40 @@ export async function POST(
         },
       });
       
-      // Create an inventory transaction record
-      const transaction = await tx.inventoryTransaction.create({
-        data: {
-          inventoryItemId: inventoryId,
-          productId: inventoryItem.productId,
-          transactionType,
-          quantity: transactionQuantity,
-          notes: `${reasonId}: ${notes || "No notes provided"}`,
-          userId: session.user.id,
-        },
-      });
+      // Create inventory transaction record
+      let transaction;
+      try {
+        transaction = await tx.$queryRaw`
+          INSERT INTO "InventoryTransaction" (
+            "id", 
+            "inventoryItemId", 
+            "transactionType", 
+            "quantity", 
+            "previousQuantity", 
+            "newQuantity", 
+            "reason", 
+            "notes", 
+            "createdById", 
+            "createdAt", 
+            "updatedAt"
+          ) VALUES (
+            ${randomUUID()}, 
+            ${inventoryId}, 
+            ${transactionType}, 
+            ${transactionQuantity}, 
+            ${inventoryItem.quantity}, 
+            ${newQuantity}, 
+            ${reasonId}, 
+            ${notes || "No notes provided"}, 
+            ${session.user.id}, 
+            ${new Date()}, 
+            ${new Date()}
+          ) RETURNING *
+        `;
+      } catch (error) {
+        console.error("Error creating inventory transaction:", error);
+        throw new Error("Failed to create inventory transaction");
+      }
       
       return { updatedItem, transaction };
     });
@@ -120,3 +144,7 @@ export async function POST(
     );
   }
 }
+
+
+
+

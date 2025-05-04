@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
 
 interface ReceivedItem {
   transferItemId: string;
@@ -45,6 +46,9 @@ export async function POST(
       where: { id: transferId },
       include: {
         items: true,
+        fromWarehouse: true,
+        toWarehouse: true,
+        toStore: true,
       },
     });
     
@@ -70,9 +74,9 @@ export async function POST(
         where: { id: transferId },
         data: {
           status: "COMPLETED",
-          receivedAt: new Date(),
-          receivedByUserId: session.user.id,
-          receivingNotes: notes || null,
+          completedDate: new Date(),
+          completedById: session.user.id,
+          notes: notes || transfer.notes,
         },
       });
       
@@ -88,8 +92,7 @@ export async function POST(
         await tx.transferItem.update({
           where: { id: receivedItem.transferItemId },
           data: {
-            receivedQuantity: receivedItem.receivedQuantity,
-            receivingNotes: receivedItem.notes || null,
+            notes: receivedItem.notes || transferItem.notes,
           },
         });
         
@@ -99,12 +102,12 @@ export async function POST(
         }
         
         // Handle based on transfer type
-        if (transfer.transferType === "WAREHOUSE_TO_WAREHOUSE" && transfer.destinationWarehouseId) {
+        if (transfer.transferType === "RELOCATION" && transfer.toWarehouseId) {
           // Check if inventory item already exists at destination
           let destinationInventoryItem = await tx.inventoryItem.findFirst({
             where: {
               productId: receivedItem.productId,
-              warehouseId: transfer.destinationWarehouseId,
+              warehouseId: transfer.toWarehouseId,
               binId: receivedItem.binId || null,
             },
           });
@@ -117,55 +120,77 @@ export async function POST(
                 quantity: {
                   increment: receivedItem.receivedQuantity,
                 },
-                costPrice: transferItem.costPrice || undefined,
-                retailPrice: transferItem.retailPrice || undefined,
               },
             });
             
-            // Create inventory transaction (TRANSFER_IN)
-            await tx.inventoryTransaction.create({
-              data: {
-                inventoryItemId: destinationInventoryItem.id,
-                productId: receivedItem.productId,
-                transactionType: "TRANSFER_IN",
-                quantity: receivedItem.receivedQuantity,
-                notes: `Transfer in: ${transfer.referenceNumber}`,
-                userId: session.user.id,
-              },
-            });
+            // Create inventory transaction record
+            await tx.$executeRaw`
+              INSERT INTO "InventoryTransaction" (
+                "id",
+                "inventoryItemId",
+                "productId",
+                "transactionType",
+                "quantity",
+                "notes",
+                "createdById",
+                "createdAt",
+                "updatedAt"
+              ) VALUES (
+                ${randomUUID()},
+                ${destinationInventoryItem.id},
+                ${receivedItem.productId},
+                'TRANSFER_IN',
+                ${receivedItem.receivedQuantity},
+                ${`Transfer in: ${transfer.transferNumber}`},
+                ${session.user.id},
+                ${new Date()},
+                ${new Date()}
+              )
+            `;
           } else {
             // Create new inventory item at destination
             const newInventoryItem = await tx.inventoryItem.create({
               data: {
                 productId: receivedItem.productId,
-                warehouseId: transfer.destinationWarehouseId,
+                warehouseId: transfer.toWarehouseId,
                 binId: receivedItem.binId || null,
                 quantity: receivedItem.receivedQuantity,
                 reservedQuantity: 0,
-                costPrice: transferItem.costPrice || undefined,
-                retailPrice: transferItem.retailPrice || undefined,
                 status: "AVAILABLE",
               },
             });
             
-            // Create inventory transaction (TRANSFER_IN)
-            await tx.inventoryTransaction.create({
-              data: {
-                inventoryItemId: newInventoryItem.id,
-                productId: receivedItem.productId,
-                transactionType: "TRANSFER_IN",
-                quantity: receivedItem.receivedQuantity,
-                notes: `Transfer in: ${transfer.referenceNumber}`,
-                userId: session.user.id,
-              },
-            });
+            // Create inventory transaction record
+            await tx.$executeRaw`
+              INSERT INTO "InventoryTransaction" (
+                "id",
+                "inventoryItemId",
+                "productId",
+                "transactionType",
+                "quantity",
+                "notes",
+                "createdById",
+                "createdAt",
+                "updatedAt"
+              ) VALUES (
+                ${randomUUID()},
+                ${newInventoryItem.id},
+                ${receivedItem.productId},
+                'TRANSFER_IN',
+                ${receivedItem.receivedQuantity},
+                ${`Transfer in: ${transfer.transferNumber}`},
+                ${session.user.id},
+                ${new Date()},
+                ${new Date()}
+              )
+            `;
           }
-        } else if (transfer.transferType === "WAREHOUSE_TO_STORE" && transfer.destinationStoreId) {
+        } else if (transfer.transferType === "RESTOCK" && transfer.toStoreId) {
           // Check if inventory item already exists at destination store
           let destinationInventoryItem = await tx.inventoryItem.findFirst({
             where: {
               productId: receivedItem.productId,
-              storeId: transfer.destinationStoreId,
+              storeId: transfer.toStoreId,
             },
           });
           
@@ -177,47 +202,69 @@ export async function POST(
                 quantity: {
                   increment: receivedItem.receivedQuantity,
                 },
-                costPrice: transferItem.costPrice || undefined,
-                retailPrice: transferItem.retailPrice || undefined,
               },
             });
             
-            // Create inventory transaction (TRANSFER_IN)
-            await tx.inventoryTransaction.create({
-              data: {
-                inventoryItemId: destinationInventoryItem.id,
-                productId: receivedItem.productId,
-                transactionType: "TRANSFER_IN",
-                quantity: receivedItem.receivedQuantity,
-                notes: `Transfer in: ${transfer.referenceNumber}`,
-                userId: session.user.id,
-              },
-            });
+            // Create inventory transaction record
+            await tx.$executeRaw`
+              INSERT INTO "InventoryTransaction" (
+                "id",
+                "inventoryItemId",
+                "productId",
+                "transactionType",
+                "quantity",
+                "notes",
+                "createdById",
+                "createdAt",
+                "updatedAt"
+              ) VALUES (
+                ${randomUUID()},
+                ${destinationInventoryItem.id},
+                ${receivedItem.productId},
+                'TRANSFER_IN',
+                ${receivedItem.receivedQuantity},
+                ${`Transfer in: ${transfer.transferNumber}`},
+                ${session.user.id},
+                ${new Date()},
+                ${new Date()}
+              )
+            `;
           } else {
             // Create new inventory item at destination store
             const newInventoryItem = await tx.inventoryItem.create({
               data: {
                 productId: receivedItem.productId,
-                storeId: transfer.destinationStoreId,
+                storeId: transfer.toStoreId,
                 quantity: receivedItem.receivedQuantity,
                 reservedQuantity: 0,
-                costPrice: transferItem.costPrice || undefined,
-                retailPrice: transferItem.retailPrice || undefined,
                 status: "AVAILABLE",
               },
             });
             
-            // Create inventory transaction (TRANSFER_IN)
-            await tx.inventoryTransaction.create({
-              data: {
-                inventoryItemId: newInventoryItem.id,
-                productId: receivedItem.productId,
-                transactionType: "TRANSFER_IN",
-                quantity: receivedItem.receivedQuantity,
-                notes: `Transfer in: ${transfer.referenceNumber}`,
-                userId: session.user.id,
-              },
-            });
+            // Create inventory transaction record
+            await tx.$executeRaw`
+              INSERT INTO "InventoryTransaction" (
+                "id",
+                "inventoryItemId",
+                "productId",
+                "transactionType",
+                "quantity",
+                "notes",
+                "createdById",
+                "createdAt",
+                "updatedAt"
+              ) VALUES (
+                ${randomUUID()},
+                ${newInventoryItem.id},
+                ${receivedItem.productId},
+                'TRANSFER_IN',
+                ${receivedItem.receivedQuantity},
+                ${`Transfer in: ${transfer.transferNumber}`},
+                ${session.user.id},
+                ${new Date()},
+                ${new Date()}
+              )
+            `;
           }
         }
       }
@@ -237,3 +284,5 @@ export async function POST(
     );
   }
 }
+
+

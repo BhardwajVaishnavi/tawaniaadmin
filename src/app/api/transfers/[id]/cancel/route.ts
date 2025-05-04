@@ -53,9 +53,9 @@ export async function POST(
       where: { id: transferId },
       data: {
         status: "CANCELLED",
-        cancellationReason,
-        cancelledAt: new Date(),
-        cancelledById: session.user.id,
+        notes: cancellationReason,
+        completedDate: new Date(),
+        completedById: session.user.id,
       },
     });
 
@@ -63,14 +63,14 @@ export async function POST(
     await createAuditLog({
       entityType: "Transfer",
       entityId: transferId,
-      action: "CANCEL",
-      userId: session.user.id,
+      action: "UPDATE",
       details: {
         transferNumber: transfer.transferNumber,
         fromWarehouseId: transfer.fromWarehouseId,
         toWarehouseId: transfer.toWarehouseId,
         toStoreId: transfer.toStoreId,
         cancellationReason,
+        status: "CANCELLED"
       },
     });
 
@@ -83,3 +83,7 @@ export async function POST(
     );
   }
 }
+
+
+
+

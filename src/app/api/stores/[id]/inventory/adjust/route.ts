@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
+import { InventoryStatus } from "@prisma/client";
 
 export async function POST(
   req: NextRequest,
@@ -78,38 +80,54 @@ export async function POST(
       );
     }
     
-    // Update inventory item
+    // Update inventory item with proper enum values
     const updatedInventoryItem = await prisma.inventoryItem.update({
       where: {
         id: inventoryItem.id,
       },
       data: {
         quantity: newQuantity,
-        status: newQuantity > 0 ? "AVAILABLE" : "OUT_OF_STOCK",
+        status: newQuantity > 0 ? InventoryStatus.AVAILABLE : InventoryStatus.EXPIRED,
       },
     });
     
-    // Create inventory transaction record if the model exists
+    // Create inventory transaction record using raw SQL query
     try {
-      const inventoryTransaction = await prisma.inventoryTransaction.create({
-        data: {
-          inventoryItemId: inventoryItem.id,
-          transactionType: adjustmentType.toUpperCase(),
-          quantity,
-          previousQuantity: inventoryItem.quantity,
-          newQuantity,
-          reason: reason.toUpperCase(),
-          notes,
-          createdById: session.user.id,
-        },
-      });
+      const inventoryTransaction = await prisma.$queryRaw`
+        INSERT INTO "InventoryTransaction" (
+          "id", 
+          "inventoryItemId", 
+          "transactionType", 
+          "quantity", 
+          "previousQuantity", 
+          "newQuantity", 
+          "reason", 
+          "notes", 
+          "createdById", 
+          "createdAt", 
+          "updatedAt"
+        ) VALUES (
+          ${randomUUID()}, 
+          ${inventoryItem.id}, 
+          ${adjustmentType.toUpperCase()}, 
+          ${quantity}, 
+          ${inventoryItem.quantity}, 
+          ${newQuantity}, 
+          ${reason.toUpperCase()}, 
+          ${notes || null}, 
+          ${session.user.id}, 
+          ${new Date()}, 
+          ${new Date()}
+        ) RETURNING *
+      `;
       
       return NextResponse.json({
         inventoryItem: updatedInventoryItem,
         transaction: inventoryTransaction,
       });
     } catch (error) {
-      // If InventoryTransaction model doesn't exist, just return the updated item
+      // If InventoryTransaction model doesn't exist or query fails, just return the updated item
+      console.error("Error creating inventory transaction:", error);
       return NextResponse.json({
         inventoryItem: updatedInventoryItem,
       });
@@ -122,3 +140,5 @@ export async function POST(
     );
   }
 }
+
+

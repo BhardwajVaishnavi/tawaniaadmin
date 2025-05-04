@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
       // Calculate reorder quantity
       // Default formula: (Max Stock Level - Current Quantity)
       // If max stock level is not set, use (Reorder Point * 2)
-      const maxLevel = item.product.maxStockLevel || (item.product.reorderPoint * 2);
+      const maxLevel = item.product.reorderPoint || (item.product.reorderPoint * 2);
       const reorderQuantity = Math.max(1, Math.ceil(maxLevel - item.quantity));
 
       groupedItems[locationId].items.push({

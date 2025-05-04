@@ -20,7 +20,7 @@ export async function GET(
     const { id: customerId, addressId } = params;
 
     // Check if address exists
-    const existingAddress = await prisma.customerAddress.findUnique({
+    const existingAddress = await prisma.address.findUnique({
       where: {
         id: addressId,
       },
@@ -44,10 +44,10 @@ export async function GET(
     // Start a transaction
     await prisma.$transaction([
       // Unset any existing default addresses of the same type
-      prisma.customerAddress.updateMany({
+      prisma.address.updateMany({
         where: {
           customerId,
-          addressType: existingAddress.addressType,
+          type: existingAddress.type,
           isDefault: true,
         },
         data: {
@@ -56,7 +56,7 @@ export async function GET(
       }),
       
       // Set this address as default
-      prisma.customerAddress.update({
+      prisma.address.update({
         where: {
           id: addressId,
         },
@@ -94,7 +94,7 @@ export async function POST(
     const { id: customerId, addressId } = params;
 
     // Check if address exists
-    const existingAddress = await prisma.customerAddress.findUnique({
+    const existingAddress = await prisma.address.findUnique({
       where: {
         id: addressId,
       },
@@ -118,10 +118,10 @@ export async function POST(
     // Start a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Unset any existing default addresses of the same type
-      await tx.customerAddress.updateMany({
+      await tx.address.updateMany({
         where: {
           customerId,
-          addressType: existingAddress.addressType,
+          type: existingAddress.type,
           isDefault: true,
         },
         data: {
@@ -130,7 +130,7 @@ export async function POST(
       });
       
       // Set this address as default
-      const updatedAddress = await tx.customerAddress.update({
+      const updatedAddress = await tx.address.update({
         where: {
           id: addressId,
         },
@@ -154,3 +154,6 @@ export async function POST(
     );
   }
 }
+
+
+

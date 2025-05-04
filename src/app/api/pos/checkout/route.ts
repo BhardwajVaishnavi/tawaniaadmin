@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/lib/audit";
+import { randomUUID } from "crypto";
 
 interface CheckoutItem {
   productId: string;
@@ -146,23 +147,38 @@ export async function POST(req: NextRequest) {
             quantity: {
               decrement: quantity,
             },
-            status: inventoryItem.quantity - quantity > 0 ? "AVAILABLE" : "OUT_OF_STOCK",
+            status: inventoryItem.quantity - quantity > 0 ? "AVAILABLE" : "EXPIRED",
           },
         });
         
         // Create inventory transaction
-        await tx.inventoryTransaction.create({
-          data: {
-            inventoryItemId,
-            transactionType: "REMOVE",
-            quantity,
-            previousQuantity: inventoryItem.quantity,
-            newQuantity: inventoryItem.quantity - quantity,
-            reason: "SALE",
-            notes: `Sale #${receiptNumber}`,
-            createdById: session.user.id,
-          },
-        });
+        await tx.$queryRaw`
+          INSERT INTO "InventoryTransaction" (
+            "id", 
+            "inventoryItemId", 
+            "transactionType", 
+            "quantity", 
+            "previousQuantity", 
+            "newQuantity", 
+            "reason", 
+            "notes", 
+            "createdById", 
+            "createdAt", 
+            "updatedAt"
+          ) VALUES (
+            ${randomUUID()}, 
+            ${inventoryItemId}, 
+            'REMOVE', 
+            ${quantity}, 
+            ${inventoryItem.quantity}, 
+            ${inventoryItem.quantity - quantity}, 
+            'SALE', 
+            ${`Sale #${receiptNumber}`}, 
+            ${session.user.id}, 
+            ${new Date()}, 
+            ${new Date()}
+          ) RETURNING *
+        `;
       }
       
       // Create payment record if amount paid > 0
@@ -253,7 +269,6 @@ export async function POST(req: NextRequest) {
       entityType: 'Sale',
       entityId: result.id,
       action: 'SALE',
-      userId: session.user.id,
       details: {
         receiptNumber: result.receiptNumber,
         storeId,
@@ -276,3 +291,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+

@@ -193,17 +193,18 @@ export async function DELETE(
             id: true,
           },
         },
-        outgoingTransfers: {
+        // Use the correct relation names from your schema
+        transfersTo: {
           select: {
             id: true,
           },
         },
-        incomingTransfers: {
+        transfersFrom: {
           select: {
             id: true,
           },
         },
-        audits: {
+        qualityControls: {
           select: {
             id: true,
           },
@@ -218,15 +219,18 @@ export async function DELETE(
       );
     }
 
+    // Use type assertion to access the included relations
+    const warehouse = existingWarehouse as any;
+
     // Check if warehouse has related records
     const hasRelatedRecords = 
-      existingWarehouse.inventoryItems.length > 0 ||
-      existingWarehouse.zones.length > 0 ||
-      existingWarehouse.staff.length > 0 ||
-      existingWarehouse.purchaseOrders.length > 0 ||
-      existingWarehouse.outgoingTransfers.length > 0 ||
-      existingWarehouse.incomingTransfers.length > 0 ||
-      existingWarehouse.audits.length > 0;
+      warehouse.inventoryItems.length > 0 ||
+      warehouse.zones.length > 0 ||
+      warehouse.staff.length > 0 ||
+      warehouse.purchaseOrders.length > 0 ||
+      warehouse.transfersTo.length > 0 ||
+      warehouse.transfersFrom.length > 0 ||
+      warehouse.qualityControls.length > 0;
 
     if (hasRelatedRecords) {
       // Instead of deleting, mark as inactive
@@ -263,3 +267,5 @@ export async function DELETE(
     );
   }
 }
+
+

@@ -217,7 +217,7 @@ export async function POST(
           retailPrice: retailPrice !== undefined ? retailPrice : existingItem.retailPrice,
           batchNumber: batchNumber || existingItem.batchNumber,
           expiryDate: expiryDate ? new Date(expiryDate) : existingItem.expiryDate,
-          status: (existingItem.quantity + quantity) > 0 ? "AVAILABLE" : "OUT_OF_STOCK",
+          status: (existingItem.quantity + quantity) > 0 ? "AVAILABLE" : "EXPIRED", // Use EXPIRED instead of OUT_OF_STOCK
         },
         include: {
           product: true,
@@ -226,22 +226,20 @@ export async function POST(
       });
       
       // Create inventory transaction record
-      try {
-        await prisma.inventoryTransaction.create({
-          data: {
-            inventoryItemId: inventoryItem.id,
-            transactionType: "ADD",
+      await prisma.auditLog.create({
+        data: {
+          entityType: "InventoryItem",
+          entityId: inventoryItem.id,
+          action: "ADJUSTMENT",
+          userId: session.user.id,
+          details: JSON.stringify({
+            type: "MANUAL_ADJUSTMENT",
             quantity,
             previousQuantity: existingItem.quantity,
             newQuantity: inventoryItem.quantity,
-            reason: "STOCK_ADDITION",
-            notes: `Added ${quantity} units to existing inventory`,
-            createdById: session.user.id,
-          },
-        });
-      } catch (error) {
-        console.error("Error creating inventory transaction:", error);
-      }
+          }),
+        },
+      });
     } else {
       // Create new inventory item
       inventoryItem = await prisma.inventoryItem.create({
@@ -254,7 +252,7 @@ export async function POST(
           retailPrice: retailPrice !== undefined ? retailPrice : product.retailPrice,
           batchNumber,
           expiryDate: expiryDate ? new Date(expiryDate) : null,
-          status: quantity > 0 ? "AVAILABLE" : "OUT_OF_STOCK",
+          status: quantity > 0 ? "AVAILABLE" : "EXPIRED", // Use EXPIRED instead of OUT_OF_STOCK
           inventoryMethod: "FIFO", // Default to FIFO
         },
         include: {
@@ -264,22 +262,20 @@ export async function POST(
       });
       
       // Create inventory transaction record
-      try {
-        await prisma.inventoryTransaction.create({
-          data: {
-            inventoryItemId: inventoryItem.id,
-            transactionType: "ADD",
+      await prisma.auditLog.create({
+        data: {
+          entityType: "InventoryItem",
+          entityId: inventoryItem.id,
+          action: "ADJUSTMENT",
+          userId: session.user.id,
+          details: JSON.stringify({
+            type: "MANUAL_ADJUSTMENT",
             quantity,
             previousQuantity: 0,
             newQuantity: quantity,
-            reason: "INITIAL_STOCK",
-            notes: `Initial stock addition of ${quantity} units`,
-            createdById: session.user.id,
-          },
-        });
-      } catch (error) {
-        console.error("Error creating inventory transaction:", error);
-      }
+          }),
+        },
+      });
     }
     
     return NextResponse.json({ inventoryItem });
@@ -291,3 +287,5 @@ export async function POST(
     );
   }
 }
+
+

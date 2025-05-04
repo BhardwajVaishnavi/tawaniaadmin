@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/lib/audit";
+import { randomUUID } from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
@@ -100,13 +101,13 @@ export async function POST(req: NextRequest) {
     await createAuditLog({
       entityType: 'Payment',
       entityId: result.id,
-      action: 'PAYMENT',
-      userId: session.user.id,
+      action: 'SALE', // Changed from 'PAYMENT' to 'SALE' which is a valid AuditAction
       details: {
         saleId,
         amount,
         paymentMethod,
         referenceNumber: referenceNumber || null,
+        userId: session.user.id,  // Include user ID in details if needed
       },
     });
     
@@ -122,3 +123,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+
+
