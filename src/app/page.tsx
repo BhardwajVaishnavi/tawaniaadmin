@@ -1,0 +1,16 @@
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/auth";
+
+export default async function Home() {
+  const session = await getServerSession(authOptions);
+
+  if (session) {
+    redirect("/dashboard");
+  } else {
+    redirect("/auth/login");
+  }
+
+  // This will never be reached, but is needed for TypeScript
+  return null;
+}
