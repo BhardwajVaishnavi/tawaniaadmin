@@ -23,6 +23,7 @@ interface Product {
   name: string;
   sku: string;
   costPrice: number;
+  supplierId?: string;
   category: {
     id: string;
     name: string;
@@ -155,8 +156,16 @@ export default function EditPurchaseOrderPage({
   // Filter products by supplier
   useEffect(() => {
     if (supplierId) {
-      const filtered = products.filter(product => product.supplierId === supplierId);
-      setFilteredProducts(filtered.length > 0 ? filtered : products);
+      // Check if products have supplierId before filtering
+      const hasSupplierIds = products.some(product => 'supplierId' in product);
+      
+      if (hasSupplierIds) {
+        const filtered = products.filter(product => product.supplierId === supplierId);
+        setFilteredProducts(filtered.length > 0 ? filtered : products);
+      } else {
+        // If products don't have supplierId, don't filter
+        setFilteredProducts(products);
+      }
     } else {
       setFilteredProducts(products);
     }
@@ -576,3 +585,4 @@ export default function EditPurchaseOrderPage({
     </div>
   );
 }
+

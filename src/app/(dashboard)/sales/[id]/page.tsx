@@ -5,6 +5,71 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PaymentStatusBadge } from "../_components/payment-status-badge";
 import { SaleActions } from "../_components/sale-actions";
+import { format } from "date-fns"; // Import format from date-fns
+import { ReactNode } from "react";
+
+// Define a type for the sale data
+interface SaleWithRelations {
+  createdAt: string | number | Date;
+  id: string;
+  receiptNumber: string;
+  storeId: string;
+  store: {
+    code: ReactNode;
+    id: string;
+    name: string;
+  };
+  customerId: string | null;
+  customer: {
+    id: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
+  createdById: string;
+  createdBy: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  saleDate: Date;
+  subtotal: number;
+  tax: number;
+  total: number;
+  subtotalAmount: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  status: string;
+  notes: string | null;
+  items: Array<{
+    id: string;
+    productId: string;
+    product: {
+      id: string;
+      name: string;
+      sku: string;
+      category?: {
+        id: string;
+        name: string;
+      } | null;
+    };
+    quantity: number;
+    unitPrice: number;
+    discount: number;
+    total: number;
+    inventoryItem: any;
+  }>;
+  payments: Array<{
+    id: string;
+    amount: number;
+    paymentMethod: string;
+    referenceNumber?: string | null;
+    createdAt: Date;
+  }>;
+}
 
 export default async function SaleDetailPage({
   params,
@@ -20,7 +85,7 @@ export default async function SaleDetailPage({
     include: {
       store: true,
       customer: true,
-      user: true,
+      createdBy: true, // Changed from user to createdBy to match schema
       items: {
         include: {
           product: {
@@ -37,7 +102,7 @@ export default async function SaleDetailPage({
         },
       },
     },
-  });
+  }) as unknown as SaleWithRelations; // Type assertion
 
   if (!sale) {
     notFound();
@@ -45,13 +110,13 @@ export default async function SaleDetailPage({
 
   // Calculate totals
   const totalItems = sale.items.length;
-  const totalQuantity = sale.items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalQuantity = sale.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
   const subtotal = Number(sale.subtotalAmount);
   const tax = Number(sale.taxAmount);
   const total = Number(sale.totalAmount);
 
   // Calculate payment totals
-  const totalPaid = sale.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const totalPaid = sale.payments.reduce((sum: number, payment: any) => sum + Number(payment.amount), 0);
   const balance = total - totalPaid;
 
   return (
@@ -244,3 +309,4 @@ function formatPaymentMethod(method: string) {
       return method;
   }
 }
+

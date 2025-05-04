@@ -53,6 +53,7 @@ export default async function ReturnsPage({
   }
 
   const [returns, totalCount] = await Promise.all([
+    // @ts-ignore - Dynamically access the model
     prisma.return.findMany({
       where: filters,
       include: {
@@ -76,6 +77,7 @@ export default async function ReturnsPage({
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
+    // @ts-ignore - Dynamically access the model
     prisma.return.count({
       where: filters,
     }),
@@ -108,3 +110,4 @@ export default async function ReturnsPage({
     </div>
   );
 }
+

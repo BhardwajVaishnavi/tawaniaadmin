@@ -165,10 +165,11 @@ export function LoyaltyRuleForm({
 
         <div>
           <Label htmlFor="type">Rule Type</Label>
-          <Select
+          <select
             id="type"
             value={type}
             onChange={(e) => setType(e.target.value)}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             required
           >
             <option value="PURCHASE">Purchase Rule</option>
@@ -177,7 +178,7 @@ export function LoyaltyRuleForm({
             <option value="VISIT">Visit Rule</option>
             <option value="REFERRAL">Referral Rule</option>
             <option value="BIRTHDAY">Birthday Rule</option>
-          </Select>
+          </select>
         </div>
 
         <div>
@@ -202,14 +203,14 @@ export function LoyaltyRuleForm({
         </div>
       </div>
 
-      <Tabs defaultValue={type} value={type} onValueChange={setType} className="w-full">
+      <Tabs defaultValue={type} className="w-full">
         <TabsList className="grid w-full grid-cols-3 md:grid-cols-6">
-          <TabsTrigger value="PURCHASE">Purchase</TabsTrigger>
-          <TabsTrigger value="PRODUCT">Product</TabsTrigger>
-          <TabsTrigger value="CATEGORY">Category</TabsTrigger>
-          <TabsTrigger value="VISIT">Visit</TabsTrigger>
-          <TabsTrigger value="REFERRAL">Referral</TabsTrigger>
-          <TabsTrigger value="BIRTHDAY">Birthday</TabsTrigger>
+          <TabsTrigger value="PURCHASE" onClick={() => setType("PURCHASE")}>Purchase</TabsTrigger>
+          <TabsTrigger value="PRODUCT" onClick={() => setType("PRODUCT")}>Product</TabsTrigger>
+          <TabsTrigger value="CATEGORY" onClick={() => setType("CATEGORY")}>Category</TabsTrigger>
+          <TabsTrigger value="VISIT" onClick={() => setType("VISIT")}>Visit</TabsTrigger>
+          <TabsTrigger value="REFERRAL" onClick={() => setType("REFERRAL")}>Referral</TabsTrigger>
+          <TabsTrigger value="BIRTHDAY" onClick={() => setType("BIRTHDAY")}>Birthday</TabsTrigger>
         </TabsList>
 
         <TabsContent value="PURCHASE" className="space-y-4 pt-4">

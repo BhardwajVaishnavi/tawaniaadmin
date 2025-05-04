@@ -7,6 +7,19 @@ import { ProductPerformanceFilters } from "./_components/product-performance-fil
 import { ProductSalesChart } from "./_components/product-sales-chart";
 import { ProductProfitChart } from "./_components/product-profit-chart";
 
+// Define the Product interface to match what ProductPerformanceFilters expects
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  category: Category;
+}
+
 export default async function ProductPerformancePage({
   searchParams,
 }: {
@@ -27,7 +40,7 @@ export default async function ProductPerformancePage({
   endDateTime.setHours(23, 59, 59, 999); // Set to end of day
   
   // Get categories and products for filters
-  const [categories, products] = await Promise.all([
+  const [categoriesData, productsData] = await Promise.all([
     prisma.category.findMany({
       orderBy: { name: 'asc' },
     }),
@@ -42,6 +55,22 @@ export default async function ProductPerformancePage({
       orderBy: { name: 'asc' },
     }),
   ]);
+  
+  // Transform the data to match the expected interfaces
+  const categories: Category[] = categoriesData.map(category => ({
+    id: category.id,
+    name: category.name
+  }));
+  
+  const products: Product[] = productsData.map(product => ({
+    id: product.id,
+    name: product.name,
+    sku: product.sku,
+    category: product.category ? {
+      id: product.category.id,
+      name: product.category.name
+    } : { id: '', name: 'Uncategorized' }
+  }));
   
   // Get sales data for the period
   const sales = await prisma.sale.findMany({

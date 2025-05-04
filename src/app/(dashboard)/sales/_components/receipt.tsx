@@ -7,7 +7,7 @@ interface Product {
   id: string;
   name: string;
   sku: string;
-  unit: string;
+  unit?: string;
 }
 
 interface SaleItem {
@@ -22,46 +22,49 @@ interface SaleItem {
 interface Store {
   id: string;
   name: string;
-  address: string | null;
-  phone: string | null;
+  address?: string | null;
+  phone?: string | null;
 }
 
 interface Customer {
   id: string;
   name: string;
-  email: string | null;
-  phone: string | null;
+  email?: string | null;
+  phone?: string | null;
 }
 
 interface User {
   id: string;
   name: string | null;
+  email?: string;
 }
 
 interface Payment {
   id: string;
   amount: number;
   paymentMethod: string;
-  referenceNumber: string | null;
+  referenceNumber?: string | null;
   createdAt: Date;
 }
 
+// Updated Sale interface to match the actual structure from the database
 interface Sale {
   id: string;
   receiptNumber: string;
   storeId: string;
   customerId: string | null;
-  userId: string;
-  paymentMethod: string;
-  paymentStatus: string;
+  createdById: string;
+  saleDate: Date;
   subtotalAmount: number;
   taxAmount: number;
+  discountAmount: number;
   totalAmount: number;
+  paymentMethod: string;
+  paymentStatus: string;
   notes: string | null;
-  createdAt: Date;
   store: Store;
   customer: Customer | null;
-  user: User | null;
+  createdBy: User;
   items: SaleItem[];
   payments: Payment[];
 }
@@ -125,9 +128,9 @@ export function Receipt({ sale, companyInfo }: ReceiptProps) {
         <div className="flex justify-between">
           <div>
             <p className="font-bold">Receipt #: {sale.receiptNumber}</p>
-            <p className="text-sm">Date: {formatDate(sale.createdAt)}</p>
+            <p className="text-sm">Date: {formatDate(sale.saleDate)}</p>
             <p className="text-sm">Store: {sale.store.name}</p>
-            <p className="text-sm">Cashier: {sale.user?.name || "Unknown"}</p>
+            <p className="text-sm">Cashier: {sale.createdBy.name || "Unknown"}</p>
           </div>
           <div className="text-right">
             <p className="text-sm">

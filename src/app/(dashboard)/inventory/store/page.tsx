@@ -1,9 +1,35 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getStores } from "@/lib/store";
 import Link from "next/link";
 import { StoreInventoryFilters } from "../_components/store-inventory-filters";
+
+// Define types for inventory items
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  reorderPoint: number | null;
+  minStockLevel: number | null;
+  category: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+interface Store {
+  id: string;
+  name: string;
+}
+
+interface InventoryItem {
+  id: string;
+  quantity: number;
+  costPrice: number;
+  retailPrice: number;
+  product: Product;
+  store: Store | null;
+}
 
 export default async function StoreInventoryPage({
   searchParams,
@@ -21,7 +47,7 @@ export default async function StoreInventoryPage({
   const pageSize = 10;
 
   // Get inventory items with pagination
-  let inventoryItems = [];
+  let inventoryItems: InventoryItem[] = [];
   let totalItems = 0;
   let totalPages = 1;
 
@@ -88,7 +114,7 @@ export default async function StoreInventoryPage({
         ],
         skip: (page - 1) * pageSize,
         take: pageSize,
-      }),
+      }) as unknown as Promise<InventoryItem[]>,
       prisma.inventoryItem.count({
         where: filters,
       }),
@@ -155,7 +181,7 @@ export default async function StoreInventoryPage({
             </thead>
             <tbody className="divide-y divide-gray-200">
               {inventoryItems.length > 0 ? (
-                inventoryItems.map((item) => {
+                inventoryItems.map((item: InventoryItem) => {
                   // Calculate stock status
                   let stockStatus = "Normal";
                   let statusColor = "bg-green-100 text-green-800";
@@ -352,4 +378,3 @@ export default async function StoreInventoryPage({
     </div>
   );
 }
-

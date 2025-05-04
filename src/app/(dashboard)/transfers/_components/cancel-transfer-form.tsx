@@ -34,11 +34,11 @@ interface Transfer {
   status: string;
   transferType: string;
   priority: string;
-  fromWarehouseId: string;
+  fromWarehouseId: string | null;  // Make nullable to match Prisma model
   fromWarehouse: {
     id: string;
     name: string;
-  };
+  } | null;
   toStoreId: string | null;
   toStore: {
     id: string;
@@ -66,9 +66,9 @@ export function CancelTransferForm({ transfer }: CancelTransferFormProps) {
 
   // Get destination name
   const getDestinationName = () => {
-    if (transfer.toStore) {
+    if (transfer.toStore && transfer.toStore.name) {
       return transfer.toStore.name;
-    } else if (transfer.toWarehouse) {
+    } else if (transfer.toWarehouse && transfer.toWarehouse.name) {
       return transfer.toWarehouse.name;
     }
     return "Unknown";
@@ -138,7 +138,7 @@ export function CancelTransferForm({ transfer }: CancelTransferFormProps) {
               </div>
               <div>
                 <Label className="text-sm text-gray-800">From</Label>
-                <p className="font-medium">{transfer.fromWarehouse.name}</p>
+                <p className="font-medium">{transfer.fromWarehouse?.name || "Unknown"}</p>
               </div>
               <div>
                 <Label className="text-sm text-gray-800">To</Label>
@@ -255,7 +255,7 @@ export function CancelTransferForm({ transfer }: CancelTransferFormProps) {
 
         <Button
           type="submit"
-          variant="destructive"
+          variant="danger"
           disabled={isSubmitting || !cancellationReason.trim()}
         >
           {isSubmitting ? (

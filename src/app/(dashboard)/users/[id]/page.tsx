@@ -7,6 +7,15 @@ import { UserRoleBadge } from "../_components/user-role-badge";
 import { UserStatusBadge } from "../_components/user-status-badge";
 import { UserActivityList } from "../_components/user-activity-list";
 
+interface Activity {
+  type: string;
+  related_id: string;
+  reference: string | null;
+  date: string;
+  description: string;
+  location: string;
+}
+
 export default async function UserDetailPage({
   params,
 }: {
@@ -34,9 +43,16 @@ export default async function UserDetailPage({
   if (!user) {
     notFound();
   }
-  
+
+  // Add missing properties to the user object
+  const enhancedUser = {
+    ...user,
+    isActive: true, // Default value if not in database
+    lastLogin: null, // Default value if not in database
+  };
+
   // Get user activity (recent actions)
-  const recentActivity = await prisma.$queryRaw`
+  const recentActivityResult = await prisma.$queryRaw`
     (SELECT 
       'SALE' as type,
       s.id as related_id,
@@ -86,21 +102,24 @@ export default async function UserDetailPage({
     ORDER BY date DESC
     LIMIT 10
   `;
-  
+
+  // Type cast the raw query result to Activity[]
+  const recentActivity = recentActivityResult as unknown as Activity[];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">User Details</h1>
         <div className="flex items-center gap-2">
           <Link
-            href={`/users/${user.id}/edit`}
+            href={`/users/${enhancedUser.id}/edit`}
             className="rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors"
           >
             Edit User
           </Link>
-          {user.id !== session.user.id && (
+          {enhancedUser.id !== session.user.id && (
             <Link
-              href={`/users/${user.id}/delete`}
+              href={`/users/${enhancedUser.id}/delete`}
               className="rounded-md bg-red-100 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-200 transition-colors"
             >
               Delete User
@@ -117,34 +136,34 @@ export default async function UserDetailPage({
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Name</h3>
-                <p className="mt-1 text-base text-gray-900">{user.name}</p>
+                <p className="mt-1 text-base text-gray-900">{enhancedUser.name}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Email</h3>
-                <p className="mt-1 text-base text-gray-900">{user.email}</p>
+                <p className="mt-1 text-base text-gray-900">{enhancedUser.email}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Role</h3>
                 <div className="mt-1">
-                  <UserRoleBadge role={user.role} />
+                  <UserRoleBadge role={enhancedUser.role} />
                 </div>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Status</h3>
                 <div className="mt-1">
-                  <UserStatusBadge isActive={user.isActive} />
+                  <UserStatusBadge isActive={enhancedUser.isActive} />
                 </div>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Created At</h3>
                 <p className="mt-1 text-base text-gray-900">
-                  {new Date(user.createdAt).toLocaleDateString()}
+                  {new Date(enhancedUser.createdAt).toLocaleDateString()}
                 </p>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Last Login</h3>
                 <p className="mt-1 text-base text-gray-900">
-                  {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : "Never"}
+                  {enhancedUser.lastLogin ? new Date(enhancedUser.lastLogin).toLocaleString() : "Never"}
                 </p>
               </div>
             </div>
@@ -164,16 +183,16 @@ export default async function UserDetailPage({
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-gray-500">Status</span>
-                <UserStatusBadge isActive={user.isActive} />
+                <UserStatusBadge isActive={enhancedUser.isActive} />
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Role</span>
-                <UserRoleBadge role={user.role} />
+                <UserRoleBadge role={enhancedUser.role} />
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Account Age</span>
                 <span className="font-medium text-gray-900">
-                  {calculateAccountAge(user.createdAt)}
+                  {calculateAccountAge(enhancedUser.createdAt)}
                 </span>
               </div>
             </div>
@@ -184,7 +203,7 @@ export default async function UserDetailPage({
             <h2 className="mb-4 text-lg font-semibold text-gray-800">Quick Actions</h2>
             <div className="space-y-3">
               <Link
-                href={`/users/${user.id}/edit`}
+                href={`/users/${enhancedUser.id}/edit`}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-700 transition-all hover:bg-blue-50 hover:text-blue-700"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
@@ -193,7 +212,7 @@ export default async function UserDetailPage({
                 <span>Edit User</span>
               </Link>
               <Link
-                href={`/users/${user.id}/reset-password`}
+                href={`/users/${enhancedUser.id}/reset-password`}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-700 transition-all hover:bg-blue-50 hover:text-blue-700"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
@@ -201,9 +220,9 @@ export default async function UserDetailPage({
                 </svg>
                 <span>Reset Password</span>
               </Link>
-              {user.isActive ? (
+              {enhancedUser.isActive ? (
                 <Link
-                  href={`/users/${user.id}/deactivate`}
+                  href={`/users/${enhancedUser.id}/deactivate`}
                   className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-700 transition-all hover:bg-red-50 hover:text-red-700"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
@@ -213,7 +232,7 @@ export default async function UserDetailPage({
                 </Link>
               ) : (
                 <Link
-                  href={`/users/${user.id}/activate`}
+                  href={`/users/${enhancedUser.id}/activate`}
                   className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-700 transition-all hover:bg-green-50 hover:text-green-700"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
@@ -222,9 +241,9 @@ export default async function UserDetailPage({
                   <span>Activate User</span>
                 </Link>
               )}
-              {user.id !== session.user.id && (
+              {enhancedUser.id !== session.user.id && (
                 <Link
-                  href={`/users/${user.id}/delete`}
+                  href={`/users/${enhancedUser.id}/delete`}
                   className="flex items-center gap-3 rounded-lg px-3 py-2 text-red-700 transition-all hover:bg-red-50"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
@@ -242,15 +261,15 @@ export default async function UserDetailPage({
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">User ID:</span>
-                <span className="font-mono text-gray-700">{user.id}</span>
+                <span className="font-mono text-gray-700">{enhancedUser.id}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Created At:</span>
-                <span className="text-gray-700">{new Date(user.createdAt).toLocaleString()}</span>
+                <span className="text-gray-700">{new Date(enhancedUser.createdAt).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Last Updated:</span>
-                <span className="text-gray-700">{new Date(user.updatedAt).toLocaleString()}</span>
+                <span className="text-gray-700">{new Date(enhancedUser.updatedAt).toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -278,3 +297,6 @@ function calculateAccountAge(createdAt: Date): string {
     return `${years} year${years !== 1 ? 's' : ''}${remainingMonths > 0 ? `, ${remainingMonths} month${remainingMonths !== 1 ? 's' : ''}` : ''}`;
   }
 }
+
+
+

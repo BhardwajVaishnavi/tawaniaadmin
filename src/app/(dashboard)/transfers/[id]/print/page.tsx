@@ -32,5 +32,15 @@ export default async function PrintTransferPage({
     notFound();
   }
 
-  return <PrintTransferDocument transfer={transfer} />;
+  // Create a compatible transfer object with all required fields
+  const adaptedTransfer = {
+    ...transfer,
+    approvedAt: transfer.approvedDate,
+    shippedAt: transfer.actualDeliveryDate || null, // Use actualDeliveryDate instead of shippedDate
+    receivedAt: transfer.completedDate || null,
+  };
+
+  return <PrintTransferDocument transfer={adaptedTransfer as any} />;
 }
+
+

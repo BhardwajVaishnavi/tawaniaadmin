@@ -4,10 +4,39 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
+interface Transfer {
+  id: string;
+  transferNumber: string;
+  status: string;
+  transferType: string;
+  fromWarehouseId: string | null;
+  fromWarehouse: {
+    id: string;
+    name: string;
+  } | null;
+  fromStoreId: string | null;
+  fromStore: {
+    id: string;
+    name: string;
+  } | null;
+  toWarehouseId: string | null;
+  toWarehouse: {
+    id: string;
+    name: string;
+  } | null;
+  toStoreId: string | null;
+  toStore: {
+    id: string;
+    name: string;
+  } | null;
+  items: any[];
+  createdAt: string | Date;
+}
+
 export default function TransfersPage() {
-  const [transfers, setTransfers] = useState([]);
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // This is a client-side component, so we'll handle the data fetching here

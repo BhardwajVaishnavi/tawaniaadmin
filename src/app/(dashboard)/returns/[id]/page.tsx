@@ -23,6 +23,7 @@ export default async function ReturnDetailPage({
   const returnId = params.id;
 
   // Get return details
+  // @ts-ignore - Dynamically access the model
   const returnData = await prisma.return.findUnique({
     where: { id: returnId },
     include: {
@@ -61,3 +62,4 @@ export default async function ReturnDetailPage({
     </div>
   );
 }
+

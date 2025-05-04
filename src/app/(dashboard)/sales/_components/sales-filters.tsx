@@ -1,8 +1,23 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoyaltyTier } from "@prisma/client";
+
+// Update the Customer interface to match the actual data structure
+interface Customer {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  isActive: boolean;
+  loyaltyPoints: number;
+  loyaltyTier: LoyaltyTier;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 interface Store {
   id: string;
@@ -10,20 +25,13 @@ interface Store {
   code: string;
 }
 
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-}
-
 interface SalesFiltersProps {
-  stores: Store[];
-  customers: Customer[];
   currentStoreId?: string;
   currentCustomerId?: string;
   currentStartDate?: string;
   currentEndDate?: string;
+  stores: Store[];
+  customers: Customer[];
 }
 
 export function SalesFilters({

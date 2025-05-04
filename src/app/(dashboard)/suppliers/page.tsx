@@ -45,11 +45,7 @@ export default async function SuppliersPage({
             id: true,
           },
         },
-        purchaseOrders: {
-          select: {
-            id: true,
-          },
-        },
+        // Removed purchaseOrders include
       },
       orderBy: {
         name: "asc",
@@ -62,12 +58,43 @@ export default async function SuppliersPage({
     }),
   ]);
 
+  // Try to get purchase order counts for each supplier
+  let supplierOrderCounts: Record<string, number> = {};
+  try {
+    // @ts-ignore - Dynamically access the model
+    const purchaseOrderCounts = await Promise.all(
+      suppliers.map(async (supplier) => {
+        try {
+          // @ts-ignore - Dynamically access the model
+          const count = await prisma.purchaseOrder.count({
+            where: { supplierId: supplier.id },
+          });
+          return { supplierId: supplier.id, count };
+        } catch (error) {
+          return { supplierId: supplier.id, count: 0 };
+        }
+      })
+    );
+    
+    // Convert to a lookup object
+    supplierOrderCounts = purchaseOrderCounts.reduce((acc, item) => {
+      acc[item.supplierId] = item.count;
+      return acc;
+    }, {} as Record<string, number>);
+  } catch (error) {
+    console.error("Error fetching purchase order counts:", error);
+  }
+
   // Add product count to each supplier
-  const suppliersWithCounts = suppliers.map(supplier => ({
-    ...supplier,
-    productCount: supplier.products.length,
-    orderCount: supplier.purchaseOrders.length,
-  }));
+  const suppliersWithCounts = suppliers.map(supplier => {
+    // Use type assertion to access properties
+    const supplierWithProducts = supplier as any;
+    return {
+      ...supplier,
+      productCount: supplierWithProducts.products?.length || 0,
+      orderCount: supplierOrderCounts[supplier.id] || 0,
+    };
+  });
 
   const totalPages = Math.ceil(totalItems / pageSize);
 

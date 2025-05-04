@@ -5,6 +5,46 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { AuditStatusBadge } from "./_components/audit-status-badge";
 
+// Define types
+interface Warehouse {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+interface AuditItem {
+  id: string;
+  status: string;
+}
+
+interface AuditAssignment {
+  id: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+}
+
+interface Audit {
+  id: string;
+  referenceNumber: string;
+  startDate: Date;
+  endDate: Date | null;
+  status: string;
+  warehouse: {
+    id: string;
+    name: string;
+  };
+  createdBy: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  assignments: AuditAssignment[];
+  items: AuditItem[];
+}
+
 export default async function AuditsPage({
   searchParams,
 }: {
@@ -37,10 +77,10 @@ export default async function AuditsPage({
     ];
   }
 
-  // Initialize empty arrays and values
-  let audits = [];
+  // Initialize empty arrays and values with proper types
+  let audits: Audit[] = [];
   let totalItems = 0;
-  let warehouses = [];
+  let warehouses: Warehouse[] = [];
 
   // Check if models exist in Prisma schema before querying
   try {
@@ -99,8 +139,8 @@ export default async function AuditsPage({
         }),
       ]);
 
-      audits = results[0];
-      totalItems = results[1];
+      audits = results[0] as Audit[];
+      totalItems = results[1] as number;
     }
   } catch (error) {
     console.error("Error fetching audit data:", error);
@@ -206,7 +246,7 @@ export default async function AuditsPage({
                 audits.map((audit) => {
                   // Calculate progress
                   const totalItems = audit.items.length;
-                  const countedItems = audit.items.filter(item =>
+                  const countedItems = audit.items.filter((item) =>
                     item.status === "COUNTED" ||
                     item.status === "RECONCILED" ||
                     item.status === "DISCREPANCY"
@@ -409,4 +449,3 @@ export default async function AuditsPage({
     </div>
   );
 }
-

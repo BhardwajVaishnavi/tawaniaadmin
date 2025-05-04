@@ -300,7 +300,7 @@ export default async function InventoryReportPage({
                         </Link>
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
-                        {item.product.category.name}
+                        {item.product.category?.name || "Uncategorized"}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
                         {location}
@@ -459,7 +459,7 @@ function getTopValueProducts(inventoryItems: any[]): any[] {
         id: item.id,
         productId: item.productId,
         productName: item.product.name,
-        category: item.product.category.name,
+        category: item.product.category?.name || "Uncategorized",
         location,
         quantity: item.quantity,
         costPrice: item.costPrice,

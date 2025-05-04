@@ -167,7 +167,7 @@ export default async function InventoryPage({
                         {item.product.sku}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
-                        {item.store.name}
+                        {item.store?.name || 'N/A'}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
                         {item.quantity}
@@ -322,4 +322,3 @@ export default async function InventoryPage({
     </div>
   );
 }
-

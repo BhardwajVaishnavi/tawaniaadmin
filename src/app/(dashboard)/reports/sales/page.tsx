@@ -8,6 +8,43 @@ import { SalesReportFilters } from "./_components/sales-report-filters";
 import { SalesByCategoryChart } from "./_components/sales-by-category-chart";
 import { SalesByStoreChart } from "./_components/sales-by-store-chart";
 
+// Define interfaces for better type safety
+interface SaleItem {
+  productId: string;
+  quantity: number;
+  price: number;
+  unitPrice?: number;
+  total?: number;
+  product: {
+    id: string;
+    name: string;
+    categoryId: string | null;
+    category: {
+      id: string;
+      name: string;
+    } | null;
+  };
+}
+
+interface Sale {
+  id: string;
+  receiptNumber: string;
+  createdAt: Date;
+  storeId: string;
+  store: {
+    id: string;
+    name: string;
+  };
+  customer: {
+    id: string;
+    name: string;
+  } | null;
+  items: SaleItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+}
+
 export default async function SalesReportPage({
   searchParams,
 }: {
@@ -41,7 +78,7 @@ export default async function SalesReportPage({
   }
   
   // Get sales data
-  const sales = await prisma.sale.findMany({
+  const salesData = await prisma.sale.findMany({
     where: filters,
     include: {
       store: true,
@@ -60,9 +97,54 @@ export default async function SalesReportPage({
       createdAt: "desc",
     },
   });
-  
+
+  // Transform the data to match our interface
+  const sales: Sale[] = salesData.map(sale => {
+    // Transform each sale item
+    const items: SaleItem[] = sale.items.map(item => {
+      // Access the raw item data to get price and total
+      const rawItem = item as any; // Use type assertion to access properties
+      
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        price: Number(rawItem.unitPrice || rawItem.price || 0),
+        unitPrice: Number(rawItem.unitPrice || 0),
+        total: Number(rawItem.total || (rawItem.unitPrice || rawItem.price || 0) * item.quantity),
+        product: {
+          id: item.product.id,
+          name: item.product.name,
+          categoryId: item.product.categoryId,
+          category: item.product.category
+        }
+      };
+    });
+
+    // Calculate totals if they don't exist in the database
+    const rawSale = sale as any; // Use type assertion to access properties
+    const subtotal = Number(rawSale.subtotal || items.reduce((sum, item) => sum + (item.total || 0), 0));
+    const tax = Number(rawSale.tax || subtotal * 0.1); // Assuming 10% tax if not provided
+    const total = Number(rawSale.total || subtotal + tax);
+
+    return {
+      id: sale.id,
+      receiptNumber: sale.receiptNumber,
+      createdAt: sale.createdAt,
+      storeId: sale.storeId,
+      store: {
+        id: sale.store.id,
+        name: sale.store.name
+      },
+      customer: sale.customer,
+      items,
+      subtotal,
+      tax,
+      total
+    };
+  });
+
   // Filter sales items by category or product if specified
-  const filteredSales = sales.map(sale => {
+  const filteredSales: Sale[] = sales.map(sale => {
     if (categoryId || productId) {
       const filteredItems = sale.items.filter(item => {
         if (productId) {
@@ -74,13 +156,20 @@ export default async function SalesReportPage({
         return true;
       });
       
+      // Calculate new totals based on filtered items
+      const newSubtotal = filteredItems.reduce((sum, item) => 
+        sum + (item.total || item.price * item.quantity), 0);
+      const newTax = filteredItems.reduce((sum, item) => 
+        sum + ((item.total || item.price * item.quantity) * 0.1), 0); // Assuming 10% tax
+      const newTotal = filteredItems.reduce((sum, item) => 
+        sum + ((item.total || item.price * item.quantity) * 1.1), 0); // Including tax
+      
       return {
         ...sale,
         items: filteredItems,
-        // Recalculate totals based on filtered items
-        subtotal: filteredItems.reduce((sum, item) => sum + item.total, 0),
-        tax: filteredItems.reduce((sum, item) => sum + (item.total * 0.1), 0), // Assuming 10% tax
-        total: filteredItems.reduce((sum, item) => sum + (item.total * 1.1), 0), // Including tax
+        subtotal: newSubtotal,
+        tax: newTax,
+        total: newTotal
       };
     }
     return sale;
@@ -102,7 +191,7 @@ export default async function SalesReportPage({
   ]);
   
   // Calculate summary statistics
-  const totalSales = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
+  const totalSales = filteredSales.reduce((sum, sale) => sum + (sale.total || 0), 0);
   const totalItems = filteredSales.reduce((sum, sale) => sum + sale.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
   const totalOrders = filteredSales.length;
   const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
@@ -414,13 +503,13 @@ function groupSalesByCategory(sales: any[]): any[] {
     .sort((a, b) => b.total - a.total);
 }
 
-function groupSalesByStore(sales: any[]): any[] {
+function groupSalesByStore(sales: Sale[]): any[] {
   const storeMap = new Map();
   
   sales.forEach(sale => {
     const storeId = sale.storeId;
     const storeName = sale.store.name;
-    const total = sale.total;
+    const total = sale.total || 0;
     
     if (storeMap.has(storeId)) {
       storeMap.set(storeId, {

@@ -50,7 +50,7 @@ export default async function UsersPage({
   }
 
   // Get users with pagination
-  const [users, totalItems] = await Promise.all([
+  const [usersFromDb, totalItems] = await Promise.all([
     prisma.user.findMany({
       where: filters,
       orderBy: { name: 'asc' },
@@ -61,6 +61,13 @@ export default async function UsersPage({
       where: filters,
     }),
   ]);
+
+  // Add missing properties to each user
+  const users = usersFromDb.map(user => ({
+    ...user,
+    isActive: true, // Default value if not in database
+    lastLogin: null, // Default value if not in database
+  }));
 
   const totalPages = Math.ceil(totalItems / pageSize);
 

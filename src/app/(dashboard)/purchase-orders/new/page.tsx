@@ -22,6 +22,7 @@ interface Product {
   name: string;
   sku: string;
   costPrice: number;
+  supplierId?: string;
   category: {
     id: string;
     name: string;

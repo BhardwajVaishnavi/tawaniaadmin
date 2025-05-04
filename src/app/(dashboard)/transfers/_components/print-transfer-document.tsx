@@ -32,19 +32,22 @@ interface Transfer {
   status: string;
   transferType: string;
   priority: string;
-  requestedDate: string;
-  expectedDeliveryDate: string | null;
+  requestedDate: string | Date;
+  expectedDeliveryDate: string | Date | null;
   notes: string | null;
-  createdAt: string;
-  approvedAt: string | null;
-  shippedAt: string | null;
-  receivedAt: string | null;
-  fromWarehouseId: string;
+  createdAt: string | Date;
+  approvedDate: string | Date | null;
+  actualDeliveryDate: string | Date | null;
+  completedDate: string | Date | null;
+  approvedAt: string | Date | null;
+  shippedAt: string | Date | null;
+  receivedAt: string | Date | null;
+  fromWarehouseId: string | null;
   fromWarehouse: {
     id: string;
     name: string;
     address: string | null;
-  };
+  } | null;
   toStoreId: string | null;
   toStore: {
     id: string;
@@ -78,9 +81,9 @@ export function PrintTransferDocument({ transfer }: PrintTransferDocumentProps) 
   }, []);
 
   // Format date
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "N/A";
-    return format(new Date(dateString), "MMM d, yyyy");
+  const formatDate = (date: string | Date | null) => {
+    if (!date) return "N/A";
+    return format(new Date(date), "MMM d, yyyy");
   };
 
   // Get destination name
@@ -143,9 +146,9 @@ export function PrintTransferDocument({ transfer }: PrintTransferDocumentProps) 
           <div>
             <h2 className="mb-2 text-lg font-semibold">From</h2>
             <div className="rounded-lg border border-gray-200 p-4">
-              <p className="font-medium">{transfer.fromWarehouse.name}</p>
+              <p className="font-medium">{transfer.fromWarehouse?.name || "Unknown"}</p>
               <p className="text-sm text-gray-800">
-                {transfer.fromWarehouse.address || "No address provided"}
+                {transfer.fromWarehouse?.address || "No address provided"}
               </p>
             </div>
           </div>

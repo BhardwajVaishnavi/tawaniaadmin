@@ -50,10 +50,10 @@ interface Transfer {
   status: string;
   transferType: string;
   priority: string;
-  requestedDate: string;
-  expectedDeliveryDate: string | null;
+  requestedDate: Date | string | null;
+  expectedDeliveryDate: Date | string | null;
   notes: string | null;
-  fromWarehouseId: string;
+  fromWarehouseId: string | null;
   toStoreId: string | null;
   toWarehouseId: string | null;
   items: TransferItem[];
@@ -84,7 +84,9 @@ export function EditTransferForm({
   const [transferType, setTransferType] = useState(transfer.transferType);
   const [priority, setPriority] = useState(transfer.priority);
   const [requestedDate, setRequestedDate] = useState(
-    new Date(transfer.requestedDate).toISOString().split("T")[0]
+    transfer.requestedDate 
+      ? new Date(transfer.requestedDate).toISOString().split("T")[0] 
+      : new Date().toISOString().split("T")[0]
   );
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(
     transfer.expectedDeliveryDate
@@ -318,7 +320,7 @@ export function EditTransferForm({
               <Label htmlFor="fromWarehouse">From Warehouse</Label>
               <Select
                 id="fromWarehouse"
-                value={fromWarehouseId}
+                value={fromWarehouseId === null ? "" : fromWarehouseId}
                 onChange={(e) => setFromWarehouseId(e.target.value)}
                 required
               >
@@ -349,7 +351,7 @@ export function EditTransferForm({
                 <Label htmlFor="toStore">To Store</Label>
                 <Select
                   id="toStore"
-                  value={toStoreId}
+                  value={toStoreId === null ? "" : toStoreId}
                   onChange={(e) => setToStoreId(e.target.value)}
                   required
                 >
@@ -366,7 +368,7 @@ export function EditTransferForm({
                 <Label htmlFor="toWarehouse">To Warehouse</Label>
                 <Select
                   id="toWarehouse"
-                  value={toWarehouseId}
+                  value={toWarehouseId === null ? "" : toWarehouseId}
                   onChange={(e) => setToWarehouseId(e.target.value)}
                   required
                 >

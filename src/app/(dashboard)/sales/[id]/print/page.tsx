@@ -3,6 +3,64 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { Receipt } from "../../_components/receipt";
+import { format } from "date-fns"; // Import format from date-fns
+
+// Define a type for the sale data
+interface SaleWithRelations {
+  id: string;
+  receiptNumber: string;
+  storeId: string;
+  store: {
+    id: string;
+    name: string;
+  };
+  customerId: string | null;
+  customer: {
+    id: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
+  createdById: string;
+  createdBy: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+  saleDate: Date;
+  subtotalAmount: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  notes: string | null;
+  items: Array<{
+    id: string;
+    productId: string;
+    product: {
+      id: string;
+      name: string;
+      sku: string;
+      category?: {
+        id: string;
+        name: string;
+      } | null;
+    };
+    quantity: number;
+    unitPrice: number;
+    discountAmount: number;
+    taxAmount: number;
+    totalPrice: number;
+  }>;
+  payments: Array<{
+    id: string;
+    amount: number;
+    paymentMethod: string;
+    referenceNumber?: string | null;
+    createdAt: Date;
+  }>;
+}
 
 export default async function SalePrintPage({
   params,
@@ -18,7 +76,7 @@ export default async function SalePrintPage({
     include: {
       store: true,
       customer: true,
-      user: true,
+      createdBy: true, // Changed from user to createdBy to match schema
       items: {
         include: {
           product: true,
@@ -30,7 +88,7 @@ export default async function SalePrintPage({
         },
       },
     },
-  });
+  }) as unknown as SaleWithRelations; // Type assertion
 
   if (!sale) {
     notFound();
@@ -66,3 +124,4 @@ export default async function SalePrintPage({
     </div>
   );
 }
+

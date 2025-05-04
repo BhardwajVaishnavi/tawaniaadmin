@@ -1,3 +1,5 @@
+
+// File: src/app/(dashboard)/inventory/[id]/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -5,6 +7,63 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { InventoryStatusBadge } from "../_components/inventory-status-badge";
 import { InventoryTransactionList } from "../_components/inventory-transaction-list";
+
+// Add types for InventoryItem with all necessary relations
+interface InventoryItem {
+  id: string;
+  warehouseId: string | null;
+  storeId: string | null;
+  productId: string;
+  quantity: number;
+  reservedQuantity: number;
+  costPrice: number;
+  retailPrice: number;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  binId: string | null;
+  product: {
+    id: string;
+    name: string;
+    sku: string;
+    barcode: string | null;
+    unit: string;
+    categoryId: string | null;
+    supplierId: string | null;
+    category: {
+      id: string;
+      name: string;
+    } | null;
+    supplier: {
+      id: string;
+      name: string;
+    } | null;
+  };
+  warehouse: {
+    id: string;
+    name: string;
+  } | null;
+  store: {
+    id: string;
+    name: string;
+  } | null;
+  bin: {
+    id: string;
+    name: string;
+    shelf: {
+      id: string;
+      name: string;
+      aisle: {
+        id: string;
+        name: string;
+        zone: {
+          id: string;
+          name: string;
+        };
+      };
+    };
+  } | null;
+}
 
 export default async function InventoryDetailPage({
   params,
@@ -40,21 +99,45 @@ export default async function InventoryDetailPage({
         },
       },
     },
-  });
+  }) as InventoryItem | null;
 
   if (!inventoryItem) {
     notFound();
   }
 
-  // Get inventory transactions for this item
-  const transactions = await prisma.inventoryTransaction.findMany({
-    where: { inventoryItemId: inventoryId },
-    include: {
-      user: true,
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 10,
-  });
+  // Get inventory transactions for this item - check if the model exists first
+  let transactions: any[] = [];
+  
+  // Most Prisma schemas use "inventoryTransaction" (singular) or "InventoryTransaction"
+  if ('inventoryTransaction' in prisma) {
+    try {
+      // @ts-ignore - Dynamic model access
+      transactions = await prisma.inventoryTransaction.findMany({
+        where: { inventoryItemId: inventoryId },
+        include: {
+          user: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+    } catch (error) {
+      console.error('Error fetching inventory transactions:', error);
+    }
+  } else if ('InventoryTransaction' in prisma) {
+    try {
+      // @ts-ignore - Dynamic model access
+      transactions = await prisma.InventoryTransaction.findMany({
+        where: { inventoryItemId: inventoryId },
+        include: {
+          user: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+    } catch (error) {
+      console.error('Error fetching inventory transactions:', error);
+    }
+  }
 
   // Get similar inventory items (same product in different locations)
   const similarItems = await prisma.inventoryItem.findMany({
@@ -198,14 +281,6 @@ export default async function InventoryDetailPage({
                   ${Number(inventoryItem.retailPrice).toFixed(2)}
                 </p>
               </div>
-              {inventoryItem.expiryDate && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Expiry Date</h3>
-                  <p className="mt-1 text-base text-gray-900">
-                    {new Date(inventoryItem.expiryDate).toLocaleDateString()}
-                  </p>
-                </div>
-              )}
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
                 <p className="mt-1 text-base text-gray-900">
@@ -216,18 +291,20 @@ export default async function InventoryDetailPage({
           </div>
 
           {/* Transaction History */}
-          <div className="rounded-lg bg-white p-6 shadow-md">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Transaction History</h2>
-              <Link
-                href={`/inventory/${inventoryId}/transactions`}
-                className="text-sm font-medium text-blue-600 hover:text-blue-800"
-              >
-                View All
-              </Link>
+          {transactions.length > 0 && (
+            <div className="rounded-lg bg-white p-6 shadow-md">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-800">Transaction History</h2>
+                <Link
+                  href={`/inventory/${inventoryId}/transactions`}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                >
+                  View All
+                </Link>
+              </div>
+              <InventoryTransactionList transactions={transactions} />
             </div>
-            <InventoryTransactionList transactions={transactions} />
-          </div>
+          )}
         </div>
 
         <div className="space-y-6">

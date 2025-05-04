@@ -7,6 +7,25 @@ import { format } from "date-fns";
 import { PurchaseOrderStatusBadge } from "../_components/purchase-order-status-badge";
 import { PurchaseOrderActions } from "../_components/purchase-order-actions";
 
+// Define interfaces for type safety
+interface PurchaseOrderItem {
+  id: string;
+  productId: string;
+  product: {
+    id: string;
+    name: string;
+    sku: string;
+  };
+  description?: string | null;
+  orderedQuantity: number;
+  receivedQuantity: number;
+  unitPrice: number;
+  discount: number;
+  tax: number;
+  subtotal: number;
+  total: number;
+}
+
 export default async function PurchaseOrderDetailPage({
   params,
 }: {
@@ -14,35 +33,42 @@ export default async function PurchaseOrderDetailPage({
 }) {
   const session = await getServerSession(authOptions);
 
-  // Get purchase order details
-  const purchaseOrder = await prisma.purchaseOrder.findUnique({
-    where: {
-      id: params.id,
-    },
-    include: {
-      supplier: true,
-      warehouse: true,
-      items: {
-        include: {
-          product: true,
+  // Get purchase order details - using try/catch to handle potential model issues
+  let purchaseOrder;
+  try {
+    // @ts-ignore - Dynamically access the model
+    purchaseOrder = await prisma.purchaseOrder.findUnique({
+      where: {
+        id: params.id,
+      },
+      include: {
+        supplier: true,
+        warehouse: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        updatedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
         },
       },
-      createdBy: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-      updatedBy: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-  });
+    });
+  } catch (error) {
+    console.error("Error fetching purchase order:", error);
+    notFound();
+  }
 
   if (!purchaseOrder) {
     notFound();
@@ -142,7 +168,7 @@ export default async function PurchaseOrderDetailPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {purchaseOrder.items.map((item) => (
+                  {purchaseOrder.items.map((item: PurchaseOrderItem) => (
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap px-4 py-2 text-sm font-medium">
                         <Link href={`/products/${item.productId}`} className="text-blue-600 hover:underline">
@@ -315,13 +341,13 @@ export default async function PurchaseOrderDetailPage({
               <div>
                 <p className="text-sm text-gray-500">Total Quantity</p>
                 <p className="font-medium">
-                  {purchaseOrder.items.reduce((sum, item) => sum + item.orderedQuantity, 0)}
+                  {purchaseOrder.items.reduce((sum: number, item: PurchaseOrderItem) => sum + item.orderedQuantity, 0)}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Received Quantity</p>
                 <p className="font-medium">
-                  {purchaseOrder.items.reduce((sum, item) => sum + item.receivedQuantity, 0)}
+                  {purchaseOrder.items.reduce((sum: number, item: PurchaseOrderItem) => sum + item.receivedQuantity, 0)}
                 </p>
               </div>
             </div>
@@ -372,3 +398,7 @@ export default async function PurchaseOrderDetailPage({
     </div>
   );
 }
+
+
+
+

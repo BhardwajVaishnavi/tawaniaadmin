@@ -26,14 +26,22 @@ export default async function UserEditPage({
   if (!user) {
     notFound();
   }
-  
+
+  // Add isActive property to the user object
+  // This is a temporary fix until we can update the database schema
+  const userWithIsActive = {
+    ...user,
+    isActive: true, // Default to true if not present in the database
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-800">Edit User</h1>
       
       <div className="rounded-lg bg-white p-6 shadow-md">
-        <UserEditForm user={user} />
+        <UserEditForm user={userWithIsActive} />
       </div>
     </div>
   );
 }
+

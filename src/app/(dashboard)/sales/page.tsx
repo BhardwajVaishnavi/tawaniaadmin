@@ -136,14 +136,14 @@ export default async function SalesPage({
                       {sale.items.length}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
-                      ${sale.total.toFixed(2)}
+                      ${sale.totalAmount.toFixed(2)}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
                       {formatPaymentMethod(sale.paymentMethod)}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm">
                       <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                        {sale.status}
+                        {sale.paymentStatus}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm">

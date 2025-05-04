@@ -57,13 +57,16 @@ interface Zone {
   name: string;
 }
 
+// Define the params type based on Next.js expectations
+type Params = Promise<{ id: string }>;
+
 export default function AuditCountPage({
   params,
 }: {
-  params: { id: string };
+  params: Params;
 }) {
   const router = useRouter();
-  // Use React.use to unwrap params
+  // Use React.use to unwrap params - the return type is properly typed now
   const { id: auditId } = use(params);
 
   const [audit, setAudit] = useState<Audit | null>(null);
@@ -462,10 +465,9 @@ export default function AuditCountPage({
             </Button>
             <Button
               type="submit"
-              isLoading={isSubmitting}
               disabled={isSubmitting || Object.keys(countedItems).length === 0}
             >
-              Save Counts
+              {isSubmitting ? "Saving..." : "Save Counts"}
             </Button>
           </div>
         </form>

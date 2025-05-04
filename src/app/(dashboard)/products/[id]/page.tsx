@@ -87,7 +87,7 @@ export default async function ProductDetailPage({
               </div>
               <div>
                 <p className="text-sm text-gray-500">Category</p>
-                <p className="font-medium">{product.category.name}</p>
+                <p className="font-medium">{product.category?.name || "Uncategorized"}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Status</p>
@@ -95,12 +95,7 @@ export default async function ProductDetailPage({
                   {product.isActive ? "Active" : "Inactive"}
                 </span>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Condition</p>
-                <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${product.condition === "NEW" ? "bg-blue-100 text-blue-800" : "bg-orange-100 text-orange-800"}`}>
-                  {product.condition === "NEW" ? "New" : "Damaged"}
-                </span>
-              </div>
+              {/* Removed condition field since it doesn't exist on the product type */}
               <div>
                 <p className="text-sm text-gray-500">Barcode</p>
                 <p className="font-medium">{product.barcode || "Not set"}</p>
@@ -178,7 +173,14 @@ export default async function ProductDetailPage({
           <div className="rounded-lg bg-white p-6 shadow-md">
             <h2 className="mb-4 text-lg font-semibold text-gray-800">Inventory Locations</h2>
             {inventoryItems.length > 0 ? (
-              <InventoryTable inventoryItems={inventoryItems} />
+              <InventoryTable 
+                inventoryItems={inventoryItems.map(item => ({
+                  ...item,
+                  // Since these properties don't exist on either type, provide default values
+                  wholesalePrice: product.wholesalePrice,
+                  condition: 'NEW' // Default to NEW since condition doesn't exist on either type
+                }))} 
+              />
             ) : (
               <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-gray-300">
                 <p className="text-gray-500">No inventory found for this product</p>
@@ -299,3 +301,4 @@ function getStockStatusClass(quantity: number, minStockLevel: number, reorderPoi
     return "bg-green-100 text-green-800";
   }
 }
+

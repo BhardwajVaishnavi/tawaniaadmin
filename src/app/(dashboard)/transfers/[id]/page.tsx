@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TransferStatusBadge } from "../_components/transfer-status-badge";
 import { TransferActions } from "../_components/transfer-actions";
+import { CheckCircle } from "lucide-react";
 
 export default async function TransferDetailPage({
   params,
@@ -105,19 +106,19 @@ export default async function TransferDetailPage({
                   {new Date(transfer.createdAt).toLocaleDateString()}
                 </p>
               </div>
-              {transfer.approvedAt && (
+              {transfer.approvedDate && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Approved At</h3>
                   <p className="mt-1 text-base text-gray-900">
-                    {new Date(transfer.approvedAt).toLocaleDateString()}
+                    {new Date(transfer.approvedDate).toLocaleDateString()}
                   </p>
                 </div>
               )}
-              {transfer.receivedAt && (
+              {transfer.completedDate && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Received At</h3>
                   <p className="mt-1 text-base text-gray-900">
-                    {new Date(transfer.receivedAt).toLocaleDateString()}
+                    {new Date(transfer.completedDate).toLocaleDateString()}
                   </p>
                 </div>
               )}
@@ -221,16 +222,21 @@ export default async function TransferDetailPage({
                   <span className="text-gray-500">Created</span>
                   <span className="text-gray-900">{new Date(transfer.createdAt).toLocaleDateString()}</span>
                 </div>
-                {transfer.processedAt && (
-                  <div className="flex justify-between mt-2">
-                    <span className="text-gray-500">Processed</span>
-                    <span className="text-gray-900">{new Date(transfer.processedAt).toLocaleDateString()}</span>
+                {transfer.actualDeliveryDate && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <div>
+                      <p className="font-medium">Processed</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(transfer.actualDeliveryDate).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
                 )}
-                {transfer.receivedAt && (
+                {transfer.completedDate && (
                   <div className="flex justify-between mt-2">
                     <span className="text-gray-500">Received</span>
-                    <span className="text-gray-900">{new Date(transfer.receivedAt).toLocaleDateString()}</span>
+                    <span className="text-gray-900">{new Date(transfer.completedDate).toLocaleDateString()}</span>
                   </div>
                 )}
               </div>
@@ -322,3 +328,5 @@ export default async function TransferDetailPage({
     </div>
   );
 }
+
+

@@ -63,7 +63,7 @@ export function ReceiptGenerator({
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
-    content: () => receiptRef.current,
+    contentRef: receiptRef,
     documentTitle: `Receipt-${receiptNumber}`,
     onAfterPrint: () => {
       console.log("Print completed");
