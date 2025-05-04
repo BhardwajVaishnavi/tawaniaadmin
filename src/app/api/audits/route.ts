@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
       } catch (warehouseError) {
         console.error("Error verifying warehouse:", warehouseError);
         return NextResponse.json(
-          { error: "Failed to verify warehouse", details: warehouseError.message },
+          { error: "Failed to verify warehouse", details: warehouseError instanceof Error ? warehouseError.message : String(warehouseError) },
           { status: 500 }
         );
       }
@@ -240,10 +240,10 @@ export async function POST(req: NextRequest) {
         } else {
           console.log(`User verified: ${user.name || user.email} (${user.id})`);
         }
-      } catch (userError: any) {
+      } catch (userError) {
         console.error("Error finding valid user:", userError);
         return NextResponse.json(
-          { error: "Failed to find valid user", details: userError.message || "Unknown error" },
+          { error: "Failed to find valid user", details: userError instanceof Error ? userError.message : String(userError) },
           { status: 500 }
         );
       }
@@ -276,10 +276,10 @@ export async function POST(req: NextRequest) {
           }
 
           console.log("Audit record created:", audit.id);
-        } catch (createError: any) {
+        } catch (createError) {
           console.error("Error creating audit record:", createError);
           console.error("Error details:", JSON.stringify(createError, null, 2));
-          throw new Error(`Failed to create audit: ${createError.message || "Unknown error"}`);
+          throw new Error(`Failed to create audit: ${createError instanceof Error ? createError.message : String(createError)}`);
         }
 
         // Create audit assignments for selected users
@@ -475,24 +475,24 @@ export async function POST(req: NextRequest) {
       });
 
       return NextResponse.json({ audit: result });
-    } catch (txError: any) {
+    } catch (txError) {
       console.error("Transaction error:", txError);
       return NextResponse.json(
         {
           error: "Failed to create audit",
-          details: txError.message || "Unknown transaction error",
-          stack: process.env.NODE_ENV === 'development' ? txError.stack : undefined
+          details: txError instanceof Error ? txError.message : String(txError),
+          stack: process.env.NODE_ENV === 'development' ? (txError instanceof Error ? txError.stack : undefined) : undefined
         },
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating audit:", error);
     return NextResponse.json(
       {
         error: "Failed to create audit",
-        details: error.message || "Unknown error occurred",
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: error instanceof Error ? error.message : String(error),
+        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
       },
       { status: 500 }
     );
