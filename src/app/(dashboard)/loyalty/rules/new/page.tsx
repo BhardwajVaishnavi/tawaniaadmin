@@ -17,11 +17,15 @@ export default async function NewLoyaltyRulePage() {
   let categories = [];
   try {
     if ('category' in prisma) {
+      // Check if isActive field exists in the Category model
+      const categoryFields = Object.keys(prisma.category.fields);
+      const whereClause = categoryFields.includes('isActive') 
+        ? { isActive: true }
+        : {};
+      
       // @ts-ignore - Dynamically access the model
       categories = await prisma.category.findMany({
-        where: {
-          isActive: true,
-        },
+        where: whereClause,
         orderBy: {
           name: "asc",
         },

@@ -308,15 +308,16 @@ model Product {
 }
 
 model Category {
-  id             String     @id @default(cuid())
-  name           String
-  description    String?
-  parentId       String?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  Category       Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
-  other_Category Category[] @relation("CategoryToCategory")
-  products       Product[]
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  parentId    String?
+  parent      Category? @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryToCategory")
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  isActive    Boolean   @default(true)
 }
 
 model InventoryItem {
@@ -935,5 +936,7 @@ enum PromotionType {
   BUNDLE_DISCOUNT
   LOYALTY_POINTS_MULTIPLIER
 }
+
+
 
 
