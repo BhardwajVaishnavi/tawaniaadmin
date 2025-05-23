@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { notFound } from "next/navigation";
+import { use } from "react";
 
 export default function EditProductPage({
   params,
@@ -12,7 +13,21 @@ export default function EditProductPage({
   params: { id: string };
 }) {
   const router = useRouter();
-  const productId = params.id;
+  // Use React.use() to unwrap the params object
+  const unwrappedParams = use(params);
+  const productId = unwrappedParams.id;
+
+  // Log the product ID to help with debugging
+  console.log("Edit page - Product ID:", productId);
+
+  // Check if the product ID is valid
+  useEffect(() => {
+    if (!productId || productId === "unknown" || productId === "undefined") {
+      console.error("Invalid product ID:", productId);
+      alert("Invalid product ID. Redirecting to products list.");
+      router.push("/products");
+    }
+  }, [productId, router]);
 
   const [categories, setCategories] = useState<any[]>([]);
   const [product, setProduct] = useState<any>(null);
@@ -38,41 +53,87 @@ export default function EditProductPage({
     const fetchData = async () => {
       try {
         // Fetch product
-        const productResponse = await fetch(`/api/products/${productId}`);
-        if (!productResponse.ok) {
-          if (productResponse.status === 404) {
-            notFound();
+        console.log("Fetching product data for ID:", productId);
+
+        // Create a clone of the response for debugging
+        let responseClone;
+
+        try {
+          const productResponse = await fetch(`/api/products/${productId}`);
+          responseClone = productResponse.clone(); // Clone for debugging
+
+          console.log("Product response status:", productResponse.status);
+
+          if (!productResponse.ok) {
+            if (productResponse.status === 404) {
+              console.error("Product not found with ID:", productId);
+              notFound();
+            }
+
+            // Try to get more detailed error information
+            let errorMessage = 'Failed to fetch product';
+            try {
+              const errorData = await responseClone.json();
+              console.error("Error response data:", errorData);
+              if (errorData.error) {
+                errorMessage = errorData.error;
+              }
+            } catch (parseError) {
+              console.error("Error parsing error response:", parseError);
+            }
+
+            throw new Error(errorMessage);
           }
-          throw new Error('Failed to fetch product');
+
+          const productData = await productResponse.json();
+          console.log("Successfully fetched product data:", productData);
+
+          if (!productData.product) {
+            console.error("Product data is missing or invalid:", productData);
+            throw new Error('Invalid product data received');
+          }
+
+          setProduct(productData.product);
+
+          // Set form state with null checks to avoid errors
+          setName(productData.product.name || "");
+          setSku(productData.product.sku || "");
+          setDescription(productData.product.description || "");
+          setCategoryId(productData.product.categoryId || "");
+          setCostPrice(productData.product.costPrice || 0);
+          setWholesalePrice(productData.product.wholesalePrice || 0);
+          setRetailPrice(productData.product.retailPrice || 0);
+          setMinStockLevel(productData.product.minStockLevel || 0);
+          setReorderPoint(productData.product.reorderPoint || 0);
+          setBarcode(productData.product.barcode || "");
+          setIsActive(productData.product.isActive !== false); // Default to true if not explicitly false
+          // Default to NEW since condition might not exist in the database
+          setCondition("NEW");
+
+          // Fetch categories
+          const categoriesResponse = await fetch('/api/categories');
+          if (!categoriesResponse.ok) {
+            throw new Error('Failed to fetch categories');
+          }
+
+          const categoriesData = await categoriesResponse.json();
+          setCategories(categoriesData.categories || []);
+        } catch (fetchError) {
+          console.error("Error in fetch operation:", fetchError);
+          throw fetchError; // Re-throw to be caught by the outer try/catch
         }
-
-        const productData = await productResponse.json();
-        setProduct(productData.product);
-
-        // Set form state
-        setName(productData.product.name);
-        setSku(productData.product.sku);
-        setDescription(productData.product.description || "");
-        setCategoryId(productData.product.categoryId);
-        setCostPrice(productData.product.costPrice);
-        setWholesalePrice(productData.product.wholesalePrice);
-        setRetailPrice(productData.product.retailPrice);
-        setMinStockLevel(productData.product.minStockLevel);
-        setReorderPoint(productData.product.reorderPoint);
-        setBarcode(productData.product.barcode || "");
-        setIsActive(productData.product.isActive);
-        setCondition(productData.product.condition || "NEW");
-
-        // Fetch categories
-        const categoriesResponse = await fetch('/api/categories');
-        if (!categoriesResponse.ok) {
-          throw new Error('Failed to fetch categories');
-        }
-
-        const categoriesData = await categoriesResponse.json();
-        setCategories(categoriesData.categories || []);
       } catch (error) {
         console.error('Error fetching data:', error);
+
+        // Show a more user-friendly error message
+        if (error instanceof Error) {
+          alert(`Error loading product data: ${error.message}. Please try again.`);
+        } else {
+          alert('Error loading product data. Please try again.');
+        }
+
+        // Navigate back to products list if we can't load the product
+        router.push('/products');
       } finally {
         setIsLoading(false);
       }
@@ -105,8 +166,11 @@ export default function EditProductPage({
         reorderPoint,
         barcode: barcode || undefined,
         isActive,
-        condition,
+        // Removed condition field since it might not exist in the database
       };
+
+      console.log('Submitting product update with data:', productData);
+      console.log('Product ID:', productId);
 
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
@@ -116,19 +180,39 @@ export default function EditProductPage({
         body: JSON.stringify(productData),
       });
 
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update product');
+        let errorMessage = 'Failed to update product';
+        try {
+          const errorData = await response.json();
+          console.error('Error response:', errorData);
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
+      console.log('Success response:', result);
 
       // Redirect to product details page
-      router.push(`/products/${productId}`);
-      router.refresh();
+      // Use setTimeout to ensure the redirect happens after the state update
+      setTimeout(() => {
+        router.push(`/products/${productId}`);
+      }, 100);
     } catch (error) {
       console.error('Error updating product:', error);
-      alert('Failed to update product. Please try again.');
+
+      // Show more detailed error message
+      if (error instanceof Error) {
+        alert(`Failed to update product: ${error.message}`);
+      } else {
+        alert('Failed to update product. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }

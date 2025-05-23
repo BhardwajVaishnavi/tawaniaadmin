@@ -45,7 +45,10 @@ export default async function QualityControlPage() {
       </div>
 
       <div className="bg-white rounded-lg shadow">
-        <QualityControlList warehouses={warehouses} />
+        {/* QualityControlFallback component is intentionally removed */}
+        <div id="quality-control-list-container" style={{ display: "block" }}>
+          <QualityControlList warehouses={warehouses} />
+        </div>
       </div>
     </div>
   );

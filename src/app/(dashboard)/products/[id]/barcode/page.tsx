@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { notFound } from "next/navigation";
 import JsBarcode from "jsbarcode";
+import { use } from "react";
 
 export default function ProductBarcodePage({
   params,
@@ -13,8 +14,10 @@ export default function ProductBarcodePage({
   params: { id: string };
 }) {
   const router = useRouter();
-  const productId = params.id;
-  
+  // Use React.use() to unwrap the params Promise
+  const unwrappedParams = use(params);
+  const productId = unwrappedParams.id;
+
   const [product, setProduct] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [barcodeType, setBarcodeType] = useState("CODE128");
@@ -24,9 +27,9 @@ export default function ProductBarcodePage({
   const [displayValue, setDisplayValue] = useState(true);
   const [fontSize, setFontSize] = useState(20);
   const [quantity, setQuantity] = useState(1);
-  
+
   const barcodeRef = useRef<SVGSVGElement>(null);
-  
+
   // Fetch product
   useEffect(() => {
     const fetchProduct = async () => {
@@ -38,10 +41,10 @@ export default function ProductBarcodePage({
           }
           throw new Error('Failed to fetch product');
         }
-        
+
         const data = await response.json();
         setProduct(data.product);
-        
+
         // Set barcode value
         if (data.product.barcode) {
           setBarcodeValue(data.product.barcode);
@@ -54,10 +57,10 @@ export default function ProductBarcodePage({
         setIsLoading(false);
       }
     };
-    
+
     fetchProduct();
   }, [productId]);
-  
+
   // Generate barcode
   useEffect(() => {
     if (barcodeRef.current && barcodeValue) {
@@ -75,7 +78,7 @@ export default function ProductBarcodePage({
       }
     }
   }, [barcodeValue, barcodeType, barcodeWidth, barcodeHeight, displayValue, fontSize]);
-  
+
   // Save barcode to product
   const saveBarcode = async () => {
     try {
@@ -88,11 +91,11 @@ export default function ProductBarcodePage({
           barcode: barcodeValue,
         }),
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to save barcode');
       }
-      
+
       alert('Barcode saved successfully');
       router.push(`/products/${productId}`);
     } catch (error) {
@@ -100,21 +103,21 @@ export default function ProductBarcodePage({
       alert('Failed to save barcode. Please try again.');
     }
   };
-  
+
   // Print barcode
   const printBarcode = () => {
     if (!barcodeRef.current) return;
-    
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert('Please allow pop-ups to print barcodes');
       return;
     }
-    
+
     const barcodeHTML = barcodeRef.current.outerHTML;
     const productName = product.name;
     const productPrice = product.retailPrice.toFixed(2);
-    
+
     // Create print content
     let printContent = '<html><head><title>Barcode</title>';
     printContent += '<style>';
@@ -126,7 +129,7 @@ export default function ProductBarcodePage({
     printContent += '@media print { @page { size: auto; margin: 0mm; } }';
     printContent += '</style></head><body>';
     printContent += '<div class="barcode-container">';
-    
+
     // Repeat barcode based on quantity
     for (let i = 0; i < quantity; i++) {
       printContent += '<div class="barcode-item">';
@@ -135,21 +138,21 @@ export default function ProductBarcodePage({
       printContent += `<div class="product-price">$${productPrice}</div>`;
       printContent += '</div>';
     }
-    
+
     printContent += '</div></body></html>';
-    
+
     // Write to print window and print
     printWindow.document.open();
     printWindow.document.write(printContent);
     printWindow.document.close();
-    
+
     // Wait for images to load before printing
     setTimeout(() => {
       printWindow.print();
       printWindow.close();
     }, 500);
   };
-  
+
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center rounded-lg bg-white p-6 shadow-md">
@@ -160,11 +163,11 @@ export default function ProductBarcodePage({
       </div>
     );
   }
-  
+
   if (!product) {
     return notFound();
   }
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -176,7 +179,7 @@ export default function ProductBarcodePage({
           Back to Product
         </Link>
       </div>
-      
+
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-6">
           <div className="rounded-lg bg-white p-6 shadow-md">
@@ -196,7 +199,7 @@ export default function ProductBarcodePage({
               </div>
             </div>
           </div>
-          
+
           <div className="rounded-lg bg-white p-6 shadow-md">
             <h2 className="mb-4 text-lg font-semibold text-gray-800">Barcode Settings</h2>
             <div className="space-y-4">
@@ -213,7 +216,7 @@ export default function ProductBarcodePage({
                   required
                 />
               </div>
-              
+
               <div>
                 <label htmlFor="barcodeType" className="mb-1 block text-sm font-medium text-gray-700">
                   Barcode Type
@@ -231,7 +234,7 @@ export default function ProductBarcodePage({
                   <option value="CODE39">CODE39</option>
                 </select>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="barcodeWidth" className="mb-1 block text-sm font-medium text-gray-700">
@@ -248,7 +251,7 @@ export default function ProductBarcodePage({
                     className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label htmlFor="barcodeHeight" className="mb-1 block text-sm font-medium text-gray-700">
                     Height
@@ -265,7 +268,7 @@ export default function ProductBarcodePage({
                   />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="displayValue" className="mb-1 block text-sm font-medium text-gray-700">
@@ -281,7 +284,7 @@ export default function ProductBarcodePage({
                     <option value="false">No</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label htmlFor="fontSize" className="mb-1 block text-sm font-medium text-gray-700">
                     Font Size
@@ -299,7 +302,7 @@ export default function ProductBarcodePage({
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label htmlFor="quantity" className="mb-1 block text-sm font-medium text-gray-700">
                   Print Quantity
@@ -317,7 +320,7 @@ export default function ProductBarcodePage({
             </div>
           </div>
         </div>
-        
+
         <div className="space-y-6">
           <div className="rounded-lg bg-white p-6 shadow-md">
             <h2 className="mb-4 text-lg font-semibold text-gray-800">Barcode Preview</h2>
@@ -327,7 +330,7 @@ export default function ProductBarcodePage({
               <p className="mt-2 font-bold">${product.retailPrice.toFixed(2)}</p>
             </div>
           </div>
-          
+
           <div className="rounded-lg bg-white p-6 shadow-md">
             <h2 className="mb-4 text-lg font-semibold text-gray-800">Actions</h2>
             <div className="space-y-3">

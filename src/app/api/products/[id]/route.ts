@@ -8,39 +8,69 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    // Get the product ID from the params
+    const productId = params.id;
 
-    if (!session?.user?.id) {
+    // Log the product ID to help with debugging
+    console.log("API GET - Product ID:", productId);
+
+    // Check if the product ID is valid
+    if (!productId || productId === "unknown" || productId === "undefined") {
+      console.error("Invalid product ID in API route:", productId);
       return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
+        { error: "Invalid product ID" },
+        { status: 400 }
       );
     }
 
-    const productId = params.id;
+    // Use raw SQL to fetch the product to avoid schema mismatches
+    const productResult = await prisma.$queryRaw`
+      SELECT p.id, p.name, p.sku, p.description, p."categoryId", p."costPrice",
+             p."wholesalePrice", p."retailPrice",
+             COALESCE(p."minStockLevel", 10) as "minStockLevel",
+             COALESCE(p."reorderPoint", 5) as "reorderPoint",
+             p.barcode, COALESCE(p."isActive", true) as "isActive",
+             p."createdAt", p."updatedAt",
+             c.id as "category_id", c.name as "category_name"
+      FROM "Product" p
+      LEFT JOIN "Category" c ON p."categoryId" = c.id
+      WHERE p.id = ${productId}
+    `;
 
-    // Get product
-    const product = await prisma.product.findUnique({
-      where: {
-        id: productId,
-      },
-      include: {
-        category: true,
-      },
-    });
+    // Format the product data
+    const product = productResult.length > 0 ? {
+      ...productResult[0],
+      category: productResult[0].category_id ? {
+        id: productResult[0].category_id,
+        name: productResult[0].category_name
+      } : null
+    } : null;
 
+    // Log the result
+    console.log("API: Product query result:", product ? "Found" : "Not found");
+
+    // If no product is found, return a 404
     if (!product) {
       return NextResponse.json(
-        { error: "Product not found" },
+        { error: `Product not found with ID: ${productId}` },
         { status: 404 }
       );
     }
 
+    // Return the product
     return NextResponse.json({ product });
   } catch (error) {
     console.error("Error fetching product:", error);
+
+    // Provide more detailed error message
+    let errorMessage = "Failed to fetch product";
+    if (error instanceof Error) {
+      errorMessage += `: ${error.message}`;
+      console.error("Error stack:", error.stack);
+    }
+
     return NextResponse.json(
-      { error: "Failed to fetch product" },
+      { error: errorMessage },
       { status: 500 }
     );
   }
@@ -60,14 +90,26 @@ export async function PUT(
       );
     }
 
+    // Get the product ID from the params
     const productId = params.id;
+
+    // Log the product ID to help with debugging
+    console.log("API PUT - Product ID:", productId);
+
+    // Check if the product ID is valid
+    if (!productId || productId === "unknown" || productId === "undefined") {
+      console.error("Invalid product ID in API PUT route:", productId);
+      return NextResponse.json(
+        { error: "Invalid product ID" },
+        { status: 400 }
+      );
+    }
     const data = await req.json();
 
-    // Check if product exists
+    // Check if product exists using Prisma
     const existingProduct = await prisma.product.findUnique({
-      where: {
-        id: productId,
-      },
+      where: { id: productId },
+      select: { id: true, sku: true }
     });
 
     if (!existingProduct) {
@@ -79,14 +121,14 @@ export async function PUT(
 
     // Check if SKU is being changed and already exists
     if (data.sku && data.sku !== existingProduct.sku) {
-      const existingSku = await prisma.product.findFirst({
+      const existingSkuProduct = await prisma.product.findFirst({
         where: {
           sku: data.sku,
-          id: { not: productId },
-        },
+          id: { not: productId }
+        }
       });
 
-      if (existingSku) {
+      if (existingSkuProduct) {
         return NextResponse.json(
           { error: "SKU already exists" },
           { status: 400 }
@@ -94,33 +136,118 @@ export async function PUT(
       }
     }
 
-    // Update product
-    const updatedProduct = await prisma.product.update({
-      where: {
-        id: productId,
-      },
-      data: {
-        name: data.name,
-        sku: data.sku,
-        description: data.description,
-        categoryId: data.categoryId,
-        costPrice: data.costPrice !== undefined ? data.costPrice : undefined,
-        wholesalePrice: data.wholesalePrice !== undefined ? data.wholesalePrice : undefined,
-        retailPrice: data.retailPrice !== undefined ? data.retailPrice : undefined,
-        minStockLevel: data.minStockLevel !== undefined ? data.minStockLevel : undefined,
-        reorderPoint: data.reorderPoint !== undefined ? data.reorderPoint : undefined,
-        barcode: data.barcode,
-        isActive: data.isActive !== undefined ? data.isActive : undefined,
-        condition: data.condition || undefined,
-        updatedById: session.user.id,
-      },
-    });
+    // Update product using Prisma instead of raw SQL
+    const now = new Date();
 
-    return NextResponse.json({ product: updatedProduct });
+    // Prepare update data
+    const updateData = {
+      name: data.name,
+      sku: data.sku,
+      description: data.description || null,
+      // Use connect for the category relationship
+      category: data.categoryId ? {
+        connect: { id: data.categoryId }
+      } : undefined,
+      costPrice: data.costPrice !== undefined ? data.costPrice : null,
+      wholesalePrice: data.wholesalePrice !== undefined ? data.wholesalePrice : null,
+      retailPrice: data.retailPrice !== undefined ? data.retailPrice : null,
+      minStockLevel: data.minStockLevel !== undefined ? data.minStockLevel : null,
+      reorderPoint: data.reorderPoint !== undefined ? data.reorderPoint : null,
+      barcode: data.barcode || null,
+      isActive: data.isActive !== undefined ? data.isActive : true,
+      // Use connect for the updatedBy relationship
+      User_Product_updatedByIdToUser: {
+        connect: { id: session.user.id }
+      }
+    };
+
+    // Update product using raw SQL to avoid schema mismatches
+    try {
+      console.log('Updating product with data:', JSON.stringify(updateData, null, 2));
+
+      // Use raw SQL for the update to avoid schema mismatches
+      await prisma.$executeRaw`
+        UPDATE "Product"
+        SET
+          name = ${updateData.name},
+          sku = ${updateData.sku},
+          description = ${updateData.description},
+          "categoryId" = ${data.categoryId},
+          "costPrice" = ${updateData.costPrice},
+          "wholesalePrice" = ${updateData.wholesalePrice},
+          "retailPrice" = ${updateData.retailPrice},
+          "minStockLevel" = ${updateData.minStockLevel},
+          "reorderPoint" = ${updateData.reorderPoint},
+          barcode = ${updateData.barcode},
+          "isActive" = ${updateData.isActive},
+          "updatedById" = ${session.user.id},
+          "updatedAt" = NOW()
+        WHERE id = ${productId}
+      `;
+
+      console.log('Product updated successfully');
+    } catch (updateError) {
+      console.error('Error in SQL update:', updateError);
+      throw updateError;
+    }
+
+    // Get the updated product using raw SQL
+    console.log("API: Fetching updated product with ID:", productId);
+
+    try {
+      const updatedProductResult = await prisma.$queryRaw`
+        SELECT p.id, p.name, p.sku, p.description, p."categoryId", p."costPrice",
+               p."wholesalePrice", p."retailPrice",
+               COALESCE(p."minStockLevel", 10) as "minStockLevel",
+               COALESCE(p."reorderPoint", 5) as "reorderPoint",
+               p.barcode, COALESCE(p."isActive", true) as "isActive",
+               p."createdAt", p."updatedAt",
+               c.id as "category_id", c.name as "category_name"
+        FROM "Product" p
+        LEFT JOIN "Category" c ON p."categoryId" = c.id
+        WHERE p.id = ${productId}
+      `;
+
+      console.log("API: Updated product query result:", updatedProductResult);
+
+      // Check if we got any results
+      if (!updatedProductResult || updatedProductResult.length === 0) {
+        console.error("API: No updated product found with ID:", productId);
+        return NextResponse.json(
+          { error: `Product not found after update with ID: ${productId}` },
+          { status: 404 }
+        );
+      }
+
+      // Format the product data
+      const updatedProduct = {
+        ...updatedProductResult[0],
+        category: updatedProductResult[0].category_id ? {
+          id: updatedProductResult[0].category_id,
+          name: updatedProductResult[0].category_name
+        } : null
+      };
+
+      return NextResponse.json({ product: updatedProduct });
+    } catch (queryError) {
+      console.error("API: Error fetching updated product:", queryError);
+      return NextResponse.json(
+        { error: `Error fetching updated product: ${queryError.message}` },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error("Error updating product:", error);
+
+    // Provide more detailed error message
+    let errorMessage = "Failed to update product";
+    if (error instanceof Error) {
+      errorMessage += `: ${error.message}`;
+      console.error("Error stack:", error.stack);
+    }
+
     return NextResponse.json(
-      { error: "Failed to update product" },
+      { error: errorMessage },
       { status: 500 }
     );
   }
@@ -140,16 +267,27 @@ export async function DELETE(
       );
     }
 
+    // Get the product ID from the params
     const productId = params.id;
 
-    // Check if product exists
-    const existingProduct = await prisma.product.findUnique({
-      where: {
-        id: productId,
-      },
-    });
+    // Log the product ID to help with debugging
+    console.log("API DELETE - Product ID:", productId);
 
-    if (!existingProduct) {
+    // Check if the product ID is valid
+    if (!productId || productId === "unknown" || productId === "undefined") {
+      console.error("Invalid product ID in API DELETE route:", productId);
+      return NextResponse.json(
+        { error: "Invalid product ID" },
+        { status: 400 }
+      );
+    }
+
+    // Check if product exists using raw SQL
+    const existingProductResult = await prisma.$queryRaw`
+      SELECT id FROM "Product" WHERE id = ${productId}
+    `;
+
+    if (!existingProductResult || existingProductResult.length === 0) {
       return NextResponse.json(
         { error: "Product not found" },
         { status: 404 }
@@ -157,23 +295,27 @@ export async function DELETE(
     }
 
     // Check if product is used in inventory
-    const inventoryItems = await prisma.inventoryItem.findMany({
-      where: {
-        productId,
-      },
-    });
+    const inventoryItemResult = await prisma.$queryRaw`
+      SELECT id FROM "InventoryItem" WHERE "productId" = ${productId} LIMIT 1
+    `;
 
-    if (inventoryItems.length > 0) {
+    if (inventoryItemResult && inventoryItemResult.length > 0) {
       // Instead of deleting, mark as inactive
-      const updatedProduct = await prisma.product.update({
-        where: {
-          id: productId,
-        },
-        data: {
-          isActive: false,
-          updatedById: session.user.id,
-        },
-      });
+      await prisma.$executeRaw`
+        UPDATE "Product"
+        SET
+          "isActive" = false,
+          "updatedById" = ${session.user.id},
+          "updatedAt" = NOW()
+        WHERE id = ${productId}
+      `;
+
+      // Get the updated product
+      const updatedProductResult = await prisma.$queryRaw`
+        SELECT * FROM "Product" WHERE id = ${productId}
+      `;
+
+      const updatedProduct = updatedProductResult.length > 0 ? updatedProductResult[0] : null;
 
       return NextResponse.json({
         product: updatedProduct,
@@ -181,12 +323,10 @@ export async function DELETE(
       });
     }
 
-    // Delete product
-    await prisma.product.delete({
-      where: {
-        id: productId,
-      },
-    });
+    // Delete product using raw SQL
+    await prisma.$executeRaw`
+      DELETE FROM "Product" WHERE id = ${productId}
+    `;
 
     return NextResponse.json({
       message: "Product deleted successfully",

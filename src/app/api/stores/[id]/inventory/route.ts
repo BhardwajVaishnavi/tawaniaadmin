@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -19,7 +19,7 @@ export async function GET(
     }
 
     const storeId = params.id;
-    
+
     // Parse query parameters
     const url = new URL(req.url);
     const categoryId = url.searchParams.get("category");
@@ -27,7 +27,7 @@ export async function GET(
     const filter = url.searchParams.get("filter");
     const page = parseInt(url.searchParams.get("page") || "1");
     const pageSize = parseInt(url.searchParams.get("pageSize") || "10");
-    
+
     // Build filters
     const filters: any = {
       storeId,
@@ -36,7 +36,7 @@ export async function GET(
         name: search ? { contains: search, mode: 'insensitive' } : undefined,
       },
     };
-    
+
     // Add stock level filters
     if (filter === "lowStock") {
       filters.quantity = {
@@ -54,18 +54,38 @@ export async function GET(
         gt: 0,
       };
     }
-    
-    // Get inventory items with pagination
+
+    // Get inventory items with pagination using select instead of include to avoid schema mismatches
     const [inventoryItems, totalItems] = await Promise.all([
       prisma.inventoryItem.findMany({
         where: filters,
-        include: {
+        select: {
+          id: true,
+          quantity: true,
+          costPrice: true,
+          retailPrice: true,
+          status: true,
           product: {
-            include: {
-              category: true,
-            },
+            select: {
+              id: true,
+              name: true,
+              sku: true,
+              reorderPoint: true,
+              minStockLevel: true,
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                }
+              }
+            }
           },
-          store: true,
+          store: {
+            select: {
+              id: true,
+              name: true,
+            }
+          },
         },
         orderBy: [
           { product: { name: 'asc' } },
@@ -77,7 +97,7 @@ export async function GET(
         where: filters,
       }),
     ]);
-    
+
     return NextResponse.json({
       inventoryItems,
       totalItems,
@@ -100,7 +120,7 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -111,7 +131,7 @@ export async function POST(
     const storeId = params.id;
     const data = await req.json();
     const { productId, quantity, costPrice, retailPrice } = data;
-    
+
     // Validate required fields
     if (!productId || quantity === undefined) {
       return NextResponse.json(
@@ -119,31 +139,31 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     // Check if store exists
     const store = await prisma.store.findUnique({
       where: { id: storeId },
     });
-    
+
     if (!store) {
       return NextResponse.json(
         { error: "Store not found" },
         { status: 404 }
       );
     }
-    
+
     // Check if product exists
     const product = await prisma.product.findUnique({
       where: { id: productId },
     });
-    
+
     if (!product) {
       return NextResponse.json(
         { error: "Product not found" },
         { status: 404 }
       );
     }
-    
+
     // Check if inventory item already exists
     const existingItem = await prisma.inventoryItem.findFirst({
       where: {
@@ -151,11 +171,11 @@ export async function POST(
         storeId,
       },
     });
-    
+
     let inventoryItem;
-    
+
     if (existingItem) {
-      // Update existing inventory item
+      // Update existing inventory item with only the fields we know exist in the database
       inventoryItem = await prisma.inventoryItem.update({
         where: { id: existingItem.id },
         data: {
@@ -163,10 +183,22 @@ export async function POST(
           costPrice: costPrice !== undefined ? costPrice : existingItem.costPrice,
           retailPrice: retailPrice !== undefined ? retailPrice : existingItem.retailPrice,
           status: (existingItem.quantity + quantity) > 0 ? InventoryStatus.AVAILABLE : InventoryStatus.EXPIRED,
+          // Explicitly omit wholesalePrice to avoid schema mismatch
         },
+        select: {
+          id: true,
+          productId: true,
+          storeId: true,
+          quantity: true,
+          costPrice: true,
+          retailPrice: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        }
       });
     } else {
-      // Create new inventory item
+      // Create new inventory item with only the fields we know exist in the database
       inventoryItem = await prisma.inventoryItem.create({
         data: {
           productId,
@@ -175,10 +207,22 @@ export async function POST(
           costPrice: costPrice !== undefined ? costPrice : product.costPrice,
           retailPrice: retailPrice !== undefined ? retailPrice : product.retailPrice,
           status: quantity > 0 ? InventoryStatus.AVAILABLE : InventoryStatus.EXPIRED,
+          // Explicitly omit wholesalePrice to avoid schema mismatch
         },
+        select: {
+          id: true,
+          productId: true,
+          storeId: true,
+          quantity: true,
+          costPrice: true,
+          retailPrice: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        }
       });
     }
-    
+
     return NextResponse.json({ inventoryItem });
   } catch (error) {
     console.error("Error adding inventory to store:", error);

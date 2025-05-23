@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -19,12 +19,14 @@ export async function GET(
 
     const categoryId = params.id;
 
-    // Get category
-    const category = await prisma.category.findUnique({
-      where: {
-        id: categoryId,
-      },
-    });
+    // Get category using raw query to avoid schema mismatches
+    const categories = await prisma.$queryRaw`
+      SELECT id, name, description, "createdAt", "updatedAt", "isActive"
+      FROM "Category"
+      WHERE id = ${categoryId}
+    `;
+
+    const category = categories.length > 0 ? categories[0] : null;
 
     if (!category) {
       return NextResponse.json(
@@ -49,7 +51,7 @@ export async function PUT(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -69,12 +71,14 @@ export async function PUT(
       );
     }
 
-    // Check if category exists
-    const existingCategory = await prisma.category.findUnique({
-      where: {
-        id: categoryId,
-      },
-    });
+    // Check if category exists using raw query
+    const existingCategories = await prisma.$queryRaw`
+      SELECT id, name, code, description
+      FROM "Category"
+      WHERE id = ${categoryId}
+    `;
+
+    const existingCategory = existingCategories.length > 0 ? existingCategories[0] : null;
 
     if (!existingCategory) {
       return NextResponse.json(
@@ -85,16 +89,14 @@ export async function PUT(
 
     // Check if name or code is being changed and already exists
     if (name !== existingCategory.name || code !== existingCategory.code) {
-      const duplicateCategory = await prisma.category.findFirst({
-        where: {
-          OR: [
-            { name, id: { not: categoryId } },
-            { code, id: { not: categoryId } },
-          ],
-        },
-      });
+      const duplicateCategories = await prisma.$queryRaw`
+        SELECT id
+        FROM "Category"
+        WHERE (name = ${name} OR code = ${code}) AND id != ${categoryId}
+        LIMIT 1
+      `;
 
-      if (duplicateCategory) {
+      if (duplicateCategories.length > 0) {
         return NextResponse.json(
           { error: "Category with same name or code already exists" },
           { status: 400 }
@@ -102,20 +104,30 @@ export async function PUT(
       }
     }
 
-    // Update category
-    const updatedCategory = await prisma.category.update({
-      where: {
-        id: categoryId,
-      },
-      data: {
-        name,
-        code,
-        description,
-        updatedById: session.user.id,
-      },
-    });
+    // Update category using raw query to avoid schema mismatches
+    try {
+      await prisma.$executeRaw`
+        UPDATE "Category"
+        SET name = ${name}, code = ${code}, description = ${description}
+        WHERE id = ${categoryId}
+      `;
 
-    return NextResponse.json({ category: updatedCategory });
+      // Fetch the updated category
+      const updatedCategories = await prisma.$queryRaw`
+        SELECT id, name, code, description, "createdAt", "updatedAt", "isActive"
+        FROM "Category"
+        WHERE id = ${categoryId}
+      `;
+
+      const updatedCategory = updatedCategories.length > 0 ? updatedCategories[0] : null;
+      return NextResponse.json({ category: updatedCategory });
+    } catch (error) {
+      console.error("Error in raw SQL update:", error);
+      return NextResponse.json(
+        { error: "Failed to update category" },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error("Error updating category:", error);
     return NextResponse.json(
@@ -131,7 +143,7 @@ export async function DELETE(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -141,26 +153,28 @@ export async function DELETE(
 
     const categoryId = params.id;
 
-    // Check if category exists
-    const existingCategory = await prisma.category.findUnique({
-      where: {
-        id: categoryId,
-      },
-    });
+    // Check if category exists using raw query
+    const existingCategories = await prisma.$queryRaw`
+      SELECT id
+      FROM "Category"
+      WHERE id = ${categoryId}
+    `;
 
-    if (!existingCategory) {
+    if (existingCategories.length === 0) {
       return NextResponse.json(
         { error: "Category not found" },
         { status: 404 }
       );
     }
 
-    // Check if category is used by products
-    const productsCount = await prisma.product.count({
-      where: {
-        categoryId,
-      },
-    });
+    // Check if category is used by products using raw query
+    const productsCountResult = await prisma.$queryRaw`
+      SELECT COUNT(*) as count
+      FROM "Product"
+      WHERE "categoryId" = ${categoryId}
+    `;
+
+    const productsCount = parseInt(productsCountResult[0].count);
 
     if (productsCount > 0) {
       return NextResponse.json(
@@ -169,12 +183,11 @@ export async function DELETE(
       );
     }
 
-    // Delete category
-    await prisma.category.delete({
-      where: {
-        id: categoryId,
-      },
-    });
+    // Delete category using raw query
+    await prisma.$executeRaw`
+      DELETE FROM "Category"
+      WHERE id = ${categoryId}
+    `;
 
     return NextResponse.json({
       message: "Category deleted successfully",

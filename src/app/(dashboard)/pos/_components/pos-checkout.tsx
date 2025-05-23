@@ -48,19 +48,19 @@ export function POSCheckout({
   const [amountPaid, setAmountPaid] = useState<number>(total);
   const [referenceNumber, setReferenceNumber] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
-  
+
   // Calculate change
   const change = amountPaid > total ? amountPaid - total : 0;
-  
+
   // Handle quick amount buttons
   const handleQuickAmount = (amount: number) => {
     setAmountPaid(amount);
   };
-  
+
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     onComplete({
       paymentMethod,
       amountPaid,
@@ -68,7 +68,7 @@ export function POSCheckout({
       notes: notes || undefined,
     });
   };
-  
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="w-full max-w-3xl rounded-lg bg-white p-6 shadow-xl">
@@ -83,12 +83,12 @@ export function POSCheckout({
             </svg>
           </button>
         </div>
-        
+
         <div className="mb-6 grid gap-6 md:grid-cols-2">
           {/* Order Summary */}
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
             <h3 className="mb-3 text-lg font-semibold text-gray-800">Order Summary</h3>
-            
+
             <div className="mb-4 max-h-60 overflow-y-auto">
               {cart.map((item, index) => (
                 <div key={index} className="mb-2 flex justify-between border-b border-gray-200 pb-2 last:border-0">
@@ -102,7 +102,7 @@ export function POSCheckout({
                 </div>
               ))}
             </div>
-            
+
             <div className="space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-800">Subtotal</span>
@@ -117,21 +117,21 @@ export function POSCheckout({
                 <span>${total.toFixed(2)}</span>
               </div>
             </div>
-            
+
             {customer && (
               <div className="mt-4 rounded-md bg-blue-50 p-3">
                 <h4 className="text-sm font-medium text-blue-800">Customer Information</h4>
-                <p className="text-sm text-blue-700">{customer.name}</p>
+                <p className="text-sm text-blue-700">{customer.name || "Customer"}</p>
                 {customer.email && <p className="text-xs text-blue-600">{customer.email}</p>}
                 {customer.phone && <p className="text-xs text-blue-600">{customer.phone}</p>}
               </div>
             )}
           </div>
-          
+
           {/* Payment Form */}
           <div>
             <h3 className="mb-3 text-lg font-semibold text-gray-800">Payment</h3>
-            
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="paymentMethod" className="mb-1 block text-sm font-medium text-gray-800">
@@ -154,7 +154,7 @@ export function POSCheckout({
                   <option value="OTHER">Other</option>
                 </select>
               </div>
-              
+
               <div>
                 <label htmlFor="amountPaid" className="mb-1 block text-sm font-medium text-gray-800">
                   Amount Paid
@@ -174,7 +174,7 @@ export function POSCheckout({
                     required
                   />
                 </div>
-                
+
                 {paymentMethod === "CASH" && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
@@ -215,7 +215,7 @@ export function POSCheckout({
                   </div>
                 )}
               </div>
-              
+
               {paymentMethod !== "CASH" && (
                 <div>
                   <label htmlFor="referenceNumber" className="mb-1 block text-sm font-medium text-gray-800">
@@ -231,7 +231,7 @@ export function POSCheckout({
                   />
                 </div>
               )}
-              
+
               <div>
                 <label htmlFor="notes" className="mb-1 block text-sm font-medium text-gray-800">
                   Notes
@@ -245,7 +245,7 @@ export function POSCheckout({
                   placeholder="Any additional information"
                 ></textarea>
               </div>
-              
+
               {amountPaid >= total && (
                 <div className="rounded-md bg-green-50 p-3">
                   <div className="flex justify-between">
@@ -254,7 +254,7 @@ export function POSCheckout({
                   </div>
                 </div>
               )}
-              
+
               {amountPaid < total && (
                 <div className="rounded-md bg-amber-50 p-3">
                   <div className="flex justify-between">
@@ -266,7 +266,7 @@ export function POSCheckout({
                   </p>
                 </div>
               )}
-              
+
               <div className="flex justify-end gap-2">
                 <button
                   type="button"

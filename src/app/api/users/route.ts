@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
 
     // Parse request body
     const body = await req.json();
-    const { name, email, password, role } = body;
+    const { name, email, password, role, isActive } = body;
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -207,14 +207,14 @@ export async function POST(req: NextRequest) {
         email,
         password: hashedPassword,
         role: role || "STAFF",
-        // Remove isActive
+        isActive: isActive !== undefined ? isActive : true,
       },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
-        // Remove isActive
+        isActive: true,
         createdAt: true,
         updatedAt: true,
       },

@@ -42,7 +42,7 @@ export default function ProductsComponent() {
     const fetchProducts = async () => {
       try {
         setIsLoading(true);
-        
+
         // Build query parameters
         const params = new URLSearchParams();
         if (searchQuery) params.append("search", searchQuery);
@@ -51,19 +51,19 @@ export default function ProductsComponent() {
         if (conditionFilter !== "all") params.append("condition", conditionFilter);
         params.append("page", page.toString());
         params.append("pageSize", pageSize.toString());
-        
+
         // Fetch products
         const response = await fetch(`/api/products?${params.toString()}`);
-        
+
         if (!response.ok) {
           throw new Error("Failed to fetch products");
         }
-        
+
         const data = await response.json();
         setProducts(data.products || []);
         setTotalPages(Math.ceil((data.totalItems || 0) / pageSize));
         setTotalItems(data.totalItems || 0);
-        
+
         // Fetch categories if not already loaded
         if (categories.length === 0) {
           const categoriesResponse = await fetch('/api/categories');
@@ -78,7 +78,7 @@ export default function ProductsComponent() {
         setIsLoading(false);
       }
     };
-    
+
     fetchProducts();
   }, [searchQuery, categoryFilter, statusFilter, conditionFilter, page, pageSize, categories.length]);
 
@@ -179,8 +179,8 @@ export default function ProductsComponent() {
                         <td className="px-4 py-2 text-sm text-gray-800">{product.category.name}</td>
                         <td className="px-4 py-2">
                           <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                            product.condition === "NEW" 
-                              ? "bg-blue-100 text-blue-800" 
+                            product.condition === "NEW"
+                              ? "bg-blue-100 text-blue-800"
                               : "bg-orange-100 text-orange-800"
                           }`}>
                             {product.condition === "NEW" ? "New" : "Damaged"}
@@ -191,8 +191,8 @@ export default function ProductsComponent() {
                         <td className="px-4 py-2 text-sm text-gray-800">{product.minStockLevel}</td>
                         <td className="px-4 py-2">
                           <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                            product.isActive 
-                              ? "bg-green-100 text-green-800" 
+                            product.isActive
+                              ? "bg-green-100 text-green-800"
                               : "bg-red-100 text-red-800"
                           }`}>
                             {product.isActive ? "Active" : "Inactive"}
@@ -222,7 +222,7 @@ export default function ProductsComponent() {
                 </tbody>
               </table>
             </div>
-            
+
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
@@ -247,7 +247,7 @@ export default function ProductsComponent() {
                     return (
                       <Button
                         key={pageNum}
-                        variant={pageNum === page ? "default" : "outline"}
+                        variant={pageNum === page ? "primary" : "outline"}
                         size="sm"
                         onClick={() => handlePageChange(pageNum)}
                       >

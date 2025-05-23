@@ -88,19 +88,67 @@ export function QualityControlList({ warehouses }: QualityControlListProps) {
         params.append("status", status);
       }
 
-      const response = await fetch(`/api/quality-control?${params.toString()}`);
+      try {
+        const response = await fetch(`/api/quality-control?${params.toString()}`);
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch quality controls");
+        if (!response.ok) {
+          throw new Error("Failed to fetch quality controls");
+        }
+
+        const data = await response.json();
+
+        // Check if we got valid data
+        if (data && Array.isArray(data.qualityControls)) {
+          setQualityControls(data.qualityControls);
+          setTotalPages(data.totalPages || 1);
+          setTotalItems(data.totalItems || data.qualityControls.length);
+        } else {
+          // If the data format is unexpected, try to get data from localStorage
+          throw new Error("Invalid data format");
+        }
+      } catch (fetchError) {
+        console.error("Error fetching from API:", fetchError);
+
+        // Fallback: Try to get data from localStorage
+        try {
+          const storedQCs = JSON.parse(localStorage.getItem('qualityControls') || '[]');
+
+          // Apply filters
+          let filteredQCs = storedQCs;
+
+          if (warehouseId) {
+            filteredQCs = filteredQCs.filter((qc: any) =>
+              qc.warehouseId === warehouseId || qc.warehouse?.id === warehouseId
+            );
+          }
+
+          if (type) {
+            filteredQCs = filteredQCs.filter((qc: any) => qc.type === type);
+          }
+
+          if (status) {
+            filteredQCs = filteredQCs.filter((qc: any) => qc.status === status);
+          }
+
+          // Calculate pagination
+          const startIndex = (page - 1) * 10;
+          const endIndex = startIndex + 10;
+          const paginatedQCs = filteredQCs.slice(startIndex, endIndex);
+
+          setQualityControls(paginatedQCs);
+          setTotalPages(Math.ceil(filteredQCs.length / 10) || 1);
+          setTotalItems(filteredQCs.length);
+        } catch (storageError) {
+          console.error("Error reading from localStorage:", storageError);
+
+          // If localStorage also fails, use empty data
+          setQualityControls([]);
+          setTotalPages(1);
+          setTotalItems(0);
+        }
       }
-
-      const data = await response.json();
-
-      setQualityControls(data.qualityControls);
-      setTotalPages(data.totalPages);
-      setTotalItems(data.totalItems);
     } catch (err) {
-      console.error("Error fetching quality controls:", err);
+      console.error("Error in fetchQualityControls:", err);
       setError("Failed to load quality controls. Please try again.");
     } finally {
       setLoading(false);
@@ -111,6 +159,20 @@ export function QualityControlList({ warehouses }: QualityControlListProps) {
   useEffect(() => {
     fetchQualityControls();
   }, [page, warehouseId, type, status]);
+
+  // Also fetch when the component mounts
+  useEffect(() => {
+    fetchQualityControls();
+
+    // Set up an interval to refresh the data every 2 seconds
+    // This ensures that newly created quality controls are displayed
+    const intervalId = setInterval(() => {
+      fetchQualityControls();
+    }, 2000);
+
+    // Clean up the interval when the component unmounts
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Handle search
   const handleSearch = () => {

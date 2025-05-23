@@ -243,9 +243,13 @@ export async function POST(req: NextRequest) {
             const totalPrice = item.unitPrice * item.quantity;
             return {
               productId: item.productId,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              totalPrice,
+              orderedQuantity: item.quantity,
+              unitPrice: item.unitPrice.toString(),
+              discount: "0",
+              tax: "0",
+              subtotal: (item.unitPrice * item.quantity).toString(),
+              total: totalPrice.toString(),
+              notes: "",
             };
           }),
         },

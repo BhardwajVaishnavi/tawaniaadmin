@@ -1,23 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { notFound } from "next/navigation";
 
-export default function EditStorePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function EditStorePage() {
   const router = useRouter();
-  const storeId = params.id;
-  
+  const params = useParams();
+  const storeId = params.id as string;
+
   const [store, setStore] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Form state
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -26,23 +23,23 @@ export default function EditStorePage({
   const [email, setEmail] = useState("");
   const [openingHours, setOpeningHours] = useState("");
   const [isActive, setIsActive] = useState(true);
-  
+
   // Fetch store data
   useEffect(() => {
     const fetchStore = async () => {
       try {
         const response = await fetch(`/api/stores/${storeId}`);
-        
+
         if (!response.ok) {
           if (response.status === 404) {
             notFound();
           }
           throw new Error('Failed to fetch store');
         }
-        
+
         const data = await response.json();
         setStore(data.store);
-        
+
         // Set form values
         setName(data.store.name);
         setCode(data.store.code);
@@ -57,20 +54,20 @@ export default function EditStorePage({
         setIsLoading(false);
       }
     };
-    
+
     fetchStore();
   }, [storeId]);
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!name || !code) {
       alert("Name and code are required");
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       const storeData = {
         name,
@@ -81,7 +78,7 @@ export default function EditStorePage({
         openingHours,
         isActive,
       };
-      
+
       const response = await fetch(`/api/stores/${storeId}`, {
         method: 'PUT',
         headers: {
@@ -89,12 +86,12 @@ export default function EditStorePage({
         },
         body: JSON.stringify(storeData),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to update store');
       }
-      
+
       // Redirect to store details page
       router.push(`/stores/${storeId}`);
       router.refresh();
@@ -105,7 +102,7 @@ export default function EditStorePage({
       setIsSubmitting(false);
     }
   };
-  
+
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -116,11 +113,11 @@ export default function EditStorePage({
       </div>
     );
   }
-  
+
   if (!store) {
     return notFound();
   }
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -132,7 +129,7 @@ export default function EditStorePage({
           Back to Store
         </Link>
       </div>
-      
+
       <div className="rounded-lg bg-white p-6 shadow-md">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
@@ -149,7 +146,7 @@ export default function EditStorePage({
                 required
               />
             </div>
-            
+
             <div>
               <label htmlFor="code" className="mb-1 block text-sm font-medium text-gray-700">
                 Store Code *
@@ -166,7 +163,7 @@ export default function EditStorePage({
                 Unique identifier for the store (e.g., MAIN, BRANCH1)
               </p>
             </div>
-            
+
             <div>
               <label htmlFor="address" className="mb-1 block text-sm font-medium text-gray-700">
                 Address
@@ -179,7 +176,7 @@ export default function EditStorePage({
                 rows={3}
               />
             </div>
-            
+
             <div className="space-y-6">
               <div>
                 <label htmlFor="phone" className="mb-1 block text-sm font-medium text-gray-700">
@@ -193,7 +190,7 @@ export default function EditStorePage({
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
-              
+
               <div>
                 <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
                   Email
@@ -207,7 +204,7 @@ export default function EditStorePage({
                 />
               </div>
             </div>
-            
+
             <div>
               <label htmlFor="openingHours" className="mb-1 block text-sm font-medium text-gray-700">
                 Opening Hours
@@ -221,7 +218,7 @@ export default function EditStorePage({
                 placeholder="e.g., Mon-Fri: 9am-6pm, Sat-Sun: 10am-4pm"
               />
             </div>
-            
+
             <div>
               <div className="flex items-center">
                 <input
@@ -240,7 +237,7 @@ export default function EditStorePage({
               </p>
             </div>
           </div>
-          
+
           <div className="flex justify-end gap-2">
             <Link
               href={`/stores/${storeId}`}

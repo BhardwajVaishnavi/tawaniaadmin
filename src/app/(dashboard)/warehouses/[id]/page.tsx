@@ -8,14 +8,15 @@ import { format } from "date-fns";
 export default async function WarehouseDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  
+  const resolvedParams = await params;
+
   // Get warehouse details
   const warehouse = await prisma.warehouse.findUnique({
     where: {
-      id: params.id,
+      id: resolvedParams.id,
     },
     include: {
       zones: {
@@ -51,18 +52,18 @@ export default async function WarehouseDetailPage({
       },
     },
   });
-  
+
   if (!warehouse) {
     notFound();
   }
-  
+
   // Count total inventory items
   const totalInventoryItems = await prisma.inventoryItem.count({
     where: {
       warehouseId: warehouse.id,
     },
   });
-  
+
   // Count total bins
   let totalBins = 0;
   warehouse.zones.forEach(zone => {
@@ -72,7 +73,7 @@ export default async function WarehouseDetailPage({
       });
     });
   });
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -104,7 +105,7 @@ export default async function WarehouseDetailPage({
           </Link>
         </div>
       </div>
-      
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           {/* Warehouse Details */}
@@ -147,7 +148,7 @@ export default async function WarehouseDetailPage({
               </div>
             </div>
           </div>
-          
+
           {/* Zones */}
           <div className="rounded-lg bg-white p-6 shadow-md">
             <div className="flex items-center justify-between mb-4">
@@ -159,7 +160,7 @@ export default async function WarehouseDetailPage({
                 Manage Zones
               </Link>
             </div>
-            
+
             {warehouse.zones.length === 0 ? (
               <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-gray-300">
                 <p className="text-gray-500">No zones found</p>
@@ -179,8 +180,8 @@ export default async function WarehouseDetailPage({
                         Shelves: {zone.aisles.reduce((sum, aisle) => sum + aisle.shelves.length, 0)}
                       </div>
                       <div>
-                        Bins: {zone.aisles.reduce((sum, aisle) => 
-                          sum + aisle.shelves.reduce((shelfSum, shelf) => 
+                        Bins: {zone.aisles.reduce((sum, aisle) =>
+                          sum + aisle.shelves.reduce((shelfSum, shelf) =>
                             shelfSum + shelf.bins.length, 0), 0)}
                       </div>
                     </div>
@@ -197,7 +198,7 @@ export default async function WarehouseDetailPage({
               </div>
             )}
           </div>
-          
+
           {/* Inventory Items */}
           <div className="rounded-lg bg-white p-6 shadow-md">
             <div className="flex items-center justify-between mb-4">
@@ -209,7 +210,7 @@ export default async function WarehouseDetailPage({
                 View All Items
               </Link>
             </div>
-            
+
             {warehouse.inventoryItems.length === 0 ? (
               <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-gray-300">
                 <p className="text-gray-500">No inventory items found</p>
@@ -246,7 +247,7 @@ export default async function WarehouseDetailPage({
                     ))}
                   </tbody>
                 </table>
-                
+
                 {totalInventoryItems > 10 && (
                   <div className="mt-4 text-right">
                     <Link
@@ -261,7 +262,7 @@ export default async function WarehouseDetailPage({
             )}
           </div>
         </div>
-        
+
         <div className="space-y-6">
           {/* Warehouse Statistics */}
           <div className="rounded-lg bg-white p-6 shadow-md">
@@ -280,8 +281,8 @@ export default async function WarehouseDetailPage({
               <div>
                 <p className="text-sm text-gray-500">Total Shelves</p>
                 <p className="text-xl font-bold text-gray-900">
-                  {warehouse.zones.reduce((sum, zone) => 
-                    sum + zone.aisles.reduce((aisleSum, aisle) => 
+                  {warehouse.zones.reduce((sum, zone) =>
+                    sum + zone.aisles.reduce((aisleSum, aisle) =>
                       aisleSum + aisle.shelves.length, 0), 0)}
                 </p>
               </div>
@@ -295,7 +296,7 @@ export default async function WarehouseDetailPage({
               </div>
             </div>
           </div>
-          
+
           {/* Actions */}
           <div className="rounded-lg bg-white p-6 shadow-md">
             <h2 className="mb-4 text-lg font-semibold text-gray-800">Actions</h2>
@@ -338,7 +339,7 @@ export default async function WarehouseDetailPage({
               </Link>
             </div>
           </div>
-          
+
           {/* Staff */}
           {warehouse.staff.length > 0 && (
             <div className="rounded-lg bg-white p-6 shadow-md">

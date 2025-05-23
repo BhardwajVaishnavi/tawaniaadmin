@@ -16,30 +16,30 @@ interface PaymentFormProps {
 
 export function PaymentForm({ sale, balanceDue }: PaymentFormProps) {
   const router = useRouter();
-  
+
   // State for the form
   const [amount, setAmount] = useState<number>(balanceDue);
   const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
   const [referenceNumber, setReferenceNumber] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (amount <= 0) {
       alert("Please enter a valid amount");
       return;
     }
-    
+
     if (amount > balanceDue) {
       alert(`Payment amount cannot exceed the balance due (${balanceDue.toFixed(2)})`);
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       const response = await fetch(`/api/sales/${sale.id}/payment`, {
         method: "POST",
@@ -53,7 +53,7 @@ export function PaymentForm({ sale, balanceDue }: PaymentFormProps) {
           notes: notes || null,
         }),
       });
-      
+
       if (response.ok) {
         router.push(`/sales/${sale.id}`);
         router.refresh();
@@ -68,12 +68,12 @@ export function PaymentForm({ sale, balanceDue }: PaymentFormProps) {
       setIsSubmitting(false);
     }
   };
-  
+
   // Handle quick amount buttons
   const handleQuickAmount = (percentage: number) => {
     setAmount(Math.round((balanceDue * percentage) * 100) / 100);
   };
-  
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid gap-6 md:grid-cols-2">
@@ -83,7 +83,7 @@ export function PaymentForm({ sale, balanceDue }: PaymentFormProps) {
           </label>
           <div className="mt-1 flex rounded-md shadow-sm">
             <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-gray-800">
-              $
+              ₹
             </span>
             <input
               type="number"
@@ -128,7 +128,7 @@ export function PaymentForm({ sale, balanceDue }: PaymentFormProps) {
             </button>
           </div>
         </div>
-        
+
         <div>
           <label htmlFor="paymentMethod" className="block text-sm font-medium text-gray-800">
             Payment Method
@@ -150,7 +150,7 @@ export function PaymentForm({ sale, balanceDue }: PaymentFormProps) {
             <option value="OTHER">Other</option>
           </select>
         </div>
-        
+
         <div>
           <label htmlFor="referenceNumber" className="block text-sm font-medium text-gray-800">
             Reference Number
@@ -164,7 +164,7 @@ export function PaymentForm({ sale, balanceDue }: PaymentFormProps) {
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
-        
+
         <div>
           <label htmlFor="notes" className="block text-sm font-medium text-gray-800">
             Notes
@@ -179,7 +179,7 @@ export function PaymentForm({ sale, balanceDue }: PaymentFormProps) {
           />
         </div>
       </div>
-      
+
       <div className="rounded-lg bg-blue-50 p-4">
         <h3 className="font-medium text-blue-800">Payment Summary</h3>
         <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
@@ -189,7 +189,7 @@ export function PaymentForm({ sale, balanceDue }: PaymentFormProps) {
           </div>
           <div>
             <p className="text-gray-800">Payment Amount</p>
-            <p className="font-medium text-gray-800">${amount.toFixed(2)}</p>
+            <p className="font-medium text-gray-800">₹{amount.toFixed(2)}</p>
           </div>
           <div>
             <p className="text-gray-800">Payment Method</p>
@@ -198,12 +198,12 @@ export function PaymentForm({ sale, balanceDue }: PaymentFormProps) {
           <div>
             <p className="text-gray-800">Remaining Balance</p>
             <p className="font-medium text-gray-800">
-              ${(balanceDue - amount).toFixed(2)}
+              ₹{(balanceDue - amount).toFixed(2)}
             </p>
           </div>
         </div>
       </div>
-      
+
       <div className="flex justify-end gap-2">
         <Button
           type="button"

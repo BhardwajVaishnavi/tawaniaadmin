@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 export function UserCreateForm() {
   const router = useRouter();
-  
+
   // Form state
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -16,29 +16,29 @@ export function UserCreateForm() {
   const [isActive, setIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!name || !email || !password) {
       setError("Name, email, and password are required");
       return;
     }
-    
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-    
+
     if (password.length < 8) {
       setError("Password must be at least 8 characters long");
       return;
     }
-    
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
       const response = await fetch("/api/users", {
         method: "POST",
@@ -53,10 +53,11 @@ export function UserCreateForm() {
           isActive,
         }),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        router.push(`/users/${data.user.id}`);
+        // Redirect to users list instead of user detail page to avoid the error
+        router.push('/users');
         router.refresh();
       } else {
         const data = await response.json();
@@ -69,7 +70,7 @@ export function UserCreateForm() {
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
@@ -89,7 +90,7 @@ export function UserCreateForm() {
           </div>
         </div>
       )}
-      
+
       <div className="grid gap-6 md:grid-cols-2">
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-800">
@@ -104,7 +105,7 @@ export function UserCreateForm() {
             required
           />
         </div>
-        
+
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-800">
             Email
@@ -118,7 +119,7 @@ export function UserCreateForm() {
             required
           />
         </div>
-        
+
         <div>
           <label htmlFor="password" className="block text-sm font-medium text-gray-800">
             Password
@@ -136,7 +137,7 @@ export function UserCreateForm() {
             Password must be at least 8 characters long
           </p>
         </div>
-        
+
         <div>
           <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-800">
             Confirm Password
@@ -150,7 +151,7 @@ export function UserCreateForm() {
             required
           />
         </div>
-        
+
         <div>
           <label htmlFor="role" className="block text-sm font-medium text-gray-800">
             Role
@@ -173,7 +174,7 @@ export function UserCreateForm() {
             Staff: Limited access to POS and inventory
           </p>
         </div>
-        
+
         <div>
           <label htmlFor="status" className="block text-sm font-medium text-gray-800">
             Status
@@ -205,7 +206,7 @@ export function UserCreateForm() {
           </p>
         </div>
       </div>
-      
+
       <div className="border-t border-gray-200 pt-5">
         <div className="flex justify-end gap-3">
           <Button

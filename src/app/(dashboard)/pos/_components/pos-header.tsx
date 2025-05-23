@@ -58,9 +58,9 @@ export function POSHeader({
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
             </svg>
           </Link>
-          
+
           <h1 className="text-xl font-bold text-gray-800">Point of Sale</h1>
-          
+
           <div className="ml-4">
             <label htmlFor="store" className="mr-2 text-sm font-medium text-gray-800">
               Store:
@@ -79,7 +79,7 @@ export function POSHeader({
             </select>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <div>
             <label htmlFor="barcode" className="mr-2 text-sm font-medium text-gray-800">
@@ -102,7 +102,7 @@ export function POSHeader({
               Add
             </button>
           </div>
-          
+
           <div>
             <label htmlFor="customer" className="mr-2 text-sm font-medium text-gray-800">
               Customer:
@@ -114,14 +114,18 @@ export function POSHeader({
               className="w-48 rounded-md border border-gray-300 px-3 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">Walk-in Customer</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
+              {Array.isArray(customers) && customers.length > 0 ? (
+                customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name || "Customer"}
+                  </option>
+                ))
+              ) : (
+                <option value="guest">Guest Customer</option>
+              )}
             </select>
           </div>
-          
+
           <div>
             <label htmlFor="taxRate" className="mr-2 text-sm font-medium text-gray-800">
               Tax Rate:

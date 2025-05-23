@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { executeWithRetry } from "@/lib/db-helpers";
 import Link from "next/link";
 import { SupplierFilters } from "./_components/supplier-filters";
 
@@ -11,51 +12,60 @@ export default async function SuppliersPage({
 }) {
   const session = await getServerSession(authOptions);
 
-  // Parse search parameters
-  const search = searchParams.search as string | undefined;
-  const status = searchParams.status as string | undefined;
-  const page = parseInt(searchParams.page as string || "1");
+  // Parse search parameters - properly handle searchParams as a Promise in newer Next.js versions
+  const searchParamsData = await Promise.resolve(searchParams);
+  const search = searchParamsData.search;
+  const status = searchParamsData.status;
+  const pageParam = searchParamsData.page;
+
+  const searchValue = typeof search === 'string' ? search : undefined;
+  const statusValue = typeof status === 'string' ? status : undefined;
+  const page = parseInt(typeof pageParam === 'string' ? pageParam : "1");
   const pageSize = 10;
 
   // Build query filters
   const filters: any = {};
 
-  if (search) {
+  if (searchValue) {
     filters.OR = [
-      { name: { contains: search, mode: 'insensitive' } },
-      { email: { contains: search, mode: 'insensitive' } },
-      { phone: { contains: search, mode: 'insensitive' } },
-      { contactPerson: { contains: search, mode: 'insensitive' } },
+      { name: { contains: searchValue, mode: 'insensitive' } },
+      { email: { contains: searchValue, mode: 'insensitive' } },
+      { phone: { contains: searchValue, mode: 'insensitive' } },
+      { contactPerson: { contains: searchValue, mode: 'insensitive' } },
     ];
   }
 
-  if (status === "active") {
+  if (statusValue === "active") {
     filters.isActive = true;
-  } else if (status === "inactive") {
+  } else if (statusValue === "inactive") {
     filters.isActive = false;
   }
 
-  // Get suppliers with pagination
+  // Get suppliers with pagination using retry logic
   const [suppliers, totalItems] = await Promise.all([
-    prisma.supplier.findMany({
-      where: filters,
-      include: {
-        products: {
-          select: {
-            id: true,
+    executeWithRetry(() =>
+      prisma.supplier.findMany({
+        where: filters,
+        include: {
+          products: {
+            select: {
+              id: true,
+            },
           },
+          // Removed purchaseOrders include
         },
-        // Removed purchaseOrders include
-      },
-      orderBy: {
-        name: "asc",
-      },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.supplier.count({
-      where: filters,
-    }),
+        orderBy: {
+          name: "asc",
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      })
+    ),
+    executeWithRetry(() =>
+      prisma.supplier.count({
+        where: filters,
+      })
+    ),
   ]);
 
   // Try to get purchase order counts for each supplier
@@ -66,16 +76,19 @@ export default async function SuppliersPage({
       suppliers.map(async (supplier) => {
         try {
           // @ts-ignore - Dynamically access the model
-          const count = await prisma.purchaseOrder.count({
-            where: { supplierId: supplier.id },
-          });
+          const count = await executeWithRetry(() =>
+            prisma.purchaseOrder.count({
+              where: { supplierId: supplier.id },
+            })
+          );
           return { supplierId: supplier.id, count };
         } catch (error) {
+          console.error(`Error fetching purchase orders for supplier ${supplier.id}:`, error);
           return { supplierId: supplier.id, count: 0 };
         }
       })
     );
-    
+
     // Convert to a lookup object
     supplierOrderCounts = purchaseOrderCounts.reduce((acc, item) => {
       acc[item.supplierId] = item.count;
@@ -119,9 +132,39 @@ export default async function SuppliersPage({
       </div>
 
       <SupplierFilters
-        currentSearch={search}
-        currentStatus={status}
+        currentSearch={searchValue}
+        currentStatus={statusValue}
       />
+
+      {/* Add the client-side supplier form */}
+      <div className="mt-6">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">Quick Add Supplier</h2>
+          <p className="text-sm text-gray-600">Use this form to quickly add a new supplier without leaving this page.</p>
+        </div>
+        {/* @ts-expect-error Server Component */}
+        <div className="supplier-form-client-wrapper">
+          <div className="supplier-form-client-placeholder" id="supplier-form-client-placeholder"></div>
+        </div>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            import('/suppliers/_components/supplier-form-client').then(module => {
+              const SupplierFormClient = module.default;
+              const placeholder = document.getElementById('supplier-form-client-placeholder');
+              if (placeholder && placeholder.parentNode) {
+                const parent = placeholder.parentNode;
+                const reactRoot = document.createElement('div');
+                parent.replaceChild(reactRoot, placeholder);
+                const React = window.React;
+                const ReactDOM = window.ReactDOM;
+                if (React && ReactDOM) {
+                  ReactDOM.render(React.createElement(SupplierFormClient), reactRoot);
+                }
+              }
+            }).catch(err => console.error('Error loading supplier form client:', err));
+          `
+        }} />
+      </div>
 
       <div className="rounded-lg bg-white shadow-md">
         <div className="overflow-x-auto">

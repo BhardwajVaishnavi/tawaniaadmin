@@ -7,7 +7,7 @@ import { createAuditLog } from "@/lib/audit";
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
       prisma.return.findMany({
         where: filter,
         include: {
-          store: true,
-          customer: true,
+          Store: true,
+          Customer: true,
           processedBy: {
             select: {
               id: true,
@@ -52,14 +52,14 @@ export async function GET(req: NextRequest) {
               email: true,
             },
           },
-          sale: {
+          Sale: {
             select: {
               id: true,
               receiptNumber: true,
               saleDate: true,
             },
           },
-          items: {
+          ReturnItem: {
             include: {
               product: true,
               saleItem: true,
@@ -77,8 +77,17 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    // Transform the data to match the expected format in the client
+    const formattedReturns = returns.map((returnItem: any) => ({
+      ...returnItem,
+      store: returnItem.Store,
+      customer: returnItem.Customer,
+      sale: returnItem.Sale,
+      items: returnItem.ReturnItem || [],
+    }));
+
     return NextResponse.json({
-      returns,
+      returns: formattedReturns,
       totalItems,
       page,
       limit,
@@ -96,7 +105,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -105,12 +114,12 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { 
-      storeId, 
-      customerId, 
-      saleId, 
-      items, 
-      reason, 
+    const {
+      storeId,
+      customerId,
+      saleId,
+      items,
+      reason,
       notes,
       refundMethod,
     } = data;
@@ -139,7 +148,7 @@ export async function POST(req: NextRequest) {
     const year = date.getFullYear().toString().slice(-2);
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const day = date.getDate().toString().padStart(2, "0");
-    
+
     const count = await prisma.return.count({
       where: {
         returnDate: {
@@ -148,7 +157,7 @@ export async function POST(req: NextRequest) {
         },
       },
     });
-    
+
     const sequence = (count + 1).toString().padStart(3, "0");
     const returnNumber = `RET-${year}${month}${day}-${sequence}`;
 
@@ -169,7 +178,7 @@ export async function POST(req: NextRequest) {
         reason,
         notes,
         processedById: session.user.id,
-        items: {
+        ReturnItem: {
           create: items.map((item: any) => ({
             productId: item.productId,
             saleItemId: item.saleItemId || null,
@@ -183,11 +192,11 @@ export async function POST(req: NextRequest) {
         },
       },
       include: {
-        store: true,
-        customer: true,
+        Store: true,
+        Customer: true,
         processedBy: true,
-        sale: true,
-        items: {
+        Sale: true,
+        ReturnItem: {
           include: {
             product: true,
           },
@@ -210,7 +219,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(returnData);
+    // Transform the data to match the expected format in the client
+    const formattedReturnData = {
+      ...returnData,
+      store: returnData.Store,
+      customer: returnData.Customer,
+      sale: returnData.Sale,
+      items: returnData.ReturnItem || [],
+    };
+
+    return NextResponse.json(formattedReturnData);
   } catch (error) {
     console.error("Error creating return:", error);
     return NextResponse.json(

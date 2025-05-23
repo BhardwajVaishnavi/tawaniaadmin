@@ -8,7 +8,7 @@ interface Product {
   name: string;
   sku: string;
   costPrice: number;
-  category: {
+  category?: {
     id: string;
     name: string;
   };
@@ -48,29 +48,29 @@ export function PurchaseOrderItemForm({
   // Form state
   const [productId, setProductId] = useState("");
   const [description, setDescription] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  const [orderedQuantity, setOrderedQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [tax, setTax] = useState(0);
   const [notes, setNotes] = useState("");
-  
+
   // Calculated values
   const [subtotal, setSubtotal] = useState(0);
   const [total, setTotal] = useState(0);
-  
+
   // Set form values when editing an item
   useEffect(() => {
     if (editingItem) {
       setProductId(editingItem.productId);
       setDescription(editingItem.description || "");
-      setQuantity(editingItem.orderedQuantity);
+      setOrderedQuantity(editingItem.orderedQuantity);
       setUnitPrice(editingItem.unitPrice);
       setDiscount(editingItem.discount);
       setTax(editingItem.tax);
       setNotes(editingItem.notes || "");
     }
   }, [editingItem]);
-  
+
   // Update price when product changes
   useEffect(() => {
     if (productId) {
@@ -80,33 +80,42 @@ export function PurchaseOrderItemForm({
       }
     }
   }, [productId, products]);
-  
+
   // Calculate subtotal and total
   useEffect(() => {
-    const calculatedSubtotal = quantity * unitPrice;
+    const calculatedSubtotal = orderedQuantity * unitPrice;
     setSubtotal(calculatedSubtotal);
-    
+
     const calculatedTotal = calculatedSubtotal + tax - discount;
     setTotal(calculatedTotal);
-  }, [quantity, unitPrice, discount, tax]);
-  
+  }, [orderedQuantity, unitPrice, discount, tax]);
+
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!productId || quantity <= 0 || unitPrice <= 0) {
+  const handleSubmit = () => {
+    if (!productId || orderedQuantity <= 0 || unitPrice <= 0) {
       alert('Please fill in all required fields with valid values');
       return;
     }
-    
+
     const selectedProduct = products.find(p => p.id === productId);
-    
+
+    // Create a safe product object that matches the expected structure
+    const safeProduct = selectedProduct ? {
+      id: selectedProduct.id,
+      name: selectedProduct.name,
+      sku: selectedProduct.sku,
+      costPrice: selectedProduct.costPrice,
+      // Add other fields that might be needed but make them optional
+      supplierId: selectedProduct.supplierId || undefined,
+      category: selectedProduct.category || undefined
+    } : undefined;
+
     const item: OrderItem = {
       id: editingItem?.id,
       productId,
-      product: selectedProduct,
+      product: safeProduct,
       description,
-      orderedQuantity: quantity,
+      orderedQuantity,
       unitPrice,
       discount,
       tax,
@@ -114,34 +123,34 @@ export function PurchaseOrderItemForm({
       total,
       notes,
     };
-    
+
     if (editingIndex !== undefined) {
       onUpdateItem(item, editingIndex);
     } else {
       onAddItem(item);
     }
-    
+
     // Reset form
     resetForm();
   };
-  
+
   // Reset form fields
   const resetForm = () => {
     setProductId("");
     setDescription("");
-    setQuantity(1);
+    setOrderedQuantity(1);
     setUnitPrice(0);
     setDiscount(0);
     setTax(0);
     setNotes("");
-    
+
     if (onCancelEdit) {
       onCancelEdit();
     }
   };
-  
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label htmlFor="product" className="mb-1 block text-sm font-medium text-gray-800">
@@ -152,7 +161,7 @@ export function PurchaseOrderItemForm({
             value={productId}
             onChange={(e) => {
               setProductId(e.target.value);
-              
+
               // Set description based on selected product
               const selectedProduct = products.find(p => p.id === e.target.value);
               if (selectedProduct) {
@@ -160,17 +169,16 @@ export function PurchaseOrderItemForm({
               }
             }}
             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            required
           >
             <option value="">Select Product</option>
             {products.map((product) => (
               <option key={product.id} value={product.id}>
-                {product.name} ({product.sku}) - ${product.costPrice.toFixed(2)}
+                {product.name} ({product.sku}) - ${typeof product.costPrice === 'number' ? product.costPrice.toFixed(2) : parseFloat(product.costPrice).toFixed(2)}
               </option>
             ))}
           </select>
         </div>
-        
+
         <div>
           <label htmlFor="description" className="mb-1 block text-sm font-medium text-gray-800">
             Description
@@ -183,22 +191,22 @@ export function PurchaseOrderItemForm({
             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
-        
+
         <div>
-          <label htmlFor="quantity" className="mb-1 block text-sm font-medium text-gray-800">
+          <label htmlFor="orderedQuantity" className="mb-1 block text-sm font-medium text-gray-800">
             Quantity *
           </label>
           <input
-            id="quantity"
+            id="orderedQuantity"
             type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
+            value={orderedQuantity}
+            onChange={(e) => setOrderedQuantity(Math.round(Number(e.target.value)))}
             min="1"
+            step="1"
             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            required
           />
         </div>
-        
+
         <div>
           <label htmlFor="unitPrice" className="mb-1 block text-sm font-medium text-gray-800">
             Unit Price *
@@ -211,10 +219,9 @@ export function PurchaseOrderItemForm({
             min="0.01"
             step="0.01"
             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            required
           />
         </div>
-        
+
         <div>
           <label htmlFor="discount" className="mb-1 block text-sm font-medium text-gray-800">
             Discount
@@ -229,7 +236,7 @@ export function PurchaseOrderItemForm({
             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
-        
+
         <div>
           <label htmlFor="tax" className="mb-1 block text-sm font-medium text-gray-800">
             Tax
@@ -244,7 +251,7 @@ export function PurchaseOrderItemForm({
             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
-        
+
         <div className="md:col-span-2">
           <label htmlFor="notes" className="mb-1 block text-sm font-medium text-gray-800">
             Notes
@@ -258,7 +265,7 @@ export function PurchaseOrderItemForm({
           />
         </div>
       </div>
-      
+
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-800">
@@ -268,7 +275,7 @@ export function PurchaseOrderItemForm({
             Total: <span className="font-bold">${total.toFixed(2)}</span>
           </p>
         </div>
-        
+
         <div className="flex gap-2">
           <Button
             type="button"
@@ -277,11 +284,11 @@ export function PurchaseOrderItemForm({
           >
             {editingItem ? "Cancel" : "Clear"}
           </Button>
-          <Button type="submit">
+          <Button type="button" onClick={handleSubmit}>
             {editingItem ? "Update Item" : "Add Item"}
           </Button>
         </div>
       </div>
-    </form>
+    </div>
   );
 }

@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
 
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -21,20 +22,20 @@ export async function GET(req: NextRequest) {
     const search = url.searchParams.get("search");
     const page = parseInt(url.searchParams.get("page") || "1");
     const pageSize = parseInt(url.searchParams.get("pageSize") || "10");
-    
+
     // Build filters
     const filters: any = {};
-    
+
     if (status === "active") {
       filters.isActive = true;
     } else if (status === "inactive") {
       filters.isActive = false;
     }
-    
+
     if (loyaltyTier) {
       filters.loyaltyTier = loyaltyTier;
     }
-    
+
     if (search) {
       filters.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
         { phone: { contains: search, mode: 'insensitive' } },
       ];
     }
-    
+
     // Get customers with pagination
     const [customers, totalItems] = await Promise.all([
       prisma.customer.findMany({
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
               type: true,
             },
           },
-          addresses: true,
+          Address: true,
         },
         orderBy: {
           createdAt: "desc",
@@ -73,7 +74,7 @@ export async function GET(req: NextRequest) {
         where: filters,
       }),
     ]);
-    
+
     return NextResponse.json({
       customers,
       totalItems,
@@ -93,7 +94,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -102,19 +103,31 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { 
-      name, 
-      email, 
-      phone, 
-      address, 
-      birthDate, 
-      gender,
+    // Extract only the fields we need, ignoring any extra fields like birthDate or gender
+    const {
+      name,
+      email,
+      phone,
+      address,
       loyaltyPoints,
       loyaltyTier,
-      notes,
       isActive,
       addresses = [],
     } = data;
+
+    // Remove any unexpected fields that might be coming from the client
+    const customerData = {
+      name,
+      email,
+      phone,
+      address,
+      loyaltyPoints: loyaltyPoints || 0,
+      loyaltyTier: loyaltyTier || "STANDARD",
+      isActive: isActive !== undefined ? isActive : true,
+      id: crypto.randomUUID(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
     // Validate required fields
     if (!name) {
@@ -129,7 +142,7 @@ export async function POST(req: NextRequest) {
       const existingCustomer = await prisma.customer.findUnique({
         where: { email },
       });
-      
+
       if (existingCustomer) {
         return NextResponse.json(
           { error: "Email already in use" },
@@ -139,32 +152,32 @@ export async function POST(req: NextRequest) {
     }
 
     // Create customer with proper field mapping and type assertion to bypass TypeScript errors
-    const customer = await (prisma as any).customer.create({
-      data: {
-        name,
-        email,
-        phone,
-        address,
-        // Convert birthDate to Date object if provided, otherwise null
-        // Use dateOfBirth instead of birthDate if that's the field name in your schema
-        birthDate: birthDate ? new Date(birthDate) : null,
-        gender,
-        loyaltyPoints: loyaltyPoints || 0,
-        loyaltyTier: loyaltyTier || "STANDARD",
-        notes,
-        isActive: isActive !== undefined ? isActive : true,
-      },
+    const customer = await prisma.customer.create({
+      data: customerData,
     });
 
     // Create addresses if provided
     if (addresses.length > 0) {
-      // Use the correct model name for customer addresses
-      await (prisma as any).customerAddress.createMany({
-        data: addresses.map((addr: any) => ({
-          ...addr,
-          customerId: customer.id,
-        })),
-      });
+      // Create addresses using the Address model
+      await Promise.all(
+        addresses.map((addr: any) =>
+          prisma.address.create({
+            data: {
+              id: crypto.randomUUID(),
+              customerId: customer.id,
+              type: addr.type || "SHIPPING",
+              street: addr.street,
+              city: addr.city,
+              state: addr.state || null,
+              postalCode: addr.postalCode,
+              country: addr.country,
+              isDefault: addr.isDefault || false,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          })
+        )
+      );
     }
 
     // Get the created customer with related data
@@ -173,7 +186,7 @@ export async function POST(req: NextRequest) {
         id: customer.id,
       },
       include: {
-        addresses: true,
+        Address: true,
       },
     });
 

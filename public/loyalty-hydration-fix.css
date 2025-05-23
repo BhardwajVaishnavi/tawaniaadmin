@@ -1,0 +1,23 @@
+/* CSS to ensure the loyalty button is visible without causing hydration mismatches */
+
+/* Target the loyalty link by its href */
+a[href="/loyalty"] {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Target the parent li elements */
+li:has(> a[href="/loyalty"]),
+li:has(> div > ul > li > a[href="/loyalty"]) {
+  display: list-item !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Add a class that can be applied after hydration */
+.loyalty-visible {
+  display: list-item !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}

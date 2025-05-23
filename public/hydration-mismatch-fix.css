@@ -1,0 +1,32 @@
+/* CSS to fix hydration mismatches */
+
+/* Hide the loyalty program heading after hydration */
+.hide-after-hydration,
+.rounded-lg.bg-white.p-6.shadow-md h2:contains("Loyalty Program: Default Loyalty Program") {
+  display: none !important;
+}
+
+/* Hide the standalone loyalty program line */
+.space-y-6 > div:not(.flex):not(.rounded-lg):empty + div:not(.flex):not(.rounded-lg) {
+  display: none !important;
+}
+
+/* Fix for the loyalty menu item in sidebar */
+nav ul li[data-menu-item="loyalty"] {
+  /* Ensure consistent styling */
+  display: list-item !important;
+}
+
+/* Ensure consistent styling for the loyalty program overview component */
+.rounded-lg.bg-white.p-6.shadow-md {
+  display: block !important;
+}
+
+/* Hide the loyalty program text without affecting layout */
+div:contains("Loyalty Program: Default Loyalty Program"):not(.rounded-lg):not(.flex) {
+  visibility: hidden !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}

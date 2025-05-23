@@ -2,63 +2,116 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { InventoryTable } from "../_components/inventory-table";
 
 export default async function ProductDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
+  const resolvedParams = await params;
 
-  // Get product details
-  const product = await prisma.product.findUnique({
-    where: {
-      id: params.id,
-    },
-    include: {
-      category: true,
-    },
-  });
+  // Get the product ID from the params
+  const productId = resolvedParams.id;
 
-  if (!product) {
-    notFound();
+  // Log the product ID to help with debugging
+  console.log("Detail page - Product ID:", productId);
+
+  // Check if the product ID is valid
+  if (!productId || productId === "unknown" || productId === "undefined") {
+    console.error("Invalid product ID:", productId);
+    // Redirect to the products list page
+    redirect("/products");
   }
 
-  // Get inventory items for this product
-  const inventoryItems = await prisma.inventoryItem.findMany({
-    where: {
-      productId: product.id,
-    },
-    include: {
-      warehouse: true,
-      store: true,
-    },
-    orderBy: [
-      { warehouse: { name: 'asc' } },
-      { store: { name: 'asc' } },
-    ],
-  });
+  // Get product details using raw SQL to avoid schema mismatches
+  try {
+    console.log("Fetching product with ID:", productId);
 
-  // Calculate total inventory
-  const totalInventory = inventoryItems.reduce((sum, item) => sum + item.quantity, 0);
-  const warehouseInventory = inventoryItems
-    .filter(item => item.warehouseId)
-    .reduce((sum, item) => sum + item.quantity, 0);
-  const storeInventory = inventoryItems
-    .filter(item => item.storeId)
-    .reduce((sum, item) => sum + item.quantity, 0);
+    const productResult = await prisma.$queryRaw`
+      SELECT p.id, p.name, p.sku, p.description, p."categoryId", p."costPrice",
+             p."wholesalePrice", p."retailPrice",
+             COALESCE(p."minStockLevel", 10) as "minStockLevel",
+             COALESCE(p."reorderPoint", 5) as "reorderPoint",
+             p.barcode, COALESCE(p."isActive", true) as "isActive",
+             p."createdAt", p."updatedAt",
+             c.id as "category_id", c.name as "category_name"
+      FROM "Product" p
+      LEFT JOIN "Category" c ON p."categoryId" = c.id
+      WHERE p.id = ${productId}
+    `;
 
-  // Calculate inventory value
-  const inventoryValue = inventoryItems.reduce((sum, item) => {
-    return sum + (item.quantity * item.costPrice);
-  }, 0);
+    console.log("Product query result:", productResult);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">{product.name}</h1>
+    // Format the product data
+    const product = productResult.length > 0 ? {
+      ...productResult[0],
+      category: productResult[0].category_id ? {
+        id: productResult[0].category_id,
+        name: productResult[0].category_name
+      } : null
+    } : null;
+
+    if (!product) {
+      console.error("Product not found with ID:", productId);
+      notFound();
+    }
+
+    // Get inventory items for this product using raw SQL
+    const inventoryItemsResult = await prisma.$queryRaw`
+      SELECT i.id, i."productId", i."warehouseId", i."storeId", i.quantity,
+             i."costPrice", i."retailPrice", i.status, i."createdAt", i."updatedAt",
+             w.id as "warehouse_id", w.name as "warehouse_name",
+             s.id as "store_id", s.name as "store_name"
+      FROM "InventoryItem" i
+      LEFT JOIN "Warehouse" w ON i."warehouseId" = w.id
+      LEFT JOIN "Store" s ON i."storeId" = s.id
+      WHERE i."productId" = ${productId}
+      ORDER BY w.name ASC NULLS LAST, s.name ASC NULLS LAST
+    `;
+
+    // Format the inventory items data
+    const inventoryItems = inventoryItemsResult.map((item: any) => ({
+      id: item.id,
+      productId: item.productId,
+      warehouseId: item.warehouseId,
+      storeId: item.storeId,
+      quantity: item.quantity,
+      costPrice: item.costPrice,
+      retailPrice: item.retailPrice,
+      status: item.status,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      warehouse: item.warehouse_id ? {
+        id: item.warehouse_id,
+        name: item.warehouse_name
+      } : null,
+      store: item.store_id ? {
+        id: item.store_id,
+        name: item.store_name
+      } : null
+    }));
+
+    // Calculate total inventory
+    const totalInventory = inventoryItems.reduce((sum, item) => sum + item.quantity, 0);
+    const warehouseInventory = inventoryItems
+      .filter(item => item.warehouseId)
+      .reduce((sum, item) => sum + item.quantity, 0);
+    const storeInventory = inventoryItems
+      .filter(item => item.storeId)
+      .reduce((sum, item) => sum + item.quantity, 0);
+
+    // Calculate inventory value
+    const inventoryValue = inventoryItems.reduce((sum, item) => {
+      return sum + (item.quantity * (item.costPrice || 0));
+    }, 0);
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-800">{product.name}</h1>
         <div className="flex items-center gap-2">
           <Link
             href={`/products/${product.id}/edit`}
@@ -113,18 +166,18 @@ export default async function ProductDetailPage({
             <div className="grid gap-4 md:grid-cols-3">
               <div>
                 <p className="text-sm text-gray-500">Cost Price</p>
-                <p className="text-xl font-bold text-gray-900">${product.costPrice.toFixed(2)}</p>
+                <p className="text-xl font-bold text-gray-900">₹{product.costPrice.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Wholesale Price</p>
-                <p className="text-xl font-bold text-gray-900">${product.wholesalePrice.toFixed(2)}</p>
+                <p className="text-xl font-bold text-gray-900">₹{product.wholesalePrice.toFixed(2)}</p>
                 <p className="text-xs text-gray-500">
                   Margin: {calculateMargin(product.wholesalePrice, product.costPrice)}%
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Retail Price</p>
-                <p className="text-xl font-bold text-gray-900">${product.retailPrice.toFixed(2)}</p>
+                <p className="text-xl font-bold text-gray-900">₹{product.retailPrice.toFixed(2)}</p>
                 <p className="text-xs text-gray-500">
                   Margin: {calculateMargin(product.retailPrice, product.costPrice)}%
                 </p>
@@ -150,7 +203,7 @@ export default async function ProductDetailPage({
               </div>
               <div>
                 <p className="text-sm text-gray-500">Inventory Value</p>
-                <p className="text-xl font-bold text-gray-900">${inventoryValue.toFixed(2)}</p>
+                <p className="text-xl font-bold text-gray-900">₹{inventoryValue.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Min Stock Level</p>
@@ -173,13 +226,13 @@ export default async function ProductDetailPage({
           <div className="rounded-lg bg-white p-6 shadow-md">
             <h2 className="mb-4 text-lg font-semibold text-gray-800">Inventory Locations</h2>
             {inventoryItems.length > 0 ? (
-              <InventoryTable 
+              <InventoryTable
                 inventoryItems={inventoryItems.map(item => ({
                   ...item,
                   // Since these properties don't exist on either type, provide default values
                   wholesalePrice: product.wholesalePrice,
                   condition: 'NEW' // Default to NEW since condition doesn't exist on either type
-                }))} 
+                }))}
               />
             ) : (
               <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-gray-300">
@@ -269,7 +322,36 @@ export default async function ProductDetailPage({
         </div>
       </div>
     </div>
-  );
+    );
+  } catch (error) {
+    console.error("Error loading product details:", error);
+    console.error("Product ID that caused the error:", productId);
+
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+
+    // Return a more user-friendly error page
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error Loading Product</h1>
+          <p className="text-gray-700 mb-6">
+            We encountered an error while trying to load this product. The product may not exist or there might be a temporary issue.
+          </p>
+          <div className="flex justify-center">
+            <Link
+              href="/products"
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+            >
+              Return to Products
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 }
 
 function calculateMargin(sellingPrice: number, costPrice: number): string {

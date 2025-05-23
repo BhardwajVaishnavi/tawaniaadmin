@@ -90,6 +90,11 @@ export default function NewProductPage() {
         condition,
       };
 
+      console.log("Submitting product data:", productData);
+
+      // Add a delay to ensure the server is ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: {
@@ -98,18 +103,56 @@ export default function NewProductPage() {
         body: JSON.stringify(productData),
       });
 
+      console.log("API response status:", response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create product');
+        let errorMessage = 'Failed to create product';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (jsonError) {
+          console.error("Error parsing error response:", jsonError);
+        }
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json();
+      // If we get here, try to parse the response as JSON
+      let result;
+      try {
+        result = await response.json();
+        console.log("API response parsed successfully:", result);
+      } catch (jsonError) {
+        console.error("Error parsing success response:", jsonError);
+        // Instead of using a dummy ID, redirect to the products list
+        alert('Product was created, but there was an issue retrieving the details. Redirecting to products list.');
+        router.push('/products');
+        return; // Exit early to avoid the next check
+      }
 
-      // Redirect to product details page
-      router.push(`/products/${result.product.id}`);
+      if (!result.success) {
+        // Handle error response
+        const errorMessage = result.error || 'An unknown error occurred';
+        const errorDetails = result.details ? `: ${result.details}` : '';
+        alert(`Error: ${errorMessage}${errorDetails}`);
+        return;
+      }
+
+      if (!result.product || !result.product.id) {
+        console.error("Invalid product data in response:", result);
+        // Instead of throwing an error, redirect to the products list
+        alert('Product was created, but there was an issue retrieving the product ID. Redirecting to products list.');
+        router.push('/products');
+        return; // Exit early to avoid the next redirect
+      }
+
+      // Show success message
+      alert('Product created successfully!');
+
+      // Redirect to products list instead of product details
+      router.push('/products');
     } catch (error) {
       console.error('Error creating product:', error);
-      alert('Failed to create product. Please try again.');
+      alert('Failed to create product. Please try again. Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -212,7 +255,7 @@ export default function NewProductPage() {
                 Cost Price *
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-800">$</span>
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-800">₹</span>
                 <input
                   id="costPrice"
                   type="number"
@@ -231,7 +274,7 @@ export default function NewProductPage() {
                 Wholesale Price *
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-800">$</span>
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-800">₹</span>
                 <input
                   id="wholesalePrice"
                   type="number"
@@ -250,7 +293,7 @@ export default function NewProductPage() {
                 Retail Price *
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-800">$</span>
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-800">₹</span>
                 <input
                   id="retailPrice"
                   type="number"

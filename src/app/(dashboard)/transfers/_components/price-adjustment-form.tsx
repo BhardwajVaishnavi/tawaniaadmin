@@ -94,7 +94,7 @@ export function PriceAdjustmentForm({
               </label>
               <div className="relative mt-1 rounded-md shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <span className="text-gray-800 sm:text-sm">$</span>
+                  <span className="text-gray-800 sm:text-sm">₹</span>
                 </div>
                 <input
                   type="number"
@@ -114,7 +114,7 @@ export function PriceAdjustmentForm({
             </label>
             <div className="relative mt-1 rounded-md shadow-sm">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <span className="text-gray-800 sm:text-sm">$</span>
+                <span className="text-gray-800 sm:text-sm">₹</span>
               </div>
               <input
                 type="number"
@@ -163,7 +163,7 @@ export function PriceAdjustmentForm({
                 )}
                 {adjustmentType === "fixed" && (
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <span className="text-gray-800 sm:text-sm">$</span>
+                    <span className="text-gray-800 sm:text-sm">₹</span>
                   </div>
                 )}
                 <input
@@ -193,7 +193,7 @@ export function PriceAdjustmentForm({
                   )}
                   {adjustmentType === "fixed" && (
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                      <span className="text-gray-800 sm:text-sm">$</span>
+                      <span className="text-gray-800 sm:text-sm">₹</span>
                     </div>
                   )}
                   <input
@@ -215,16 +215,16 @@ export function PriceAdjustmentForm({
           <div className="grid grid-cols-2 gap-4 pt-2">
             {showCostAdjustment && (
               <div>
-                <p className="text-sm text-gray-800">Original Cost: ${originalCostPrice.toFixed(2)}</p>
+                <p className="text-sm text-gray-800">Original Cost: ₹{originalCostPrice.toFixed(2)}</p>
                 <p className="text-sm font-medium text-gray-800">
-                  New Cost: ${(originalCostPrice * (1 + costAdjustmentValue / 100)).toFixed(2)}
+                  New Cost: ₹{(originalCostPrice * (1 + costAdjustmentValue / 100)).toFixed(2)}
                 </p>
               </div>
             )}
             <div>
-              <p className="text-sm text-gray-800">Original Retail: ${originalRetailPrice.toFixed(2)}</p>
+              <p className="text-sm text-gray-800">Original Retail: ₹{originalRetailPrice.toFixed(2)}</p>
               <p className="text-sm font-medium text-gray-800">
-                New Retail: $
+                New Retail: ₹
                 {adjustmentType === "percentage"
                   ? (originalRetailPrice * (1 + retailAdjustmentValue / 100)).toFixed(2)
                   : adjustmentType === "fixed"

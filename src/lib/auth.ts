@@ -1,19 +1,36 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { compare } from "bcrypt";
+import { compare } from "bcryptjs";
 import { prisma } from "./prisma";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
     signIn: "/auth/login",
     signOut: "/auth/logout",
     error: "/auth/error",
   },
+  // Add debug mode in development
+  debug: process.env.NODE_ENV === "development",
+  // Add secure cookies in production
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
+  // Add baseUrl to ensure proper API endpoint resolution
+  basePath: "/api/auth",
   providers: [
     CredentialsProvider({
       name: "Credentials",

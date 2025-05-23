@@ -49,14 +49,14 @@ export function SalesReportSummary({ summary }: SalesReportSummaryProps) {
       </div>
       <div className="rounded-lg bg-white p-4 shadow-md">
         <h2 className="text-sm font-medium text-gray-800">Total Revenue</h2>
-        <p className="mt-2 text-3xl font-bold text-green-600">${summary.totalRevenue.toFixed(2)}</p>
+        <p className="mt-2 text-3xl font-bold text-green-600">₹{summary.totalRevenue.toFixed(2)}</p>
         <p className="mt-1 text-sm text-gray-800">
-          Subtotal: ${summary.totalSubtotal.toFixed(2)} | Tax: ${summary.totalTax.toFixed(2)}
+          Subtotal: ₹{summary.totalSubtotal.toFixed(2)} | Tax: ₹{summary.totalTax.toFixed(2)}
         </p>
       </div>
       <div className="rounded-lg bg-white p-4 shadow-md">
         <h2 className="text-sm font-medium text-gray-800">Average Sale</h2>
-        <p className="mt-2 text-3xl font-bold text-gray-900">${summary.averageSale.toFixed(2)}</p>
+        <p className="mt-2 text-3xl font-bold text-gray-900">₹{summary.averageSale.toFixed(2)}</p>
         <p className="mt-1 text-sm text-gray-800">
           Per transaction average
         </p>
@@ -79,15 +79,15 @@ export function SalesReportSummary({ summary }: SalesReportSummaryProps) {
             {summary.paymentMethods.map((method, index) => (
               <div key={index} className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className="mr-3 h-3 w-3 rounded-full" style={{ 
-                    backgroundColor: getPaymentMethodColor(method.payment_method) 
+                  <div className="mr-3 h-3 w-3 rounded-full" style={{
+                    backgroundColor: getPaymentMethodColor(method.payment_method)
                   }}></div>
                   <span className="text-sm font-medium text-gray-800">
                     {formatPaymentMethod(method.payment_method)}
                   </span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">${Number(method.total).toFixed(2)}</p>
+                  <p className="text-sm font-medium text-gray-900">₹{Number(method.total).toFixed(2)}</p>
                   <p className="text-xs text-gray-800">{method.count} sales</p>
                 </div>
               </div>
@@ -113,7 +113,7 @@ export function SalesReportSummary({ summary }: SalesReportSummaryProps) {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">{Number(product.quantity)} units</p>
-                  <p className="text-xs text-gray-800">${Number(product.total).toFixed(2)}</p>
+                  <p className="text-xs text-gray-800">₹{Number(product.total).toFixed(2)}</p>
                 </div>
               </div>
             ))}

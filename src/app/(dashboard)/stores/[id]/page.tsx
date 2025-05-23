@@ -8,12 +8,13 @@ import { format } from "date-fns";
 export default async function StoreDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
+  const resolvedParams = await params;
 
   // Get store details
-  const storeData = await getStoreById(params.id);
+  const storeData = await getStoreById(resolvedParams.id);
 
   if (!storeData) {
     notFound();
@@ -82,15 +83,24 @@ export default async function StoreDetailPage({
               </div>
               <div>
                 <p className="text-sm text-gray-500">Opening Hours</p>
-                <p className="font-medium">
+                <div className="font-medium">
                   {store.openingHours ? (
                     <pre className="font-sans text-sm whitespace-pre-wrap">
-                      {JSON.stringify(JSON.parse(store.openingHours), null, 2)}
+                      {(() => {
+                        try {
+                          // Try to parse as JSON and format it
+                          const parsedHours = JSON.parse(store.openingHours);
+                          return JSON.stringify(parsedHours, null, 2);
+                        } catch (error) {
+                          // If it's not valid JSON, just return the raw string
+                          return store.openingHours;
+                        }
+                      })()}
                     </pre>
                   ) : (
                     "Not provided"
                   )}
-                </p>
+                </div>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Status</p>

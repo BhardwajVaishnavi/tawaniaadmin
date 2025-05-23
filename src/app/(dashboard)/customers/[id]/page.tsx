@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
 import { CustomerStatusBadge } from "../_components/customer-status-badge";
 import { LoyaltyTierBadge } from "../_components/loyalty-tier-badge";
 import { CustomerActions } from "../_components/customer-actions";
@@ -70,14 +71,15 @@ interface CustomerPromotion {
 export default async function CustomerDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  
+  const resolvedParams = await params;
+
   // Get customer details
   const customer = await prisma.customer.findUnique({
     where: {
-      id: params.id,
+      id: resolvedParams.id,
     },
     select: {
       id: true,
@@ -92,7 +94,7 @@ export default async function CustomerDetailPage({
       updatedAt: true,
     },
   });
-  
+
   if (!customer) {
     notFound();
   }
@@ -123,7 +125,7 @@ export default async function CustomerDetailPage({
           saleDate: "desc",
         },
       });
-      
+
       sales = salesData;
       totalSpent = sales.reduce((sum: number, sale: Sale) => sum + Number(sale.totalAmount), 0);
       totalOrders = sales.length;
@@ -153,7 +155,7 @@ export default async function CustomerDetailPage({
       console.error("Error fetching loyalty transactions:", error);
     }
   }
-  
+
   // Get loyalty program data
   let loyaltyProgram: any = null;
   let nextTier = null;
@@ -178,19 +180,19 @@ export default async function CustomerDetailPage({
       console.error("Error fetching loyalty program:", error);
     }
   }
-  
+
   // Calculate next tier if loyalty program exists
   if (loyaltyProgram) {
     const currentTierIndex = loyaltyProgram.tiers.findIndex(
       (tier: any) => tier.name.toUpperCase() === customer.loyaltyTier
     );
-    
+
     if (currentTierIndex >= 0 && currentTierIndex < loyaltyProgram.tiers.length - 1) {
       nextTier = loyaltyProgram.tiers[currentTierIndex + 1];
       pointsToNextTier = nextTier.requiredPoints - customer.loyaltyPoints;
     }
   }
-  
+
   // Get available promotions
   let availablePromotions: CustomerPromotion[] = [];
   if ('customerPromotion' in prisma) {
@@ -221,8 +223,8 @@ export default async function CustomerDetailPage({
   try {
     if (customer.address) {
       // If address is a JSON string of array
-      addresses = typeof customer.address === 'string' 
-        ? JSON.parse(customer.address) 
+      addresses = typeof customer.address === 'string'
+        ? JSON.parse(customer.address)
         : [{ id: '1', address: customer.address, city: '', state: '', postalCode: '', country: '', isDefault: true }];
     }
   } catch {
@@ -231,7 +233,7 @@ export default async function CustomerDetailPage({
       addresses = [{ id: '1', address: customer.address, city: '', state: '', postalCode: '', country: '', isDefault: true }];
     }
   }
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -255,7 +257,7 @@ export default async function CustomerDetailPage({
           </Link>
         </div>
       </div>
-      
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           {/* Customer Details */}
@@ -280,7 +282,7 @@ export default async function CustomerDetailPage({
               </div>
             </div>
           </div>
-          
+
           {/* Loyalty Information */}
           <div className="rounded-lg bg-white p-6 shadow-md">
             <h2 className="mb-4 text-lg font-semibold text-gray-800">Loyalty Information</h2>
@@ -303,7 +305,7 @@ export default async function CustomerDetailPage({
                 <p className="font-medium">{customer.loyaltyPoints}</p>
               </div>
             </div>
-            
+
             {loyaltyProgram && (
               <div className="mt-4">
                 <div className="mb-2 flex items-center justify-between">
@@ -331,7 +333,7 @@ export default async function CustomerDetailPage({
                 </div>
               </div>
             )}
-            
+
             {loyaltyTransactions.length > 0 && (
               <div className="mt-4">
                 <h3 className="mb-2 text-md font-medium text-gray-700">Recent Transactions</h3>
@@ -349,14 +351,14 @@ export default async function CustomerDetailPage({
               </div>
             )}
           </div>
-          
+
           {/* Addresses */}
           {addresses.length > 0 && (
             <div className="rounded-lg bg-white p-6 shadow-md">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">Addresses</h2>
               </div>
-              
+
               <div className="space-y-3">
                 {addresses.map((addr, index) => (
                   <div key={addr.id || index} className="rounded-lg border border-gray-200 p-3">
@@ -373,12 +375,12 @@ export default async function CustomerDetailPage({
               </div>
             </div>
           )}
-          
+
           {/* Purchase History */}
           {sales.length > 0 && (
             <div className="rounded-lg bg-white p-6 shadow-md">
               <h2 className="mb-4 text-lg font-semibold text-gray-800">Purchase History</h2>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -398,14 +400,14 @@ export default async function CustomerDetailPage({
                         <td className="px-4 py-3 text-sm">{sale.store.name}</td>
                         <td className="px-4 py-3 text-sm">{sale.items.length} items</td>
                         <td className="px-4 py-3 text-sm font-medium">
-                          ${Number(sale.totalAmount).toFixed(2)}
+                          {formatCurrency(Number(sale.totalAmount))}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              
+
               {sales.length > 5 && (
                 <div className="mt-4 text-right">
                   <Link
@@ -419,7 +421,7 @@ export default async function CustomerDetailPage({
             </div>
           )}
         </div>
-        
+
         <div className="space-y-6">
           {/* Customer Statistics */}
           <div className="rounded-lg bg-white p-6 shadow-md">
@@ -427,7 +429,7 @@ export default async function CustomerDetailPage({
             <div className="space-y-3">
               <div>
                 <p className="text-sm text-gray-500">Total Spent</p>
-                <p className="text-xl font-bold text-gray-900">${totalSpent.toFixed(2)}</p>
+                <p className="text-xl font-bold text-gray-900">{formatCurrency(totalSpent)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Orders</p>
@@ -436,7 +438,7 @@ export default async function CustomerDetailPage({
               <div>
                 <p className="text-sm text-gray-500">Average Order Value</p>
                 <p className="text-xl font-bold text-gray-900">
-                  ${averageOrderValue.toFixed(2)}
+                  {formatCurrency(averageOrderValue)}
                 </p>
               </div>
               <div>
@@ -449,7 +451,7 @@ export default async function CustomerDetailPage({
               </div>
             </div>
           </div>
-          
+
           {/* Actions */}
           <div className="rounded-lg bg-white p-6 shadow-md">
             <h2 className="mb-4 text-lg font-semibold text-gray-800">Actions</h2>
@@ -483,7 +485,7 @@ export default async function CustomerDetailPage({
               </Link>
             </div>
           </div>
-          
+
           {/* Available Promotions */}
           {availablePromotions.length > 0 && (
             <div className="rounded-lg bg-white p-6 shadow-md">
@@ -500,7 +502,7 @@ export default async function CustomerDetailPage({
                       <span className="text-sm text-gray-500">
                         {promotion.isPercentage
                           ? `${promotion.discountValue}% off`
-                          : `$${promotion.discountValue} off`}
+                          : `${formatCurrency(promotion.discountValue)} off`}
                       </span>
                       {promotion.code && (
                         <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">

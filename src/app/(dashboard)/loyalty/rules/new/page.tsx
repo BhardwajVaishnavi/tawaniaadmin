@@ -16,21 +16,13 @@ export default async function NewLoyaltyRulePage() {
   // Get product categories for product/category rules
   let categories = [];
   try {
-    if ('category' in prisma) {
-      // Check if isActive field exists in the Category model
-      const categoryFields = Object.keys(prisma.category.fields);
-      const whereClause = categoryFields.includes('isActive') 
-        ? { isActive: true }
-        : {};
-      
-      // @ts-ignore - Dynamically access the model
-      categories = await prisma.category.findMany({
-        where: whereClause,
-        orderBy: {
-          name: "asc",
-        },
-      });
-    }
+    // Use raw query to avoid schema mismatches
+    categories = await prisma.$queryRaw`
+      SELECT id, name
+      FROM "Category"
+      WHERE "isActive" = true OR "isActive" IS NULL
+      ORDER BY name ASC
+    `;
   } catch (error) {
     console.error("Error fetching categories:", error);
   }

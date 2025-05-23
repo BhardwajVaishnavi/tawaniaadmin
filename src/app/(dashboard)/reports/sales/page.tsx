@@ -51,7 +51,7 @@ export default async function SalesReportPage({
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
   const session = await getServerSession(authOptions);
-  
+
   // Parse search parameters
   const startDate = searchParams.startDate as string || getDefaultStartDate();
   const endDate = searchParams.endDate as string || getDefaultEndDate();
@@ -59,12 +59,12 @@ export default async function SalesReportPage({
   const categoryId = searchParams.category as string | undefined;
   const productId = searchParams.product as string | undefined;
   const groupBy = searchParams.groupBy as string || "day";
-  
+
   // Convert to Date objects
   const startDateTime = new Date(startDate);
   const endDateTime = new Date(endDate);
   endDateTime.setHours(23, 59, 59, 999); // Set to end of day
-  
+
   // Build query filters
   const filters: any = {
     createdAt: {
@@ -72,11 +72,11 @@ export default async function SalesReportPage({
       lte: endDateTime,
     },
   };
-  
+
   if (storeId) {
     filters.storeId = storeId;
   }
-  
+
   // Get sales data
   const salesData = await prisma.sale.findMany({
     where: filters,
@@ -104,7 +104,7 @@ export default async function SalesReportPage({
     const items: SaleItem[] = sale.items.map(item => {
       // Access the raw item data to get price and total
       const rawItem = item as any; // Use type assertion to access properties
-      
+
       return {
         productId: item.productId,
         quantity: item.quantity,
@@ -155,15 +155,15 @@ export default async function SalesReportPage({
         }
         return true;
       });
-      
+
       // Calculate new totals based on filtered items
-      const newSubtotal = filteredItems.reduce((sum, item) => 
+      const newSubtotal = filteredItems.reduce((sum, item) =>
         sum + (item.total || item.price * item.quantity), 0);
-      const newTax = filteredItems.reduce((sum, item) => 
+      const newTax = filteredItems.reduce((sum, item) =>
         sum + ((item.total || item.price * item.quantity) * 0.1), 0); // Assuming 10% tax
-      const newTotal = filteredItems.reduce((sum, item) => 
+      const newTotal = filteredItems.reduce((sum, item) =>
         sum + ((item.total || item.price * item.quantity) * 1.1), 0); // Including tax
-      
+
       return {
         ...sale,
         items: filteredItems,
@@ -174,40 +174,38 @@ export default async function SalesReportPage({
     }
     return sale;
   }).filter(sale => sale.items.length > 0);
-  
+
   // Get stores, categories, and products for filters
   const [stores, categories, products] = await Promise.all([
     prisma.store.findMany({
       where: { isActive: true },
       orderBy: { name: 'asc' },
     }),
-    prisma.category.findMany({
-      orderBy: { name: 'asc' },
-    }),
+    prisma.$queryRaw`SELECT id, name FROM "Category" ORDER BY name ASC`,
     prisma.product.findMany({
       where: { isActive: true },
       orderBy: { name: 'asc' },
     }),
   ]);
-  
+
   // Calculate summary statistics
   const totalSales = filteredSales.reduce((sum, sale) => sum + (sale.total || 0), 0);
   const totalItems = filteredSales.reduce((sum, sale) => sum + sale.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
   const totalOrders = filteredSales.length;
   const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
-  
+
   // Group sales by date
   const salesByDate = groupSalesByDate(filteredSales, groupBy);
-  
+
   // Group sales by category
   const salesByCategory = groupSalesByCategory(filteredSales);
-  
+
   // Group sales by store
   const salesByStore = groupSalesByStore(filteredSales);
-  
+
   // Get top selling products
   const topProducts = getTopProducts(filteredSales);
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -221,11 +219,11 @@ export default async function SalesReportPage({
           </Link>
         </div>
       </div>
-      
+
       <ReportDateFilter startDate={startDate} endDate={endDate} />
-      
-      <SalesReportFilters 
-        stores={stores} 
+
+      <SalesReportFilters
+        stores={stores}
         categories={categories}
         products={products}
         currentStoreId={storeId}
@@ -233,7 +231,7 @@ export default async function SalesReportPage({
         currentProductId={productId}
         currentGroupBy={groupBy}
       />
-      
+
       {/* Summary Cards */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg bg-white p-6 shadow-md">
@@ -252,7 +250,7 @@ export default async function SalesReportPage({
             {formatDateRange(startDateTime, endDateTime)}
           </p>
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -269,7 +267,7 @@ export default async function SalesReportPage({
             Completed orders
           </p>
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -286,7 +284,7 @@ export default async function SalesReportPage({
             Total quantity
           </p>
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -304,20 +302,20 @@ export default async function SalesReportPage({
           </p>
         </div>
       </div>
-      
+
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg bg-white p-6 shadow-md">
           <h2 className="mb-4 text-lg font-semibold text-gray-800">Sales by Category</h2>
           <SalesByCategoryChart data={salesByCategory} />
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <h2 className="mb-4 text-lg font-semibold text-gray-800">Sales by Store</h2>
           <SalesByStoreChart data={salesByStore} />
         </div>
       </div>
-      
+
       {/* Top Products Table */}
       <div className="rounded-lg bg-white p-6 shadow-md">
         <h2 className="mb-4 text-lg font-semibold text-gray-800">Top Selling Products</h2>
@@ -358,7 +356,7 @@ export default async function SalesReportPage({
           </table>
         </div>
       </div>
-      
+
       {/* Sales Table */}
       <div className="rounded-lg bg-white p-6 shadow-md">
         <h2 className="mb-4 text-lg font-semibold text-gray-800">Sales Transactions</h2>
@@ -414,7 +412,7 @@ export default async function SalesReportPage({
               ))}
             </tbody>
           </table>
-          
+
           {filteredSales.length > 10 && (
             <div className="mt-4 text-center">
               <Link
@@ -448,11 +446,11 @@ function formatDateRange(startDate: Date, endDate: Date): string {
 
 function groupSalesByDate(sales: any[], groupBy: string): any[] {
   const dateMap = new Map();
-  
+
   sales.forEach(sale => {
     let dateKey;
     const date = new Date(sale.createdAt);
-    
+
     if (groupBy === "day") {
       dateKey = date.toISOString().split('T')[0];
     } else if (groupBy === "week") {
@@ -464,26 +462,26 @@ function groupSalesByDate(sales: any[], groupBy: string): any[] {
     } else if (groupBy === "month") {
       dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     }
-    
+
     if (dateMap.has(dateKey)) {
       dateMap.set(dateKey, dateMap.get(dateKey) + sale.total);
     } else {
       dateMap.set(dateKey, sale.total);
     }
   });
-  
+
   return Array.from(dateMap, ([date, value]) => ({ date, value }));
 }
 
 function groupSalesByCategory(sales: any[]): any[] {
   const categoryMap = new Map();
-  
+
   sales.forEach(sale => {
     sale.items.forEach((item: any) => {
       const categoryId = item.product.categoryId;
       const categoryName = item.product.category.name;
       const total = item.total;
-      
+
       if (categoryMap.has(categoryId)) {
         categoryMap.set(categoryId, {
           ...categoryMap.get(categoryId),
@@ -498,19 +496,19 @@ function groupSalesByCategory(sales: any[]): any[] {
       }
     });
   });
-  
+
   return Array.from(categoryMap.values())
     .sort((a, b) => b.total - a.total);
 }
 
 function groupSalesByStore(sales: Sale[]): any[] {
   const storeMap = new Map();
-  
+
   sales.forEach(sale => {
     const storeId = sale.storeId;
     const storeName = sale.store.name;
     const total = sale.total || 0;
-    
+
     if (storeMap.has(storeId)) {
       storeMap.set(storeId, {
         ...storeMap.get(storeId),
@@ -524,14 +522,14 @@ function groupSalesByStore(sales: Sale[]): any[] {
       });
     }
   });
-  
+
   return Array.from(storeMap.values())
     .sort((a, b) => b.total - a.total);
 }
 
 function getTopProducts(sales: any[]): any[] {
   const productMap = new Map();
-  
+
   sales.forEach(sale => {
     sale.items.forEach((item: any) => {
       const productId = item.productId;
@@ -539,7 +537,7 @@ function getTopProducts(sales: any[]): any[] {
       const categoryName = item.product.category.name;
       const quantity = item.quantity;
       const total = item.total;
-      
+
       if (productMap.has(productId)) {
         const product = productMap.get(productId);
         product.quantity += quantity;
@@ -555,7 +553,7 @@ function getTopProducts(sales: any[]): any[] {
       }
     });
   });
-  
+
   return Array.from(productMap.values())
     .sort((a, b) => b.total - a.total)
     .slice(0, 10); // Top 10 products

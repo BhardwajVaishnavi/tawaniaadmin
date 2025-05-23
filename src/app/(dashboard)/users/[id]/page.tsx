@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { UserRoleBadge } from "../_components/user-role-badge";
@@ -22,7 +23,7 @@ export default async function UserDetailPage({
   params: { id: string };
 }) {
   const session = await getServerSession(authOptions);
-  
+
   // Check if user has admin role
   if (!session?.user?.role || session.user.role !== "ADMIN") {
     return (
@@ -32,14 +33,14 @@ export default async function UserDetailPage({
       </div>
     );
   }
-  
+
   const userId = params.id;
-  
+
   // Get user details
   const user = await prisma.user.findUnique({
     where: { id: userId },
   });
-  
+
   if (!user) {
     notFound();
   }
@@ -52,59 +53,99 @@ export default async function UserDetailPage({
   };
 
   // Get user activity (recent actions)
-  const recentActivityResult = await prisma.$queryRaw`
-    (SELECT 
-      'SALE' as type,
-      s.id as related_id,
-      s.receipt_number as reference,
-      s.created_at as date,
-      CONCAT('Created sale #', s.receipt_number) as description,
-      st.name as location
-    FROM sales s
-    JOIN stores st ON s.store_id = st.id
-    WHERE s.user_id = ${userId}
-    ORDER BY s.created_at DESC
-    LIMIT 5)
-    
-    UNION ALL
-    
-    (SELECT 
-      'TRANSFER' as type,
-      t.id as related_id,
-      t.reference_number as reference,
-      t.created_at as date,
-      CONCAT('Created transfer #', t.reference_number) as description,
-      w.name as location
-    FROM transfers t
-    JOIN warehouses w ON t.source_warehouse_id = w.id
-    WHERE t.user_id = ${userId}
-    ORDER BY t.created_at DESC
-    LIMIT 5)
-    
-    UNION ALL
-    
-    (SELECT 
-      'INVENTORY' as type,
-      it.id as related_id,
-      NULL as reference,
-      it.created_at as date,
-      CONCAT(it.transaction_type, ': ', p.name) as description,
-      COALESCE(w.name, s.name) as location
-    FROM inventory_transactions it
-    JOIN products p ON it.product_id = p.id
-    JOIN inventory_items ii ON it.inventory_item_id = ii.id
-    LEFT JOIN warehouses w ON ii.warehouse_id = w.id
-    LEFT JOIN stores s ON ii.store_id = s.id
-    WHERE it.user_id = ${userId}
-    ORDER BY it.created_at DESC
-    LIMIT 5)
-    
-    ORDER BY date DESC
-    LIMIT 10
-  `;
+  let recentActivity: Activity[] = [];
 
-  // Type cast the raw query result to Activity[]
-  const recentActivity = recentActivityResult as unknown as Activity[];
+  try {
+    // Check if the tables exist before running the query
+    const tableCheck = await prisma.$queryRaw`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = 'Sale'
+      ) as sale_exists,
+      EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = 'Transfer'
+      ) as transfer_exists,
+      EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = 'InventoryTransaction'
+      ) as inventory_exists
+    `;
+
+    // Only run the activity query if the tables exist
+    const tablesExist = (tableCheck as any)[0];
+
+    if (tablesExist.sale_exists || tablesExist.transfer_exists || tablesExist.inventory_exists) {
+      // Build the query dynamically based on which tables exist
+      let queryParts = [];
+
+      if (tablesExist.sale_exists) {
+        queryParts.push(`
+          (SELECT
+            'SALE' as type,
+            s.id as related_id,
+            s."receiptNumber" as reference,
+            s."createdAt" as date,
+            CONCAT('Created sale #', s."receiptNumber") as description,
+            st.name as location
+          FROM "Sale" s
+          JOIN "Store" st ON s."storeId" = st.id
+          WHERE s."userId" = '${userId}'
+          ORDER BY s."createdAt" DESC
+          LIMIT 5)
+        `);
+      }
+
+      if (tablesExist.transfer_exists) {
+        if (queryParts.length > 0) queryParts.push('UNION ALL');
+        queryParts.push(`
+          (SELECT
+            'TRANSFER' as type,
+            t.id as related_id,
+            t."referenceNumber" as reference,
+            t."createdAt" as date,
+            CONCAT('Created transfer #', t."referenceNumber") as description,
+            w.name as location
+          FROM "Transfer" t
+          JOIN "Warehouse" w ON t."sourceWarehouseId" = w.id
+          WHERE t."userId" = '${userId}'
+          ORDER BY t."createdAt" DESC
+          LIMIT 5)
+        `);
+      }
+
+      if (tablesExist.inventory_exists) {
+        if (queryParts.length > 0) queryParts.push('UNION ALL');
+        queryParts.push(`
+          (SELECT
+            'INVENTORY' as type,
+            it.id as related_id,
+            NULL as reference,
+            it."createdAt" as date,
+            CONCAT(it."transactionType", ': ', p.name) as description,
+            COALESCE(w.name, s.name) as location
+          FROM "InventoryTransaction" it
+          JOIN "Product" p ON it."productId" = p.id
+          JOIN "InventoryItem" ii ON it."inventoryItemId" = ii.id
+          LEFT JOIN "Warehouse" w ON ii."warehouseId" = w.id
+          LEFT JOIN "Store" s ON ii."storeId" = s.id
+          WHERE it."userId" = '${userId}'
+          ORDER BY it."createdAt" DESC
+          LIMIT 5)
+        `);
+      }
+
+      if (queryParts.length > 0) {
+        const fullQuery = queryParts.join('\n') + '\nORDER BY date DESC\nLIMIT 10';
+        const recentActivityResult = await prisma.$queryRaw(Prisma.raw(fullQuery));
+        recentActivity = recentActivityResult as unknown as Activity[];
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching user activity:", error);
+    // Provide empty activity array if there's an error
+    recentActivity = [];
+  }
 
   return (
     <div className="space-y-6">
@@ -285,7 +326,7 @@ function calculateAccountAge(createdAt: Date): string {
   const created = new Date(createdAt);
   const diffMs = now.getTime() - created.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  
+
   if (diffDays < 30) {
     return `${diffDays} days`;
   } else if (diffDays < 365) {

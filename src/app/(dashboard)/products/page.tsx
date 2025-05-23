@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { ProductFilters } from "./_components/product-filters";
 
@@ -11,11 +12,12 @@ export default async function ProductsPage({
 }) {
   const session = await getServerSession(authOptions);
 
-  // Parse search parameters
-  const categoryId = searchParams.category as string | undefined;
-  const search = searchParams.search as string | undefined;
-  const status = searchParams.status as string | undefined;
-  const page = parseInt((searchParams.page as string) || "1");
+  // Parse search parameters - use await to fix Next.js warning
+  const params = await Promise.resolve(searchParams);
+  const categoryId = params.category as string | undefined;
+  const search = params.search as string | undefined;
+  const status = params.status as string | undefined;
+  const page = parseInt((params.page as string) || "1");
   const pageSize = 10;
 
   // Default values in case of database error
@@ -31,26 +33,88 @@ export default async function ProductsPage({
       isActive: status === "active" ? true : status === "inactive" ? false : undefined,
     };
 
-    // Get products with pagination
-    [products, totalItems, categories] = await Promise.all([
-      prisma.product.findMany({
-        where: filters,
-        include: {
-          category: true,
-        },
-        orderBy: {
-          name: "asc",
-        },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      prisma.product.count({
-        where: filters,
-      }),
-      prisma.category.findMany({
-        orderBy: { name: 'asc' },
-      }),
-    ]);
+    // Get products with pagination using raw SQL to avoid schema mismatches
+    categories = await prisma.$queryRaw`SELECT id, name FROM "Category" ORDER BY name ASC`;
+
+    // Build a WHERE clause for the raw SQL query
+    let whereClause = '1=1'; // Default condition that's always true
+    const queryParams: any[] = [];
+
+    if (categoryId) {
+      whereClause += ' AND "categoryId" = $' + (queryParams.length + 1);
+      queryParams.push(categoryId);
+    }
+
+    if (search) {
+      whereClause += ' AND (name ILIKE $' + (queryParams.length + 1) + ' OR sku ILIKE $' + (queryParams.length + 1) + ')';
+      queryParams.push(`%${search}%`);
+    }
+
+    if (status === "active") {
+      whereClause += ' AND "isActive" = $' + (queryParams.length + 1);
+      queryParams.push(true);
+    } else if (status === "inactive") {
+      whereClause += ' AND "isActive" = $' + (queryParams.length + 1);
+      queryParams.push(false);
+    }
+
+    // Count total items
+    const countResult = await prisma.$queryRaw`
+      SELECT COUNT(*) as count
+      FROM "Product"
+      WHERE ${Prisma.raw(whereClause)}
+    `;
+    totalItems = parseInt(countResult[0].count);
+
+    // Get products
+    const offset = (page - 1) * pageSize;
+    console.log("Fetching products with WHERE clause:", whereClause);
+
+    let productsResult = [];
+    try {
+      productsResult = await prisma.$queryRaw`
+        SELECT p.id, p.name, p.sku, p.description, p."categoryId", p."costPrice",
+               p."wholesalePrice", p."retailPrice", p."minStockLevel", p."reorderPoint",
+               p.barcode, p."isActive", p.condition, p."createdAt", p."updatedAt",
+               c.id as "category_id", c.name as "category_name"
+        FROM "Product" p
+        LEFT JOIN "Category" c ON p."categoryId" = c.id
+        WHERE ${Prisma.raw(whereClause)}
+        ORDER BY p."createdAt" DESC
+        LIMIT ${pageSize} OFFSET ${offset}
+      `;
+
+      console.log("Products found:", productsResult.length);
+      if (productsResult.length > 0) {
+        console.log("First product:", productsResult[0].id, productsResult[0].name);
+      }
+    } catch (queryError) {
+      console.error("Error in products query:", queryError);
+      productsResult = [];
+    }
+
+    // Format the results to match the expected structure
+    products = productsResult.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      sku: p.sku,
+      description: p.description,
+      categoryId: p.categoryId,
+      costPrice: p.costPrice,
+      wholesalePrice: p.wholesalePrice,
+      retailPrice: p.retailPrice,
+      minStockLevel: p.minStockLevel,
+      reorderPoint: p.reorderPoint,
+      barcode: p.barcode,
+      isActive: p.isActive,
+      condition: p.condition,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      category: p.category_id ? {
+        id: p.category_id,
+        name: p.category_name
+      } : null
+    }));
   } catch (error) {
     console.error("Database error:", error);
     // Continue with empty data

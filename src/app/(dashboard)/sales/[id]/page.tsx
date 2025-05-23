@@ -74,10 +74,11 @@ interface SaleWithRelations {
 export default async function SaleDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  const saleId = params.id;
+  const resolvedParams = await params;
+  const saleId = resolvedParams.id;
 
   // Get sale with related data
   const sale = await prisma.sale.findUnique({

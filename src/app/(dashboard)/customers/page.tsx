@@ -5,34 +5,36 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { CustomerStatusBadge } from "./_components/customer-status-badge";
 import { LoyaltyTierBadge } from "./_components/loyalty-tier-badge";
+import { LoyaltyProgramOverview } from "./_components/loyalty-program-overview";
 
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const session = await getServerSession(authOptions);
-  
+  const params = await searchParams;
+
   // Parse search parameters
-  const status = searchParams.status as string | undefined;
-  const loyaltyTier = searchParams.tier as string | undefined;
-  const search = searchParams.search as string | undefined;
-  const page = parseInt(searchParams.page as string || "1");
+  const status = params.status as string | undefined;
+  const loyaltyTier = params.tier as string | undefined;
+  const search = params.search as string | undefined;
+  const page = parseInt(params.page as string || "1");
   const pageSize = 10;
-  
+
   // Build query filters
   const filters: any = {};
-  
+
   if (status === "active") {
     filters.isActive = true;
   } else if (status === "inactive") {
     filters.isActive = false;
   }
-  
+
   if (loyaltyTier) {
     filters.loyaltyTier = loyaltyTier;
   }
-  
+
   if (search) {
     filters.OR = [
       { name: { contains: search, mode: 'insensitive' } },
@@ -40,7 +42,7 @@ export default async function CustomersPage({
       { phone: { contains: search, mode: 'insensitive' } },
     ];
   }
-  
+
   // Get customers with pagination
   const [customers, totalItems] = await Promise.all([
     prisma.customer.findMany({
@@ -59,7 +61,7 @@ export default async function CustomersPage({
             type: true,
           },
         },
-        addresses: true,
+        Address: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -71,9 +73,9 @@ export default async function CustomersPage({
       where: filters,
     }),
   ]);
-  
+
   const totalPages = Math.ceil(totalItems / pageSize);
-  
+
   // Get loyalty program data
   const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
     where: {
@@ -83,7 +85,7 @@ export default async function CustomersPage({
       tiers: true,
     },
   });
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -95,7 +97,7 @@ export default async function CustomersPage({
           Add New Customer
         </Link>
       </div>
-      
+
       <div className="rounded-lg bg-white p-4 shadow-md">
         <form className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
@@ -114,7 +116,7 @@ export default async function CustomersPage({
                 <option value="inactive">Inactive</option>
               </select>
             </div>
-            
+
             <div>
               <label htmlFor="tier" className="mb-1 block text-sm font-medium text-gray-800">
                 Loyalty Tier
@@ -132,7 +134,7 @@ export default async function CustomersPage({
                 <option value="PLATINUM">Platinum</option>
               </select>
             </div>
-            
+
             <div>
               <label htmlFor="search" className="mb-1 block text-sm font-medium text-gray-800">
                 Search
@@ -147,7 +149,7 @@ export default async function CustomersPage({
               />
             </div>
           </div>
-          
+
           <div className="flex justify-end">
             <button
               type="submit"
@@ -158,7 +160,7 @@ export default async function CustomersPage({
           </div>
         </form>
       </div>
-      
+
       <div className="rounded-lg bg-white shadow-md">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -181,7 +183,7 @@ export default async function CustomersPage({
                     (sum, sale) => sum + Number(sale.totalAmount),
                     0
                   );
-                  
+
                   return (
                     <tr key={customer.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-blue-600">
@@ -255,7 +257,7 @@ export default async function CustomersPage({
             </tbody>
           </table>
         </div>
-        
+
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
@@ -264,7 +266,7 @@ export default async function CustomersPage({
                 href={{
                   pathname: '/customers',
                   query: {
-                    ...searchParams,
+                    ...params,
                     page: page > 1 ? page - 1 : 1,
                   },
                 }}
@@ -276,7 +278,7 @@ export default async function CustomersPage({
                 href={{
                   pathname: '/customers',
                   query: {
-                    ...searchParams,
+                    ...params,
                     page: page < totalPages ? page + 1 : totalPages,
                   },
                 }}
@@ -301,7 +303,7 @@ export default async function CustomersPage({
                     href={{
                       pathname: '/customers',
                       query: {
-                        ...searchParams,
+                        ...params,
                         page: page > 1 ? page - 1 : 1,
                       },
                     }}
@@ -320,7 +322,7 @@ export default async function CustomersPage({
                         href={{
                           pathname: '/customers',
                           query: {
-                            ...searchParams,
+                            ...params,
                             page: pageNum,
                           },
                         }}
@@ -338,7 +340,7 @@ export default async function CustomersPage({
                     href={{
                       pathname: '/customers',
                       query: {
-                        ...searchParams,
+                        ...params,
                         page: page < totalPages ? page + 1 : totalPages,
                       },
                     }}
@@ -355,38 +357,20 @@ export default async function CustomersPage({
           </div>
         )}
       </div>
-      
+
       {/* Loyalty Program Overview */}
       {loyaltyProgram && (
-        <div className="rounded-lg bg-white p-6 shadow-md">
-          <h2 className="mb-4 text-lg font-semibold text-gray-800">Loyalty Program: {loyaltyProgram.name}</h2>
-          <p className="mb-4 text-gray-800">{loyaltyProgram.description}</p>
-          
-          <div className="grid gap-4 md:grid-cols-4">
-            {loyaltyProgram.tiers.sort((a, b) => a.requiredPoints - b.requiredPoints).map((tier) => (
-              <div key={tier.id} className="rounded-lg border border-gray-200 p-4">
-                <h3 className="font-medium text-gray-800">{tier.name}</h3>
-                <p className="mt-1 text-sm text-gray-800">{tier.description}</p>
-                <div className="mt-2 text-sm">
-                  <span className="font-medium">Required Points:</span> {tier.requiredPoints}
-                </div>
-                <div className="mt-1 text-sm">
-                  <span className="font-medium">Points Multiplier:</span> {tier.pointsMultiplier}x
-                </div>
-                {tier.benefits && (
-                  <div className="mt-2">
-                    <span className="text-sm font-medium">Benefits:</span>
-                    <ul className="mt-1 list-inside list-disc text-sm text-gray-800">
-                      {JSON.parse(tier.benefits).map((benefit: string, index: number) => (
-                        <li key={index}>{benefit}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <LoyaltyProgramOverview
+          program={{
+            ...loyaltyProgram,
+            pointsPerDollar: loyaltyProgram.pointsPerDollar || 1,
+            pointsRedemptionRate: loyaltyProgram.pointsRedemptionRate || 0.01,
+            minimumPointsRedemption: loyaltyProgram.minimumPointsRedemption || 100,
+            welcomeBonus: loyaltyProgram.welcomeBonus || 50,
+            birthdayBonus: loyaltyProgram.birthdayBonus || 100,
+            referralBonus: loyaltyProgram.referralBonus || 50,
+          }}
+        />
       )}
     </div>
   );

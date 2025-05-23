@@ -43,7 +43,7 @@ export function SalesChart({ data }: SalesChartProps) {
           labels,
           datasets: [
             {
-              label: 'Sales Amount ($)',
+              label: 'Sales Amount (₹)',
               data: totals,
               backgroundColor: 'rgba(59, 130, 246, 0.5)',
               borderColor: 'rgba(59, 130, 246, 1)',
@@ -74,7 +74,7 @@ export function SalesChart({ data }: SalesChartProps) {
               position: 'left',
               title: {
                 display: true,
-                text: 'Sales Amount ($)',
+                text: 'Sales Amount (₹)',
               },
               beginAtZero: true,
             },
@@ -99,7 +99,7 @@ export function SalesChart({ data }: SalesChartProps) {
                   const label = context.dataset.label || '';
                   const value = context.raw;
                   if (label.includes('Amount')) {
-                    return `${label}: $${value}`;
+                    return `${label}: ₹${value}`;
                   }
                   return `${label}: ${value}`;
                 }

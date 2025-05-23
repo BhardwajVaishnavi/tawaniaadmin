@@ -6,10 +6,26 @@ import { PrismaClient } from '@prisma/client'
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient }
 
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+// Configure Prisma client with connection retry logic
+const prismaClientSingleton = () => {
+  return new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
+    errorFormat: 'pretty',
   })
+}
 
+// Use existing Prisma client if available, otherwise create a new one
+export const prisma = globalForPrisma.prisma || prismaClientSingleton()
+
+// Add connection event handlers
+prisma.$on('error', (e: any) => {
+  console.error('Prisma Error:', e)
+})
+
+// Save Prisma client to global object in development
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma

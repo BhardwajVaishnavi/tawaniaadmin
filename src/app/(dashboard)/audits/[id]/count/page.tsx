@@ -57,17 +57,15 @@ interface Zone {
   name: string;
 }
 
-// Define the params type based on Next.js expectations
-type Params = Promise<{ id: string }>;
-
 export default function AuditCountPage({
   params,
 }: {
-  params: Params;
+  params: { id: string };
 }) {
   const router = useRouter();
-  // Use React.use to unwrap params - the return type is properly typed now
-  const { id: auditId } = use(params);
+  // Use React.use() to unwrap the params Promise
+  const unwrappedParams = use(params);
+  const auditId = unwrappedParams.id;
 
   const [audit, setAudit] = useState<Audit | null>(null);
   const [items, setItems] = useState<AuditItem[]>([]);

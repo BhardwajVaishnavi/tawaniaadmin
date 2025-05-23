@@ -29,9 +29,10 @@ interface PurchaseOrderItem {
 export default async function PurchaseOrderDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
+  const resolvedParams = await params;
 
   // Get purchase order details - using try/catch to handle potential model issues
   let purchaseOrder;
@@ -39,7 +40,7 @@ export default async function PurchaseOrderDetailPage({
     // @ts-ignore - Dynamically access the model
     purchaseOrder = await prisma.purchaseOrder.findUnique({
       where: {
-        id: params.id,
+        id: resolvedParams.id,
       },
       include: {
         supplier: true,

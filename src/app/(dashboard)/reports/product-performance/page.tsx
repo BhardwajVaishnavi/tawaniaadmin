@@ -26,26 +26,24 @@ export default async function ProductPerformancePage({
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
   const session = await getServerSession(authOptions);
-  
+
   // Parse search parameters
   const startDate = searchParams.startDate as string || getDefaultStartDate();
   const endDate = searchParams.endDate as string || getDefaultEndDate();
   const categoryId = searchParams.category as string | undefined;
   const productId = searchParams.product as string | undefined;
   const sortBy = searchParams.sortBy as string || "sales";
-  
+
   // Convert to Date objects
   const startDateTime = new Date(startDate);
   const endDateTime = new Date(endDate);
   endDateTime.setHours(23, 59, 59, 999); // Set to end of day
-  
+
   // Get categories and products for filters
   const [categoriesData, productsData] = await Promise.all([
-    prisma.category.findMany({
-      orderBy: { name: 'asc' },
-    }),
+    prisma.$queryRaw`SELECT id, name FROM "Category" ORDER BY name ASC`,
     prisma.product.findMany({
-      where: { 
+      where: {
         isActive: true,
         ...(categoryId ? { categoryId } : {}),
       },
@@ -55,13 +53,13 @@ export default async function ProductPerformancePage({
       orderBy: { name: 'asc' },
     }),
   ]);
-  
+
   // Transform the data to match the expected interfaces
   const categories: Category[] = categoriesData.map(category => ({
     id: category.id,
     name: category.name
   }));
-  
+
   const products: Product[] = productsData.map(product => ({
     id: product.id,
     name: product.name,
@@ -71,7 +69,7 @@ export default async function ProductPerformancePage({
       name: product.category.name
     } : { id: '', name: 'Uncategorized' }
   }));
-  
+
   // Get sales data for the period
   const sales = await prisma.sale.findMany({
     where: {
@@ -92,20 +90,20 @@ export default async function ProductPerformancePage({
       },
     },
   });
-  
+
   // Get inventory data
   const inventoryItems = await prisma.inventoryItem.findMany({
     include: {
       product: true,
     },
   });
-  
+
   // Calculate product performance metrics
   const productPerformance = calculateProductPerformance(sales, inventoryItems, productId);
-  
+
   // Sort products based on selected criteria
   let sortedProducts = [...productPerformance];
-  
+
   if (sortBy === "sales") {
     sortedProducts.sort((a, b) => b.totalSales - a.totalSales);
   } else if (sortBy === "profit") {
@@ -115,19 +113,19 @@ export default async function ProductPerformancePage({
   } else if (sortBy === "quantity") {
     sortedProducts.sort((a, b) => b.quantitySold - a.quantitySold);
   }
-  
+
   // Calculate totals
   const totalSales = productPerformance.reduce((sum, product) => sum + product.totalSales, 0);
   const totalProfit = productPerformance.reduce((sum, product) => sum + product.profit, 0);
   const totalQuantity = productPerformance.reduce((sum, product) => sum + product.quantitySold, 0);
   const averageMargin = totalSales > 0 ? (totalProfit / totalSales) * 100 : 0;
-  
+
   // Prepare data for charts
   const topProductsBySales = sortedProducts.slice(0, 10);
   const topProductsByProfit = [...productPerformance]
     .sort((a, b) => b.profit - a.profit)
     .slice(0, 10);
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -141,17 +139,17 @@ export default async function ProductPerformancePage({
           </Link>
         </div>
       </div>
-      
+
       <ReportDateFilter startDate={startDate} endDate={endDate} />
-      
-      <ProductPerformanceFilters 
+
+      <ProductPerformanceFilters
         categories={categories}
         products={products}
         currentCategoryId={categoryId}
         currentProductId={productId}
         currentSortBy={sortBy}
       />
-      
+
       {/* Summary Cards */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg bg-white p-6 shadow-md">
@@ -170,7 +168,7 @@ export default async function ProductPerformancePage({
             Revenue from products
           </p>
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -187,7 +185,7 @@ export default async function ProductPerformancePage({
             Gross profit
           </p>
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -204,7 +202,7 @@ export default async function ProductPerformancePage({
             Total quantity
           </p>
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -222,20 +220,20 @@ export default async function ProductPerformancePage({
           </p>
         </div>
       </div>
-      
+
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg bg-white p-6 shadow-md">
           <h2 className="mb-4 text-lg font-semibold text-gray-800">Top Products by Sales</h2>
           <ProductSalesChart data={topProductsBySales} />
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <h2 className="mb-4 text-lg font-semibold text-gray-800">Top Products by Profit</h2>
           <ProductProfitChart data={topProductsByProfit} />
         </div>
       </div>
-      
+
       {/* Product Performance Table */}
       <div className="rounded-lg bg-white p-6 shadow-md">
         <h2 className="mb-4 text-lg font-semibold text-gray-800">Product Performance</h2>
@@ -312,24 +310,24 @@ function getDefaultEndDate(): string {
 function calculateProductPerformance(sales: any[], inventoryItems: any[], filterProductId?: string) {
   // Create a map to track product performance
   const productMap = new Map();
-  
+
   // Process sales data
   sales.forEach(sale => {
     sale.items.forEach((item: any) => {
       const productId = item.productId;
-      
+
       // Skip if filtering by product and this is not the selected product
       if (filterProductId && productId !== filterProductId) {
         return;
       }
-      
+
       const productName = item.product.name;
       const categoryName = item.product.category.name;
       const quantity = item.quantity;
       const salesAmount = item.total;
       const costPrice = item.product.costPrice;
       const costAmount = costPrice * quantity;
-      
+
       if (productMap.has(productId)) {
         const product = productMap.get(productId);
         product.quantitySold += quantity;
@@ -348,16 +346,16 @@ function calculateProductPerformance(sales: any[], inventoryItems: any[], filter
       }
     });
   });
-  
+
   // Add current stock information
   inventoryItems.forEach(item => {
     const productId = item.productId;
-    
+
     // Skip if filtering by product and this is not the selected product
     if (filterProductId && productId !== filterProductId) {
       return;
     }
-    
+
     if (productMap.has(productId)) {
       productMap.get(productId).currentStock += item.quantity;
     } else {
@@ -373,17 +371,17 @@ function calculateProductPerformance(sales: any[], inventoryItems: any[], filter
       });
     }
   });
-  
+
   // Calculate derived metrics
   return Array.from(productMap.values()).map(product => {
     const profit = product.totalSales - product.totalCost;
     const profitMargin = product.totalSales > 0 ? (profit / product.totalSales) * 100 : 0;
-    
+
     // Calculate turnover rate (sales quantity / average inventory)
     // For simplicity, we're using current inventory as the denominator
     // In a real system, you'd use average inventory over the period
     const turnoverRate = product.currentStock > 0 ? product.quantitySold / product.currentStock : 0;
-    
+
     return {
       ...product,
       profit,

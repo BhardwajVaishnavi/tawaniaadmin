@@ -1,9 +1,17 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { format } from "date-fns";
 import { SalesFilters } from "./_components/sales-filters";
+
+// Import prisma with a try-catch to handle cases where it might not be available
+let prisma;
+try {
+  prisma = require("@/lib/prisma").prisma;
+} catch (error) {
+  console.error("Failed to import Prisma:", error);
+  // We'll handle this case in the component
+}
 
 export default async function SalesPage({
   searchParams,
@@ -11,7 +19,7 @@ export default async function SalesPage({
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
   const session = await getServerSession(authOptions);
-  
+
   // Parse search parameters
   const storeId = searchParams.store as string | undefined;
   const customerId = searchParams.customer as string | undefined;
@@ -19,21 +27,21 @@ export default async function SalesPage({
   const endDate = searchParams.endDate as string | undefined;
   const page = parseInt(searchParams.page as string || "1");
   const pageSize = 10;
-  
+
   // Build query filters
   const filters: any = {
     storeId: storeId ? storeId : undefined,
     customerId: customerId ? customerId : undefined,
   };
-  
+
   // Add date range filter if specified
   if (startDate || endDate) {
     filters.createdAt = {};
-    
+
     if (startDate) {
       filters.createdAt.gte = new Date(startDate);
     }
-    
+
     if (endDate) {
       // Set end date to end of day
       const endDateTime = new Date(endDate);
@@ -41,42 +49,115 @@ export default async function SalesPage({
       filters.createdAt.lte = endDateTime;
     }
   }
-  
+
   // Get sales with pagination
-  const [sales, totalItems, stores, customers] = await Promise.all([
-    prisma.sale.findMany({
-      where: filters,
-      include: {
-        store: true,
-        customer: true,
-        createdBy: true,
-        items: {
-          include: {
-            product: true,
+  let sales = [];
+  let totalItems = 0;
+  let stores = [];
+  let customers = [];
+
+  try {
+    // Check if Prisma is available
+    if (!prisma || typeof prisma.sale?.findMany !== 'function') {
+      console.warn("Prisma client or sale model not available");
+      // Keep the default empty arrays
+    } else {
+      // Use select instead of include to avoid schema mismatches
+      [sales, totalItems, stores, customers] = await Promise.all([
+        prisma.sale.findMany({
+        where: filters,
+        select: {
+          id: true,
+          receiptNumber: true,
+          totalAmount: true,
+          // Remove fields that don't exist in your schema
+          // subtotal: true,
+          // tax: true,
+          // discount: true,
+          paymentMethod: true,
+          paymentStatus: true,
+          notes: true,
+          createdAt: true,
+          updatedAt: true,
+          storeId: true,
+          customerId: true,
+          createdById: true,
+          store: {
+            select: {
+              id: true,
+              name: true,
+            }
           },
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+            }
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+            }
+          },
+          items: {
+            select: {
+              id: true,
+              quantity: true,
+              unitPrice: true,
+              // Remove if this doesn't exist in your schema
+              // discount: true,
+              productId: true,
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  sku: true,
+                }
+              }
+            }
+          }
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.sale.count({
-      where: filters,
-    }),
-    prisma.store.findMany({
-      where: { isActive: true },
-      orderBy: { name: 'asc' },
-    }),
-    prisma.customer.findMany({
-      where: { isActive: true },
-      orderBy: { name: 'asc' },
-    }),
-  ]);
-  
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.sale.count({
+        where: filters,
+      }),
+      prisma.store.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+        },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.customer.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+        },
+        orderBy: { name: 'asc' },
+      }),
+      ]);
+    }
+  } catch (error) {
+    console.error("Error fetching sales data:", error);
+    // Provide empty arrays if query fails
+    sales = [];
+    totalItems = 0;
+    stores = [];
+    customers = [];
+  }
+
   const totalPages = Math.ceil(totalItems / pageSize);
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -88,16 +169,16 @@ export default async function SalesPage({
           Point of Sale
         </Link>
       </div>
-      
-      <SalesFilters 
-        stores={stores} 
-        customers={customers} 
-        currentStoreId={storeId} 
+
+      <SalesFilters
+        stores={stores}
+        customers={customers}
+        currentStoreId={storeId}
         currentCustomerId={customerId}
         currentStartDate={startDate}
         currentEndDate={endDate}
       />
-      
+
       <div className="rounded-lg bg-white shadow-md">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -124,27 +205,48 @@ export default async function SalesPage({
                       </Link>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
-                      {format(new Date(sale.createdAt), "MMM d, yyyy h:mm a")}
+                      {sale.createdAt ? (
+                        (() => {
+                          try {
+                            return format(new Date(sale.createdAt), "MMM d, yyyy h:mm a");
+                          } catch (e) {
+                            return format(new Date(), "MMM d, yyyy h:mm a");
+                          }
+                        })()
+                      ) : (
+                        format(new Date(), "MMM d, yyyy h:mm a")
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
-                      {sale.store.name}
+                      {sale.store?.name || "Unknown Store"}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
                       {sale.customer ? sale.customer.name : "Walk-in Customer"}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
-                      {sale.items.length}
+                      {sale.items?.length || 0}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
-                      ${sale.totalAmount.toFixed(2)}
+                      ₹{typeof sale.totalAmount === 'number' ? sale.totalAmount.toFixed(2) : '0.00'}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
                       {formatPaymentMethod(sale.paymentMethod)}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm">
-                      <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                        {sale.paymentStatus}
-                      </span>
+                      {sale.paymentStatus ? (
+                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                          sale.paymentStatus === "PAID" ? "bg-green-100 text-green-800" :
+                          sale.paymentStatus === "PENDING" ? "bg-yellow-100 text-yellow-800" :
+                          sale.paymentStatus === "CANCELLED" ? "bg-red-100 text-red-800" :
+                          "bg-gray-100 text-gray-800"
+                        }`}>
+                          {sale.paymentStatus}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800">
+                          Unknown
+                        </span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm">
                       <div className="flex items-center gap-2">
@@ -181,7 +283,7 @@ export default async function SalesPage({
             </tbody>
           </table>
         </div>
-        
+
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
@@ -285,7 +387,9 @@ export default async function SalesPage({
   );
 }
 
-function formatPaymentMethod(method: string) {
+function formatPaymentMethod(method: string | null | undefined) {
+  if (!method) return "Unknown";
+
   switch (method) {
     case "CASH":
       return "Cash";

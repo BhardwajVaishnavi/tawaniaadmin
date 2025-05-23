@@ -96,7 +96,7 @@ export function Receipt({ sale, companyInfo }: ReceiptProps) {
   const subtotal = Number(sale.subtotalAmount);
   const tax = Number(sale.taxAmount);
   const total = Number(sale.totalAmount);
-  
+
   // Calculate payment totals
   const totalPaid = sale.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
   const balance = total - totalPaid;
@@ -167,8 +167,8 @@ export function Receipt({ sale, companyInfo }: ReceiptProps) {
                 <td className="py-2 text-center">
                   {item.quantity} {item.product.unit}
                 </td>
-                <td className="py-2 text-right">${Number(item.unitPrice).toFixed(2)}</td>
-                <td className="py-2 text-right">${Number(item.totalPrice).toFixed(2)}</td>
+                <td className="py-2 text-right">₹{Number(item.unitPrice).toFixed(2)}</td>
+                <td className="py-2 text-right">₹{Number(item.totalPrice).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
@@ -179,17 +179,17 @@ export function Receipt({ sale, companyInfo }: ReceiptProps) {
       <div className="mb-6 border-t border-gray-200 pt-4">
         <div className="flex justify-between text-sm">
           <span>Subtotal:</span>
-          <span>${subtotal.toFixed(2)}</span>
+          <span>₹{subtotal.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span>Tax:</span>
-          <span>${tax.toFixed(2)}</span>
+          <span>₹{tax.toFixed(2)}</span>
         </div>
         <div className="mt-2 flex justify-between border-t border-gray-200 pt-2 text-base font-bold">
           <span>Total:</span>
-          <span>${total.toFixed(2)}</span>
+          <span>₹{total.toFixed(2)}</span>
         </div>
-        
+
         {/* Payments */}
         {sale.payments.length > 0 && (
           <div className="mt-4 border-t border-gray-200 pt-2">
@@ -200,17 +200,17 @@ export function Receipt({ sale, companyInfo }: ReceiptProps) {
                   {payment.paymentMethod.replace("_", " ")}
                   {payment.referenceNumber && ` (Ref: ${payment.referenceNumber})`}:
                 </span>
-                <span>${Number(payment.amount).toFixed(2)}</span>
+                <span>₹{Number(payment.amount).toFixed(2)}</span>
               </div>
             ))}
             <div className="mt-2 flex justify-between border-t border-gray-200 pt-2 text-sm font-semibold">
               <span>Total Paid:</span>
-              <span>${totalPaid.toFixed(2)}</span>
+              <span>₹{totalPaid.toFixed(2)}</span>
             </div>
             {balance > 0 && (
               <div className="flex justify-between text-sm font-semibold text-red-600">
                 <span>Balance Due:</span>
-                <span>${balance.toFixed(2)}</span>
+                <span>₹{balance.toFixed(2)}</span>
               </div>
             )}
           </div>

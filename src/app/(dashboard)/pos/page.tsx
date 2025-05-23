@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils";
 
 interface Product {
   id: string;
@@ -51,7 +52,7 @@ interface Customer {
 export default function POSPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // State
   const [stores, setStores] = useState<Store[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -59,7 +60,7 @@ export default function POSPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Form state
   const [selectedStoreId, setSelectedStoreId] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -67,7 +68,7 @@ export default function POSPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [notes, setNotes] = useState("");
-  
+
   // Fetch data
   useEffect(() => {
     const fetchData = async () => {
@@ -76,32 +77,32 @@ export default function POSPage() {
         if (!response.ok) {
           throw new Error('Failed to fetch data');
         }
-        
+
         const data = await response.json();
         setStores(data.stores || []);
         setProducts(data.products || []);
         setInventoryItems(data.inventoryItems || []);
         setCustomers(data.customers || []);
-        
+
         // Set default store if only one store exists
         if (data.stores?.length === 1) {
           setSelectedStoreId(data.stores[0].id);
         }
-        
+
         // Check for store and product in URL params
         const storeId = searchParams.get('store');
         const productId = searchParams.get('product');
-        
+
         if (storeId) {
           setSelectedStoreId(storeId);
         }
-        
+
         if (storeId && productId && data.products && data.inventoryItems) {
           const product = data.products.find((p: Product) => p.id === productId);
           const inventoryItem = data.inventoryItems.find(
             (i: InventoryItem) => i.productId === productId && i.storeId === storeId
           );
-          
+
           if (product && inventoryItem && inventoryItem.quantity > 0) {
             addToCart(inventoryItem, product);
           }
@@ -112,10 +113,10 @@ export default function POSPage() {
         setIsLoading(false);
       }
     };
-    
+
     fetchData();
   }, [searchParams]);
-  
+
   // Filtered products based on search term and selected store
   const filteredProducts = selectedStoreId
     ? products.filter(product => {
@@ -123,44 +124,44 @@ export default function POSPage() {
           ? product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             product.sku.toLowerCase().includes(searchTerm.toLowerCase())
           : true;
-        
+
         const hasInventory = inventoryItems.some(
-          item => item.productId === product.id && 
-                 item.storeId === selectedStoreId && 
+          item => item.productId === product.id &&
+                 item.storeId === selectedStoreId &&
                  item.quantity > 0
         );
-        
+
         return matchesSearch && hasInventory;
       })
     : [];
-  
+
   // Add item to cart
   const addToCart = (inventoryItem: InventoryItem, product: Product) => {
     // Check if item already exists in cart
     const existingItemIndex = cart.findIndex(
       item => item.inventoryItemId === inventoryItem.id
     );
-    
+
     if (existingItemIndex >= 0) {
       // Update quantity if item already in cart
       const updatedCart = [...cart];
       const currentItem = updatedCart[existingItemIndex];
-      
+
       // Check if we have enough inventory
       const availableQuantity = inventoryItems.find(
         item => item.id === inventoryItem.id
       )?.quantity || 0;
-      
+
       if (currentItem.quantity >= availableQuantity) {
         alert(`Cannot add more. Only ${availableQuantity} available in stock.`);
         return;
       }
-      
+
       updatedCart[existingItemIndex] = {
         ...currentItem,
         quantity: currentItem.quantity + 1,
       };
-      
+
       setCart(updatedCart);
     } else {
       // Add new item to cart
@@ -177,77 +178,77 @@ export default function POSPage() {
       ]);
     }
   };
-  
+
   // Remove item from cart
   const removeFromCart = (index: number) => {
     const updatedCart = [...cart];
     updatedCart.splice(index, 1);
     setCart(updatedCart);
   };
-  
+
   // Update item quantity
   const updateQuantity = (index: number, newQuantity: number) => {
     if (newQuantity < 1) return;
-    
+
     const updatedCart = [...cart];
     const currentItem = updatedCart[index];
-    
+
     // Check if we have enough inventory
     const inventoryItem = inventoryItems.find(
       item => item.id === currentItem.inventoryItemId
     );
-    
+
     if (!inventoryItem || newQuantity > inventoryItem.quantity) {
       alert(`Cannot add more. Only ${inventoryItem?.quantity} available in stock.`);
       return;
     }
-    
+
     updatedCart[index] = {
       ...currentItem,
       quantity: newQuantity,
     };
-    
+
     setCart(updatedCart);
   };
-  
+
   // Update item discount
   const updateDiscount = (index: number, newDiscount: number) => {
     if (newDiscount < 0 || newDiscount > 100) return;
-    
+
     const updatedCart = [...cart];
     updatedCart[index] = {
       ...updatedCart[index],
       discount: newDiscount,
     };
-    
+
     setCart(updatedCart);
   };
-  
+
   // Calculate subtotal
   const subtotal = cart.reduce((sum, item) => {
     const itemTotal = item.price * item.quantity;
     const discountAmount = (itemTotal * item.discount) / 100;
     return sum + (itemTotal - discountAmount);
   }, 0);
-  
+
   // Calculate tax (assuming 10% tax rate)
   const taxRate = 0.1;
   const tax = subtotal * taxRate;
-  
+
   // Calculate total
   const total = subtotal + tax;
-  
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedStoreId || cart.length === 0) {
       alert('Please select a store and add items to cart');
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       const saleData = {
         storeId: selectedStoreId,
@@ -265,7 +266,7 @@ export default function POSPage() {
         total,
         notes,
       };
-      
+
       const response = await fetch('/api/pos/sale', {
         method: 'POST',
         headers: {
@@ -273,18 +274,18 @@ export default function POSPage() {
         },
         body: JSON.stringify(saleData),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to create sale');
       }
-      
+
       const result = await response.json();
-      
+
       // Clear cart and show success message
       setCart([]);
       alert(`Sale completed successfully! Receipt #${result.sale.receiptNumber}`);
-      
+
       // Redirect to sale details page
       router.push(`/sales/${result.sale.id}`);
     } catch (error) {
@@ -294,7 +295,7 @@ export default function POSPage() {
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -306,7 +307,7 @@ export default function POSPage() {
           View Sales History
         </Link>
       </div>
-      
+
       {isLoading ? (
         <div className="flex h-64 items-center justify-center rounded-lg bg-white p-6 shadow-md">
           <div className="text-center">
@@ -339,7 +340,7 @@ export default function POSPage() {
                     ))}
                   </select>
                 </div>
-                
+
                 <div>
                   <label htmlFor="customer" className="mb-1 block text-sm font-medium text-gray-800">
                     Customer (Optional)
@@ -359,7 +360,7 @@ export default function POSPage() {
                   </select>
                 </div>
               </div>
-              
+
               <div className="mb-4">
                 <label htmlFor="search" className="mb-1 block text-sm font-medium text-gray-800">
                   Search Products
@@ -375,10 +376,10 @@ export default function POSPage() {
                 />
               </div>
             </div>
-            
+
             <div className="rounded-lg bg-white p-4 shadow-md">
               <h2 className="mb-4 text-lg font-semibold text-gray-800">Products</h2>
-              
+
               {!selectedStoreId ? (
                 <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-gray-300">
                   <p className="text-gray-800">Please select a store to view products</p>
@@ -393,9 +394,9 @@ export default function POSPage() {
                     const inventoryItem = inventoryItems.find(
                       item => item.productId === product.id && item.storeId === selectedStoreId
                     );
-                    
+
                     if (!inventoryItem) return null;
-                    
+
                     return (
                       <div
                         key={product.id}
@@ -405,7 +406,7 @@ export default function POSPage() {
                         <h3 className="mb-1 font-medium text-blue-600">{product.name}</h3>
                         <p className="text-xs text-gray-800">{product.sku}</p>
                         <div className="mt-2 flex items-center justify-between">
-                          <span className="text-lg font-bold">${inventoryItem.retailPrice.toFixed(2)}</span>
+                          <span className="text-lg font-bold">{formatCurrency(inventoryItem.retailPrice)}</span>
                           <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
                             {inventoryItem.quantity} in stock
                           </span>
@@ -417,12 +418,12 @@ export default function POSPage() {
               )}
             </div>
           </div>
-          
+
           {/* Cart and Checkout */}
           <div className="space-y-6">
             <div className="rounded-lg bg-white p-4 shadow-md">
               <h2 className="mb-4 text-lg font-semibold text-gray-800">Cart</h2>
-              
+
               {cart.length === 0 ? (
                 <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-gray-300">
                   <p className="text-gray-800">Cart is empty</p>
@@ -444,7 +445,7 @@ export default function POSPage() {
                         </button>
                       </div>
                       <p className="text-xs text-gray-800">{item.product.sku}</p>
-                      
+
                       <div className="mt-2 grid grid-cols-3 gap-2">
                         <div>
                           <label className="text-xs text-gray-800">Quantity</label>
@@ -472,17 +473,17 @@ export default function POSPage() {
                             </button>
                           </div>
                         </div>
-                        
+
                         <div>
                           <label className="text-xs text-gray-800">Price</label>
                           <input
                             type="text"
-                            value={`$${item.price.toFixed(2)}`}
+                            value={formatCurrency(item.price)}
                             readOnly
                             className="w-full rounded-md border border-gray-300 px-3 py-1 text-sm bg-gray-50"
                           />
                         </div>
-                        
+
                         <div>
                           <label className="text-xs text-gray-800">Discount %</label>
                           <input
@@ -495,11 +496,11 @@ export default function POSPage() {
                           />
                         </div>
                       </div>
-                      
+
                       <div className="mt-2 flex justify-between text-sm">
                         <span>Subtotal:</span>
                         <span className="font-medium">
-                          ${((item.price * item.quantity) * (1 - item.discount / 100)).toFixed(2)}
+                          {formatCurrency((item.price * item.quantity) * (1 - item.discount / 100))}
                         </span>
                       </div>
                     </div>
@@ -507,10 +508,10 @@ export default function POSPage() {
                 </div>
               )}
             </div>
-            
+
             <div className="rounded-lg bg-white p-4 shadow-md">
               <h2 className="mb-4 text-lg font-semibold text-gray-800">Checkout</h2>
-              
+
               <form onSubmit={handleSubmit}>
                 <div className="space-y-4">
                   <div>
@@ -529,7 +530,7 @@ export default function POSPage() {
                       <option value="mobile">Mobile Payment</option>
                     </select>
                   </div>
-                  
+
                   <div>
                     <label htmlFor="notes" className="mb-1 block text-sm font-medium text-gray-800">
                       Notes
@@ -542,22 +543,22 @@ export default function POSPage() {
                       rows={2}
                     />
                   </div>
-                  
+
                   <div className="rounded-lg bg-gray-50 p-3">
                     <div className="flex justify-between text-sm">
                       <span>Subtotal:</span>
-                      <span>${subtotal.toFixed(2)}</span>
+                      <span>{formatCurrency(subtotal)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Tax (10%):</span>
-                      <span>${tax.toFixed(2)}</span>
+                      <span>{formatCurrency(tax)}</span>
                     </div>
                     <div className="mt-2 flex justify-between font-bold">
                       <span>Total:</span>
-                      <span>${total.toFixed(2)}</span>
+                      <span>{formatCurrency(total)}</span>
                     </div>
                   </div>
-                  
+
                   <Button
                     type="submit"
                     className="w-full"

@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { format } from "date-fns";
+import { LoyaltyProgramClient } from "./_components/loyalty-program-client";
 
 export default async function LoyaltyProgramPage() {
   const session = await getServerSession(authOptions);
@@ -30,9 +31,9 @@ export default async function LoyaltyProgramPage() {
   // Check if models exist in Prisma schema before querying
   try {
     // Get loyalty rules if the model exists
-    if ('loyaltyRule' in prisma) {
+    if ('loyaltyProgramRule' in prisma) {
       // @ts-ignore - Dynamically access the model
-      loyaltyRules = await prisma.loyaltyRule.findMany({
+      loyaltyRules = await prisma.loyaltyProgramRule.findMany({
         where: {
           programId: loyaltyProgram?.id,
           isActive: true,
@@ -99,62 +100,15 @@ export default async function LoyaltyProgramPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">Loyalty Program</h1>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/loyalty/settings"
-            className="rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors"
-          >
-            Program Settings
-          </Link>
-          <Link
-            href="/loyalty/promotions"
-            className="rounded-md bg-purple-100 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-200 transition-colors"
-          >
-            Manage Promotions
-          </Link>
-        </div>
-      </div>
+      {/* Client-side component for auto-saving loyalty program data */}
+      <LoyaltyProgramClient
+        initialLoyaltyProgram={loyaltyProgram}
+        initialLoyaltyRules={loyaltyRules}
+        initialRecentTransactions={recentTransactions}
+      />
 
       {loyaltyProgram ? (
         <>
-          {/* Program Overview */}
-          <div className="rounded-lg bg-white p-6 shadow-md">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">{loyaltyProgram.name}</h2>
-              <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                loyaltyProgram.isActive
-                  ? "bg-green-100 text-green-800"
-                  : "bg-red-100 text-red-800"
-              }`}>
-                {loyaltyProgram.isActive ? "Active" : "Inactive"}
-              </span>
-            </div>
-            <p className="mb-4 text-gray-800">{loyaltyProgram.description}</p>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-lg border border-gray-200 p-4">
-                <h3 className="font-medium text-gray-800">Points Earning</h3>
-                <div className="mt-2 text-sm text-gray-800">
-                  <p>Points per currency: {loyaltyProgram.pointsPerCurrency || 0}</p>
-                  <p>Minimum purchase: ${(loyaltyProgram.minimumPurchase || 0).toFixed(2)}</p>
-                </div>
-              </div>
-              <div className="rounded-lg border border-gray-200 p-4">
-                <h3 className="font-medium text-gray-800">Program Rules</h3>
-                <div className="mt-2 text-sm text-gray-800">
-                  <p>Active rules: {loyaltyRules.filter(r => r.isActive).length}</p>
-                  <p>Total rules: {loyaltyRules.length}</p>
-                </div>
-              </div>
-              <div className="rounded-lg border border-gray-200 p-4">
-                <h3 className="font-medium text-gray-800">Tiers</h3>
-                <div className="mt-2 text-sm text-gray-800">
-                  <p>Number of tiers: {loyaltyProgram.tiers.length}</p>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Loyalty Tiers */}
           <div className="rounded-lg bg-white p-6 shadow-md">

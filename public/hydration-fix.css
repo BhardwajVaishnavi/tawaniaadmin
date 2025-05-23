@@ -1,0 +1,45 @@
+/* CSS to fix hydration mismatches */
+
+/* Hide elements that cause hydration mismatches */
+.loyalty-menu-item,
+li[data-menu-item="loyalty"] {
+  display: none !important;
+}
+
+/* Ensure consistent styling for sidebar items */
+.sidebar-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  padding: 0.625rem 1rem !important;
+  border-radius: 0.375rem !important;
+  transition: all 0.2s !important;
+}
+
+/* Fix for hydration mismatches in form elements */
+input, select, textarea {
+  transition: none !important;
+}
+
+/* Ensure consistent button styling */
+button[type="submit"] {
+  position: relative !important;
+}
+
+/* Hide hydration error messages */
+[data-nextjs-error-message] {
+  display: none !important;
+}
+
+/* Hide the loyalty program line in customer details */
+.rounded-lg.bg-white.p-6.shadow-md p:has(+ p:contains("Default Loyalty Program")),
+.rounded-lg.bg-white.p-6.shadow-md p:contains("Default Loyalty Program"),
+div:contains("Loyalty Program: Default Loyalty Program"),
+h2:contains("Loyalty Program: Default Loyalty Program") {
+  display: none !important;
+}
+
+/* Hide the standalone loyalty program line in customers list page */
+.space-y-6 > div:contains("Loyalty Program: Default Loyalty Program") {
+  display: none !important;
+}

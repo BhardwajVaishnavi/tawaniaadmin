@@ -5,11 +5,11 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -17,7 +17,8 @@ export async function GET(
       );
     }
 
-    const customerId = params.id;
+    const resolvedParams = await params;
+    const customerId = resolvedParams.id;
 
     // Get customer details
     const customer = await prisma.customer.findUnique({
@@ -38,7 +39,7 @@ export async function GET(
             saleDate: "desc",
           },
         },
-        addresses: {
+        Address: {
           orderBy: {
             isDefault: "desc",
           },
@@ -96,11 +97,11 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -108,9 +109,10 @@ export async function PUT(
       );
     }
 
-    const customerId = params.id;
+    const resolvedParams = await params;
+    const customerId = resolvedParams.id;
     const data = await req.json();
-    
+
     // Check if customer exists
     const existingCustomer = await prisma.customer.findUnique({
       where: {
@@ -126,13 +128,11 @@ export async function PUT(
     }
 
     // Extract data
-    const { 
-      name, 
-      email, 
-      phone, 
-      address, 
-      birthDate, 
-      gender,
+    const {
+      name,
+      email,
+      phone,
+      address,
       loyaltyPoints,
       loyaltyTier,
       notes,
@@ -144,7 +144,7 @@ export async function PUT(
       const customerWithEmail = await prisma.customer.findUnique({
         where: { email },
       });
-      
+
       if (customerWithEmail) {
         return NextResponse.json(
           { error: "Email already in use" },
@@ -163,35 +163,12 @@ export async function PUT(
         email: email !== undefined ? email : undefined,
         phone: phone !== undefined ? phone : undefined,
         address: address !== undefined ? address : undefined,
-        birthDate: birthDate !== undefined ? (birthDate ? new Date(birthDate) : null) : undefined,
-        gender: gender !== undefined ? gender : undefined,
         loyaltyPoints: loyaltyPoints !== undefined ? loyaltyPoints : undefined,
         loyaltyTier: loyaltyTier !== undefined ? loyaltyTier : undefined,
         notes: notes !== undefined ? notes : undefined,
         isActive: isActive !== undefined ? isActive : undefined,
       },
-      include: {
-        addresses: true,
-        customerNotes: {
-          include: {
-            createdBy: true,
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 5,
-        },
-        loyaltyTransactions: {
-          include: {
-            program: true,
-            sale: true,
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 5,
-        },
-      },
+      // Don't include any relations to avoid errors with non-existent fields
     });
 
     return NextResponse.json({ customer: updatedCustomer });
@@ -210,7 +187,7 @@ export async function PATCH(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -220,7 +197,7 @@ export async function PATCH(
 
     const customerId = params.id;
     const data = await req.json();
-    
+
     // Check if customer exists
     const existingCustomer = await prisma.customer.findUnique({
       where: {
@@ -255,11 +232,11 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -267,7 +244,8 @@ export async function DELETE(
       );
     }
 
-    const customerId = params.id;
+    const resolvedParams = await params;
+    const customerId = resolvedParams.id;
 
     // Check if customer exists
     const existingCustomer = await prisma.customer.findUnique({

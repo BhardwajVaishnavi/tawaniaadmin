@@ -44,17 +44,13 @@ export default async function EditLoyaltyRulePage({
   // Get product categories for product/category rules
   let categories = [];
   try {
-    if ('category' in prisma) {
-      // @ts-ignore - Dynamically access the model
-      categories = await prisma.category.findMany({
-        where: {
-          isActive: true,
-        },
-        orderBy: {
-          name: "asc",
-        },
-      });
-    }
+    // Use raw query to avoid schema mismatches
+    categories = await prisma.$queryRaw`
+      SELECT id, name
+      FROM "Category"
+      WHERE "isActive" = true OR "isActive" IS NULL
+      ORDER BY name ASC
+    `;
   } catch (error) {
     console.error("Error fetching categories:", error);
   }

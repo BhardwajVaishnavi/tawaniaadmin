@@ -63,23 +63,93 @@ export default function InwardsComponent() {
         setIsLoading(true);
         setError(null); // Clear any previous errors
 
-        // Fetch inward shipments from the API
-        const response = await fetch("/api/warehouse/inwards");
+        // Try multiple endpoints in sequence
+        const endpoints = [
+          "/api/warehouse/inwards",
+          "/api/inwards",
+          "/api/warehouse/inwards-mock"
+        ];
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch inward shipments: ${response.status} ${response.statusText}`);
+        let success = false;
+
+        for (const endpoint of endpoints) {
+          if (success) break;
+
+          try {
+            console.log(`Trying to fetch inwards from endpoint: ${endpoint}`);
+            const response = await fetch(endpoint);
+
+            if (!response.ok) {
+              console.error(`Error from ${endpoint}: ${response.status}`);
+              continue; // Try next endpoint
+            }
+
+            const data = await response.json();
+            console.log(`Fetched inwards from ${endpoint}:`, data);
+
+            // Transform the data if needed
+            const inwardItems = data.inwards || [];
+
+            if (inwardItems.length > 0) {
+              setInwards(inwardItems);
+              success = true;
+              break;
+            }
+          } catch (endpointError) {
+            console.error(`Error with endpoint ${endpoint}:`, endpointError);
+            // Continue to next endpoint
+          }
         }
 
-        const data = await response.json();
+        if (!success) {
+          // If all endpoints fail, use mock data
+          console.log("All endpoints failed, using mock data");
 
-        // Transform the data if needed
-        const inwardItems = data.inwards || [];
+          const mockInwards = [
+            {
+              id: "mock-inward-1",
+              referenceNumber: "INW-20230501-0001",
+              date: new Date().toISOString(),
+              supplier: "Mock Supplier 1",
+              status: "RECEIVED",
+              totalItems: 10,
+              totalValue: 100.00,
+              hasDamagedItems: false
+            },
+            {
+              id: "mock-inward-2",
+              referenceNumber: "INW-20230502-0002",
+              date: new Date(Date.now() - 86400000).toISOString(),
+              supplier: "Mock Supplier 2",
+              status: "PENDING",
+              totalItems: 5,
+              totalValue: 75.00,
+              hasDamagedItems: true
+            }
+          ];
 
-        setInwards(inwardItems);
+          setInwards(mockInwards);
+          setError("Using mock data - API endpoints not available");
+        }
       } catch (error: any) {
         console.error("Error setting up inward shipments:", error);
         setError(error.message || "Failed to fetch inward shipments. API endpoint may not be implemented yet.");
-        setInwards([]);
+
+        // Use mock data on error
+        const mockInwards = [
+          {
+            id: "mock-error-1",
+            referenceNumber: "INW-ERROR-0001",
+            date: new Date().toISOString(),
+            supplier: "Mock Supplier (Error Fallback)",
+            status: "PENDING",
+            totalItems: 3,
+            totalValue: 50.00,
+            hasDamagedItems: false
+          }
+        ];
+
+        setInwards(mockInwards);
       } finally {
         setIsLoading(false);
       }
@@ -95,22 +165,92 @@ export default function InwardsComponent() {
         setIsProductsLoading(true);
         setProductsError(null); // Clear any previous errors
 
-        // Fetch products from the API
-        const response = await fetch("/api/products");
+        // Try multiple endpoints in sequence
+        const endpoints = [
+          "/api/products",
+          "/api/products-mock"
+        ];
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch products: ${response.status} ${response.statusText}`);
+        let success = false;
+
+        for (const endpoint of endpoints) {
+          if (success) break;
+
+          try {
+            console.log(`Trying to fetch products from endpoint: ${endpoint}`);
+            const response = await fetch(endpoint);
+
+            if (!response.ok) {
+              console.error(`Error from ${endpoint}: ${response.status}`);
+              continue; // Try next endpoint
+            }
+
+            const data = await response.json();
+            console.log(`Fetched products from ${endpoint}:`, data);
+
+            // Get products and categories from the response
+            const products = data.products || [];
+            const categoriesData = data.categories || [];
+
+            if (products.length > 0) {
+              setProducts(products);
+
+              // Set categories if not already loaded
+              if (categories.length === 0 && categoriesData.length > 0) {
+                setCategories(categoriesData);
+              }
+
+              success = true;
+              break;
+            }
+          } catch (endpointError) {
+            console.error(`Error with endpoint ${endpoint}:`, endpointError);
+            // Continue to next endpoint
+          }
         }
 
-        const data = await response.json();
+        if (!success) {
+          // If all endpoints fail, use mock data
+          console.log("All endpoints failed, using mock data");
 
-        // Get products and categories from the response
-        const products = data.products || [];
-        const categoriesData = data.categories || [];
+          const mockProducts = [
+            {
+              id: "mock-product-1",
+              name: "Mock Product 1",
+              sku: "MP001",
+              description: "This is a mock product for testing",
+              price: 19.99,
+              costPrice: 10.00,
+              retailPrice: 19.99,
+              category: {
+                id: "mock-category-1",
+                name: "Mock Category"
+              },
+              condition: "NEW",
+              minStockLevel: 5,
+              isActive: true
+            },
+            {
+              id: "mock-product-2",
+              name: "Mock Product 2",
+              sku: "MP002",
+              description: "Another mock product for testing",
+              price: 29.99,
+              costPrice: 15.00,
+              retailPrice: 29.99,
+              category: {
+                id: "mock-category-1",
+                name: "Mock Category"
+              },
+              condition: "NEW",
+              minStockLevel: 3,
+              isActive: true
+            }
+          ];
 
-        // Set categories if not already loaded
-        if (categories.length === 0 && categoriesData.length > 0) {
-          setCategories(categoriesData);
+          setProducts(mockProducts);
+          setCategories([{ id: "mock-category-1", name: "Mock Category" }]);
+          setProductsError("Using mock data - API endpoints not available");
         }
 
         // Filter products based on search and filters
@@ -158,8 +298,31 @@ export default function InwardsComponent() {
       } catch (error: any) {
         console.error("Error fetching products:", error);
         setProductsError(error.message || "Failed to fetch products. API endpoint may not be implemented yet.");
-        setProducts([]);
-        setCategories([]);
+
+        // Use mock data on error
+        const mockProducts = [
+          {
+            id: "mock-error-1",
+            name: "Mock Product (Error Fallback)",
+            sku: "ERROR-001",
+            description: "This is a mock product shown when the API fails",
+            price: 9.99,
+            costPrice: 5.00,
+            retailPrice: 9.99,
+            category: {
+              id: "mock-category-1",
+              name: "Mock Category"
+            },
+            condition: "NEW",
+            minStockLevel: 2,
+            isActive: true
+          }
+        ];
+
+        setProducts(mockProducts);
+        setCategories([{ id: "mock-category-1", name: "Mock Category" }]);
+        setTotalPages(1);
+        setTotalItems(1);
       } finally {
         setIsProductsLoading(false);
       }

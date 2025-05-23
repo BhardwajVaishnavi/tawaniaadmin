@@ -8,9 +8,13 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Get the session but don't require it for verification
+    // This allows the store creation flow to verify the store exists
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
+    const isVerification = req.headers.get('x-verification') === 'true';
+
+    // Only require authentication for non-verification requests
+    if (!isVerification && !session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -19,41 +23,64 @@ export async function GET(
 
     const storeId = params.id;
 
-    // Get store details
-    const store = await prisma.store.findUnique({
-      where: {
-        id: storeId,
-      },
-      include: {
-        staff: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
+    // Log the verification attempt
+    if (isVerification) {
+      console.log(`Verification request for store ID: ${storeId}`);
+    }
+
+    // For verification requests, just check if the store exists without loading relations
+    // This makes the verification faster and more reliable
+    let store;
+    if (isVerification) {
+      store = await prisma.store.findUnique({
+        where: {
+          id: storeId,
+        },
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          isActive: true,
+          createdAt: true,
+        }
+      });
+    } else {
+      // For normal requests, load all the relations
+      store = await prisma.store.findUnique({
+        where: {
+          id: storeId,
+        },
+        include: {
+          staff: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
               },
             },
           },
-        },
-        inventoryItems: {
-          include: {
-            product: true,
+          inventoryItems: {
+            include: {
+              product: true,
+            },
+            take: 10,
           },
-          take: 10,
-        },
-        sales: {
-          include: {
-            customer: true,
-            createdBy: true,
+          sales: {
+            include: {
+              customer: true,
+              createdBy: true,
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 10,
           },
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 10,
         },
-      },
-    });
+      });
+    }
 
     if (!store) {
       return NextResponse.json(
@@ -62,7 +89,15 @@ export async function GET(
       );
     }
 
-    // Get additional statistics
+    // For verification requests, just return the store without stats
+    if (isVerification) {
+      return NextResponse.json({
+        store,
+        verified: true
+      });
+    }
+
+    // For normal requests, get additional statistics
     const [totalInventoryItems, totalSales, totalRevenue] = await Promise.all([
       prisma.inventoryItem.count({
         where: {
@@ -84,7 +119,7 @@ export async function GET(
       }),
     ]);
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       store,
       stats: {
         totalInventoryItems,
@@ -94,6 +129,22 @@ export async function GET(
     });
   } catch (error) {
     console.error("Error fetching store:", error);
+
+    // Add more detailed error information for verification requests
+    if (req.headers.get('x-verification') === 'true') {
+      console.error(`Verification failed for store ID: ${params.id}`);
+      console.error(`Error details: ${error.message}`);
+
+      return NextResponse.json(
+        {
+          error: "Failed to verify store",
+          details: error.message,
+          storeId: params.id
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Failed to fetch store" },
       { status: 500 }
@@ -107,7 +158,7 @@ export async function PUT(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -117,7 +168,7 @@ export async function PUT(
 
     const storeId = params.id;
     const data = await req.json();
-    
+
     // Check if store exists
     const existingStore = await prisma.store.findUnique({
       where: {
@@ -133,14 +184,14 @@ export async function PUT(
     }
 
     // Extract data
-    const { 
-      name, 
-      code, 
-      address, 
-      phone, 
-      email, 
+    const {
+      name,
+      code,
+      address,
+      phone,
+      email,
       openingHours,
-      isActive 
+      isActive
     } = data;
 
     // Check if code is unique if changed
@@ -148,7 +199,7 @@ export async function PUT(
       const storeWithCode = await prisma.store.findUnique({
         where: { code },
       });
-      
+
       if (storeWithCode) {
         return NextResponse.json(
           { error: "Store code already in use" },
@@ -189,7 +240,7 @@ export async function DELETE(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -246,7 +297,7 @@ export async function DELETE(
     }
 
     // Check if store has related records
-    const hasRelatedRecords = 
+    const hasRelatedRecords =
       existingStore.inventoryItems.length > 0 ||
       existingStore.staff.length > 0 ||
       existingStore.sales.length > 0 ||

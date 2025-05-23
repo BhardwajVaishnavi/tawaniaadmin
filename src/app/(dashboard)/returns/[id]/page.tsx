@@ -27,9 +27,9 @@ export default async function ReturnDetailPage({
   const returnData = await prisma.return.findUnique({
     where: { id: returnId },
     include: {
-      store: true,
-      customer: true,
-      items: {
+      Store: true,
+      Customer: true,
+      ReturnItem: {
         include: {
           product: true,
         },
@@ -47,6 +47,14 @@ export default async function ReturnDetailPage({
     notFound();
   }
 
+  // Transform the data to match the expected format in the client component
+  const formattedReturnData = {
+    ...returnData,
+    store: returnData.Store,
+    customer: returnData.Customer,
+    items: returnData.ReturnItem || [],
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -56,7 +64,7 @@ export default async function ReturnDetailPage({
       </div>
 
       <ReturnDetails
-        returnData={returnData}
+        returnData={formattedReturnData}
         currentUserId={session.user.id}
       />
     </div>

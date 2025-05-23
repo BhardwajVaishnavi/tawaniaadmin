@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { useNotification } from "@/components/ui/notification";
 import { Search } from "lucide-react";
 
 interface Store {
@@ -67,7 +68,8 @@ export function EnhancedTransferForm({
   warehouseInventory,
 }: EnhancedTransferFormProps) {
   const router = useRouter();
-  
+  const { showNotification } = useNotification();
+
   // State for the form
   const [destinationStoreId, setDestinationStoreId] = useState<string>("");
   const [items, setItems] = useState<TransferItem[]>([]);
@@ -77,7 +79,7 @@ export function EnhancedTransferForm({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [adjustPrices, setAdjustPrices] = useState<boolean>(true);
   const [priority, setPriority] = useState<string>("NORMAL");
-  
+
   // Get unique categories from inventory
   const categories = Array.from(
     new Set(
@@ -86,26 +88,26 @@ export function EnhancedTransferForm({
         .map(item => item.product.category?.name)
     )
   ).sort();
-  
+
   // Filter inventory based on search and category
   const filteredInventory = warehouseInventory.filter(item => {
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       item.product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.product.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = selectedCategory === null || 
+
+    const matchesCategory = selectedCategory === null ||
       item.product.category?.name === selectedCategory;
-    
+
     return matchesSearch && matchesCategory && item.quantity > 0;
   });
-  
+
   // Add item to transfer items
   const addToItems = (item: InventoryItemWithProduct) => {
     // Check if item is already in items
     const existingItemIndex = items.findIndex(
       (transferItem) => transferItem.inventoryItemId === item.id
     );
-    
+
     if (existingItemIndex >= 0) {
       // Item already in items, update quantity if not exceeding available quantity
       const existingItem = items[existingItemIndex];
@@ -138,7 +140,7 @@ export function EnhancedTransferForm({
       ]);
     }
   };
-  
+
   // Update item quantity
   const updateQuantity = (index: number, newQuantity: number) => {
     if (newQuantity <= 0) {
@@ -146,13 +148,13 @@ export function EnhancedTransferForm({
       removeItem(index);
       return;
     }
-    
+
     const item = items[index];
     if (newQuantity > item.availableQuantity) {
       // Don't allow quantity to exceed available stock
       return;
     }
-    
+
     const updatedItems = [...items];
     updatedItems[index] = {
       ...item,
@@ -160,7 +162,7 @@ export function EnhancedTransferForm({
     };
     setItems(updatedItems);
   };
-  
+
   // Update item price
   const updatePrice = (index: number, field: 'targetCostPrice' | 'targetRetailPrice', value: number) => {
     const updatedItems = [...items];
@@ -170,7 +172,7 @@ export function EnhancedTransferForm({
     };
     setItems(updatedItems);
   };
-  
+
   // Update adjustment reason
   const updateAdjustmentReason = (index: number, reason: string) => {
     const updatedItems = [...items];
@@ -180,41 +182,59 @@ export function EnhancedTransferForm({
     };
     setItems(updatedItems);
   };
-  
+
   // Remove item from transfer items
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
   };
-  
+
   // Calculate totals
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalSourceValue = items.reduce(
-    (sum, item) => sum + item.sourceCostPrice * item.quantity, 
+    (sum, item) => sum + item.sourceCostPrice * item.quantity,
     0
   );
   const totalTargetValue = items.reduce(
-    (sum, item) => sum + item.targetCostPrice * item.quantity, 
+    (sum, item) => sum + item.targetCostPrice * item.quantity,
     0
   );
-  
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Validate form inputs
     if (items.length === 0) {
-      alert("Please add at least one item to the transfer");
+      showNotification("warning", "Missing Items", "Please add at least one item to the transfer");
       return;
     }
-    
+
     if (!destinationStoreId) {
-      alert("Please select a destination store");
+      showNotification("warning", "Missing Destination", "Please select a destination store");
       return;
     }
-    
+
+    // Check if any price adjustments are missing reasons
+    if (adjustPrices) {
+      const missingReasons = items.some(item =>
+        (item.targetCostPrice !== item.sourceCostPrice ||
+         item.targetRetailPrice !== item.sourceRetailPrice) &&
+        !item.adjustmentReason
+      );
+
+      if (missingReasons) {
+        showNotification("warning", "Missing Information", "Please provide reasons for all price adjustments");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
-    
+
     try {
-      const response = await fetch("/api/transfers", {
+      console.log("Submitting transfer with items:", items.length);
+
+      // Use the new raw API endpoint to avoid schema issues
+      const response = await fetch("/api/transfers/raw", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -229,31 +249,34 @@ export function EnhancedTransferForm({
           items: items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
-            sourceCostPrice: item.sourceCostPrice,
-            sourceRetailPrice: item.sourceRetailPrice,
-            targetCostPrice: adjustPrices ? item.targetCostPrice : item.sourceCostPrice,
-            targetRetailPrice: adjustPrices ? item.targetRetailPrice : item.sourceRetailPrice,
+            sourceCostPrice: Number(item.sourceCostPrice),
+            sourceRetailPrice: Number(item.sourceRetailPrice),
+            targetCostPrice: Number(adjustPrices ? item.targetCostPrice : item.sourceCostPrice),
+            targetRetailPrice: Number(adjustPrices ? item.targetRetailPrice : item.sourceRetailPrice),
             adjustmentReason: adjustPrices ? item.adjustmentReason : "",
           })),
         }),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
+        console.log("Transfer created successfully:", data.id);
+        showNotification("success", "Success", "Transfer created successfully!");
         router.push(`/transfers/${data.id}`);
         router.refresh();
       } else {
-        const error = await response.json();
-        alert(`Error: ${error.error || "Failed to create transfer"}`);
+        const error = await response.json().catch(() => ({}));
+        console.error("Failed to create transfer:", error);
+        showNotification("error", "Error", error.error || "Failed to create transfer");
         setIsSubmitting(false);
       }
     } catch (error) {
       console.error("Error creating transfer:", error);
-      alert("An error occurred while creating the transfer");
+      showNotification("error", "Error", "An unexpected error occurred while creating the transfer");
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-3">
@@ -292,7 +315,7 @@ export function EnhancedTransferForm({
                   </select>
                 </div>
               </div>
-              
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <Label htmlFor="priority">Priority</Label>
@@ -319,7 +342,7 @@ export function EnhancedTransferForm({
                   </Label>
                 </div>
               </div>
-              
+
               <div>
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea
@@ -333,7 +356,7 @@ export function EnhancedTransferForm({
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Select Products</CardTitle>
@@ -363,27 +386,54 @@ export function EnhancedTransferForm({
                   ))}
                 </select>
               </div>
-              
+
               <div className="h-[400px] overflow-y-auto rounded-md border border-gray-200 p-4">
                 {filteredInventory.length > 0 ? (
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredInventory.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => addToItems(item)}
-                        className="flex flex-col rounded-md border border-gray-200 p-3 text-left hover:border-blue-500 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <span className="font-medium text-blue-600">{item.product.name}</span>
-                        <span className="text-xs text-gray-800">SKU: {item.product.sku}</span>
-                        <div className="mt-2 flex items-center justify-between">
-                          <span className="text-sm font-semibold">${item.retailPrice.toFixed(2)}</span>
-                          <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                            {item.quantity} {item.product.unit} available
-                          </span>
-                        </div>
-                      </button>
-                    ))}
+                    {filteredInventory.map((item) => {
+                      // Check if item is already in the transfer
+                      const isAdded = items.some(transferItem => transferItem.inventoryItemId === item.id);
+                      const addedItem = items.find(transferItem => transferItem.inventoryItemId === item.id);
+
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => addToItems(item)}
+                          className={`flex flex-col rounded-md border p-3 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            isAdded
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50'
+                          }`}
+                          disabled={item.quantity === 0}
+                        >
+                          <div className="flex justify-between">
+                            <span className="font-medium text-blue-600">{item.product.name}</span>
+                            {isAdded && (
+                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                                Added: {addedItem?.quantity}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-800">SKU: {item.product.sku}</span>
+                          <div className="mt-2 flex items-center justify-between">
+                            <span className="text-sm font-semibold">${item.retailPrice.toFixed(2)}</span>
+                            <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                              item.quantity > 10
+                                ? 'bg-green-100 text-green-800'
+                                : item.quantity > 0
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                            }`}>
+                              {item.quantity} {item.product.unit} available
+                            </span>
+                          </div>
+                          {item.quantity === 0 && (
+                            <p className="mt-1 text-xs text-red-600">Out of stock</p>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="flex h-full items-center justify-center">
@@ -398,7 +448,7 @@ export function EnhancedTransferForm({
             </CardContent>
           </Card>
         </div>
-        
+
         {/* Right Column - Transfer Items */}
         <div className="space-y-6">
           <Card>
@@ -424,7 +474,7 @@ export function EnhancedTransferForm({
                             &times;
                           </button>
                         </div>
-                        
+
                         <div className="mt-2 grid grid-cols-3 gap-2">
                           <div>
                             <Label htmlFor={`quantity-${index}`} className="text-xs">
@@ -459,7 +509,7 @@ export function EnhancedTransferForm({
                               Max: {item.availableQuantity} {item.unit}
                             </p>
                           </div>
-                          
+
                           <div>
                             <Label className="text-xs">Warehouse Price</Label>
                             <Input
@@ -468,7 +518,7 @@ export function EnhancedTransferForm({
                               className="bg-gray-50"
                             />
                           </div>
-                          
+
                           <div>
                             <Label className="text-xs">Warehouse Retail</Label>
                             <Input
@@ -478,7 +528,7 @@ export function EnhancedTransferForm({
                             />
                           </div>
                         </div>
-                        
+
                         {adjustPrices && (
                           <div className="mt-3 space-y-3 border-t border-gray-200 pt-3">
                             <h5 className="text-sm font-medium text-gray-800">Store Pricing</h5>
@@ -538,7 +588,7 @@ export function EnhancedTransferForm({
                       </div>
                     ))}
                   </div>
-                  
+
                   <div className="rounded-md bg-gray-50 p-4">
                     <div className="flex justify-between text-sm">
                       <span>Total Items:</span>
@@ -555,11 +605,12 @@ export function EnhancedTransferForm({
                       </div>
                     )}
                   </div>
-                  
+
                   <Button
                     type="submit"
                     disabled={isSubmitting || items.length === 0 || !destinationStoreId}
                     className="w-full"
+                    isLoading={isSubmitting}
                   >
                     {isSubmitting ? "Creating Transfer..." : "Create Transfer"}
                   </Button>

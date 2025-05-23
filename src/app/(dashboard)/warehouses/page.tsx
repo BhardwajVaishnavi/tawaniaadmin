@@ -8,18 +8,19 @@ import { redirect } from "next/navigation";
 export default async function WarehousesPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const session = await getServerSession(authOptions);
+  const params = await searchParams;
 
   if (!session) {
     redirect("/auth/signin");
   }
 
   // Parse search parameters
-  const status = searchParams.status as string | undefined;
-  const search = searchParams.search as string | undefined;
-  const page = parseInt(searchParams.page as string || "1");
+  const status = params.status as string | undefined;
+  const search = params.search as string | undefined;
+  const page = parseInt(params.page as string || "1");
   const pageSize = 10;
 
   // Build query filters
@@ -242,7 +243,7 @@ export default async function WarehousesPage({
                 href={{
                   pathname: '/warehouses',
                   query: {
-                    ...searchParams,
+                    ...params,
                     page: page > 1 ? page - 1 : 1,
                   },
                 }}
@@ -254,7 +255,7 @@ export default async function WarehousesPage({
                 href={{
                   pathname: '/warehouses',
                   query: {
-                    ...searchParams,
+                    ...params,
                     page: page < totalPages ? page + 1 : totalPages,
                   },
                 }}
@@ -279,7 +280,7 @@ export default async function WarehousesPage({
                     href={{
                       pathname: '/warehouses',
                       query: {
-                        ...searchParams,
+                        ...params,
                         page: page > 1 ? page - 1 : 1,
                       },
                     }}
@@ -298,7 +299,7 @@ export default async function WarehousesPage({
                         href={{
                           pathname: '/warehouses',
                           query: {
-                            ...searchParams,
+                            ...params,
                             page: pageNum,
                           },
                         }}
@@ -316,7 +317,7 @@ export default async function WarehousesPage({
                     href={{
                       pathname: '/warehouses',
                       query: {
-                        ...searchParams,
+                        ...params,
                         page: page < totalPages ? page + 1 : totalPages,
                       },
                     }}

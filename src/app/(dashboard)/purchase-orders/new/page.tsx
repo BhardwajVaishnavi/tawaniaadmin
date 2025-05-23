@@ -23,7 +23,7 @@ interface Product {
   sku: string;
   costPrice: number;
   supplierId?: string;
-  category: {
+  category?: {
     id: string;
     name: string;
   };
@@ -47,7 +47,7 @@ export default function NewPurchaseOrderPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialSupplierId = searchParams.get("supplier");
-  
+
   // State for form data
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -55,27 +55,27 @@ export default function NewPurchaseOrderPage() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Form state
   const [supplierId, setSupplierId] = useState(initialSupplierId || "");
   const [warehouseId, setWarehouseId] = useState("");
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<OrderItem[]>([]);
-  
+
   // Calculated totals
   const [subtotal, setSubtotal] = useState(0);
   const [tax, setTax] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [shipping, setShipping] = useState(0);
   const [total, setTotal] = useState(0);
-  
+
   // Fetch suppliers, warehouses, and products
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        
+
         // Fetch suppliers
         const suppliersResponse = await fetch('/api/suppliers?status=active');
         if (!suppliersResponse.ok) {
@@ -83,7 +83,7 @@ export default function NewPurchaseOrderPage() {
         }
         const suppliersData = await suppliersResponse.json();
         setSuppliers(suppliersData.suppliers || []);
-        
+
         // Fetch warehouses
         const warehousesResponse = await fetch('/api/warehouses?status=active');
         if (!warehousesResponse.ok) {
@@ -91,7 +91,7 @@ export default function NewPurchaseOrderPage() {
         }
         const warehousesData = await warehousesResponse.json();
         setWarehouses(warehousesData.warehouses || []);
-        
+
         // Fetch products
         const productsResponse = await fetch('/api/products?status=active');
         if (!productsResponse.ok) {
@@ -99,7 +99,7 @@ export default function NewPurchaseOrderPage() {
         }
         const productsData = await productsResponse.json();
         setProducts(productsData.products || []);
-        
+
         // Set default warehouse if only one exists
         if (warehousesData.warehouses?.length === 1) {
           setWarehouseId(warehousesData.warehouses[0].id);
@@ -110,10 +110,10 @@ export default function NewPurchaseOrderPage() {
         setIsLoading(false);
       }
     };
-    
+
     fetchData();
   }, []);
-  
+
   // Filter products by supplier
   useEffect(() => {
     if (supplierId) {
@@ -123,73 +123,114 @@ export default function NewPurchaseOrderPage() {
       setFilteredProducts(products);
     }
   }, [supplierId, products]);
-  
+
   // Calculate totals
   useEffect(() => {
     let itemsSubtotal = 0;
     let itemsTax = 0;
     let itemsDiscount = 0;
-    
+
     items.forEach(item => {
       itemsSubtotal += item.subtotal;
       itemsTax += item.tax;
       itemsDiscount += item.discount;
     });
-    
+
     setSubtotal(itemsSubtotal);
     setTax(itemsTax);
-    
+
     // Only use the discount from items if no manual discount is set
     if (discount === 0) {
       setDiscount(itemsDiscount);
     }
-    
+
     const calculatedTotal = itemsSubtotal + itemsTax + shipping - (discount || itemsDiscount);
     setTotal(calculatedTotal);
   }, [items, shipping, discount]);
-  
+
   // Add a new item to the order
   const handleAddItem = (item: OrderItem) => {
-    setItems([...items, item]);
+    // Ensure all numeric values are properly converted to numbers
+    const safeItem = {
+      ...item,
+      orderedQuantity: typeof item.orderedQuantity === 'number' ? Math.round(item.orderedQuantity) : Math.round(Number(item.orderedQuantity)),
+      unitPrice: typeof item.unitPrice === 'number' ? item.unitPrice : Number(item.unitPrice),
+      discount: typeof item.discount === 'number' ? item.discount : Number(item.discount),
+      tax: typeof item.tax === 'number' ? item.tax : Number(item.tax),
+      subtotal: typeof item.subtotal === 'number' ? item.subtotal : Number(item.subtotal),
+      total: typeof item.total === 'number' ? item.total : Number(item.total),
+    };
+    setItems([...items, safeItem]);
   };
-  
+
   // Update an existing item
   const handleUpdateItem = (updatedItem: OrderItem, index: number) => {
+    // Ensure all numeric values are properly converted to numbers
+    const safeItem = {
+      ...updatedItem,
+      orderedQuantity: typeof updatedItem.orderedQuantity === 'number' ? Math.round(updatedItem.orderedQuantity) : Math.round(Number(updatedItem.orderedQuantity)),
+      unitPrice: typeof updatedItem.unitPrice === 'number' ? updatedItem.unitPrice : Number(updatedItem.unitPrice),
+      discount: typeof updatedItem.discount === 'number' ? updatedItem.discount : Number(updatedItem.discount),
+      tax: typeof updatedItem.tax === 'number' ? updatedItem.tax : Number(updatedItem.tax),
+      subtotal: typeof updatedItem.subtotal === 'number' ? updatedItem.subtotal : Number(updatedItem.subtotal),
+      total: typeof updatedItem.total === 'number' ? updatedItem.total : Number(updatedItem.total),
+    };
     const newItems = [...items];
-    newItems[index] = updatedItem;
+    newItems[index] = safeItem;
     setItems(newItems);
   };
-  
+
   // Remove an item from the order
   const handleRemoveItem = (index: number) => {
     const newItems = [...items];
     newItems.splice(index, 1);
     setItems(newItems);
   };
-  
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent, saveAsDraft: boolean = true) => {
     e.preventDefault();
-    
+
     if (!supplierId || !warehouseId || items.length === 0) {
       alert('Please fill in all required fields and add at least one item');
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
+      // Ensure all items have proper numeric values
+      const formattedItems = items.map(item => {
+        // Make sure we're using the correct field name for quantity
+        return {
+          productId: item.productId,
+          description: item.description || '',
+          orderedQuantity: Math.round(Number(item.orderedQuantity)),
+          unitPrice: Number(item.unitPrice),
+          discount: Number(item.discount || 0),
+          tax: Number(item.tax || 0),
+          subtotal: Number(item.subtotal || (item.unitPrice * item.orderedQuantity)),
+          total: Number(item.total || ((item.unitPrice * item.orderedQuantity) + (item.tax || 0) - (item.discount || 0))),
+          notes: item.notes || ''
+        };
+      });
+
       const purchaseOrderData = {
         supplierId,
         warehouseId,
         expectedDeliveryDate: expectedDeliveryDate || undefined,
         notes,
-        items,
+        items: formattedItems,
         status: saveAsDraft ? "DRAFT" : "ORDERED",
-        shipping,
-        discount,
+        shipping: Number(shipping || 0),
+        discount: Number(discount || 0),
+        tax: Number(tax || 0),
+        total: Number(total || 0),
+        subtotal: Number(subtotal || 0),
       };
-      
+
+      console.log('Submitting purchase order data:', purchaseOrderData);
+
       const response = await fetch('/api/purchase-orders', {
         method: 'POST',
         headers: {
@@ -197,24 +238,35 @@ export default function NewPurchaseOrderPage() {
         },
         body: JSON.stringify(purchaseOrderData),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create purchase order');
+        console.error('Server error response:', errorData);
+
+        // Show detailed error message
+        const errorMessage = errorData.details || errorData.error || 'Failed to create purchase order';
+        alert(`Error: ${errorMessage}`);
+
+        throw new Error(errorMessage);
       }
-      
+
       const result = await response.json();
-      
+      console.log('Purchase order created:', result);
+
       // Redirect to purchase order details page
       router.push(`/purchase-orders/${result.purchaseOrder.id}`);
     } catch (error) {
       console.error('Error creating purchase order:', error);
-      alert('Failed to create purchase order. Please try again.');
+
+      // Only show alert if it wasn't already shown in the response handling
+      if (error instanceof Error && !error.message.startsWith('Error:')) {
+        alert(`Failed to create purchase order: ${error.message || 'Unknown error'}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center rounded-lg bg-white p-6 shadow-md">
@@ -225,7 +277,7 @@ export default function NewPurchaseOrderPage() {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -237,7 +289,7 @@ export default function NewPurchaseOrderPage() {
           Cancel
         </Link>
       </div>
-      
+
       <form onSubmit={(e) => handleSubmit(e, true)} className="space-y-6">
         {/* Order Details */}
         <div className="rounded-lg bg-white p-6 shadow-md">
@@ -262,7 +314,7 @@ export default function NewPurchaseOrderPage() {
                 ))}
               </select>
             </div>
-            
+
             <div>
               <label htmlFor="warehouse" className="mb-1 block text-sm font-medium text-gray-800">
                 Warehouse *
@@ -282,7 +334,7 @@ export default function NewPurchaseOrderPage() {
                 ))}
               </select>
             </div>
-            
+
             <div>
               <label htmlFor="expectedDeliveryDate" className="mb-1 block text-sm font-medium text-gray-800">
                 Expected Delivery Date
@@ -296,7 +348,7 @@ export default function NewPurchaseOrderPage() {
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            
+
             <div className="md:col-span-2">
               <label htmlFor="notes" className="mb-1 block text-sm font-medium text-gray-800">
                 Notes
@@ -311,7 +363,7 @@ export default function NewPurchaseOrderPage() {
             </div>
           </div>
         </div>
-        
+
         {/* Order Items */}
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between mb-4">
@@ -323,7 +375,7 @@ export default function NewPurchaseOrderPage() {
                   alert('Please select a supplier and warehouse first');
                   return;
                 }
-                
+
                 const itemForm = document.getElementById('item-form');
                 if (itemForm) {
                   itemForm.scrollIntoView({ behavior: 'smooth' });
@@ -334,7 +386,7 @@ export default function NewPurchaseOrderPage() {
               Add Item
             </Button>
           </div>
-          
+
           {items.length === 0 ? (
             <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-gray-300">
               <p className="text-gray-800">No items added yet. Add items to your purchase order.</p>
@@ -367,16 +419,16 @@ export default function NewPurchaseOrderPage() {
                         {item.orderedQuantity}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-800">
-                        ${item.unitPrice.toFixed(2)}
+                        ${typeof item.unitPrice === 'number' ? item.unitPrice.toFixed(2) : parseFloat(item.unitPrice).toFixed(2)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-800">
-                        ${item.discount.toFixed(2)}
+                        ${typeof item.discount === 'number' ? item.discount.toFixed(2) : parseFloat(item.discount).toFixed(2)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-800">
-                        ${item.tax.toFixed(2)}
+                        ${typeof item.tax === 'number' ? item.tax.toFixed(2) : parseFloat(item.tax).toFixed(2)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm font-medium">
-                        ${item.total.toFixed(2)}
+                        ${typeof item.total === 'number' ? item.total.toFixed(2) : parseFloat(item.total).toFixed(2)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm">
                         <div className="flex items-center gap-2">
@@ -385,13 +437,13 @@ export default function NewPurchaseOrderPage() {
                             onClick={() => {
                               // Find the product
                               const product = products.find(p => p.id === item.productId);
-                              
+
                               // Scroll to form and populate it
                               const itemForm = document.getElementById('item-form');
                               if (itemForm) {
                                 itemForm.scrollIntoView({ behavior: 'smooth' });
                               }
-                              
+
                               // Set form data for editing
                               // This would be handled by the item form component
                               // You would need to pass the item and index to the form
@@ -472,7 +524,7 @@ export default function NewPurchaseOrderPage() {
             </div>
           )}
         </div>
-        
+
         {/* Item Form */}
         <div id="item-form" className="rounded-lg bg-white p-6 shadow-md">
           <h2 className="mb-4 text-lg font-semibold text-gray-800">Add Item</h2>
@@ -482,7 +534,7 @@ export default function NewPurchaseOrderPage() {
             onUpdateItem={handleUpdateItem}
           />
         </div>
-        
+
         {/* Actions */}
         <div className="flex justify-end gap-2">
           <Button

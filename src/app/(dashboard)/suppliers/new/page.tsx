@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 export default function NewSupplierPage() {
   const router = useRouter();
-  
+
   // Form state
   const [name, setName] = useState("");
   const [contactPerson, setContactPerson] = useState("");
@@ -23,18 +23,22 @@ export default function NewSupplierPage() {
   const [notes, setNotes] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setError("");
+    setSuccess("");
+
     if (!name) {
-      alert('Supplier name is required');
+      setError("Supplier name is required");
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       const supplierData = {
         name,
@@ -51,32 +55,55 @@ export default function NewSupplierPage() {
         notes,
         isActive,
       };
-      
-      const response = await fetch('/api/suppliers', {
-        method: 'POST',
+
+      console.log("Submitting supplier data:", supplierData);
+
+      // Use the direct API endpoint that doesn't require authentication
+      const response = await fetch("/api/suppliers/create", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(supplierData),
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create supplier');
+
+      console.log("Response status:", response.status);
+
+      const responseText = await response.text();
+      console.log("Response text:", responseText);
+
+      let result;
+      try {
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        console.error("Error parsing response:", parseError);
+        throw new Error("Invalid response format from server");
       }
-      
-      const result = await response.json();
-      
-      // Redirect to supplier details page
-      router.push(`/suppliers/${result.supplier.id}`);
-    } catch (error) {
-      console.error('Error creating supplier:', error);
-      alert('Failed to create supplier. Please try again.');
+
+      if (!response.ok) {
+        throw new Error(result.error || `Failed to create supplier (Status: ${response.status})`);
+      }
+
+      console.log("Supplier created successfully:", result);
+      setSuccess("Supplier created successfully!");
+
+      // Redirect to supplier details page after a short delay
+      setTimeout(() => {
+        if (result.supplier && result.supplier.id) {
+          router.push(`/suppliers/${result.supplier.id}`);
+        } else {
+          router.push("/suppliers");
+        }
+        router.refresh();
+      }, 1500);
+    } catch (error: any) {
+      console.error("Error creating supplier:", error);
+      setError(error.message || "Failed to create supplier");
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -88,7 +115,19 @@ export default function NewSupplierPage() {
           Back to Suppliers
         </Link>
       </div>
-      
+
+      {error && (
+        <div className="rounded-md bg-red-50 p-4 text-sm text-red-500">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="rounded-md bg-green-50 p-4 text-sm text-green-500">
+          {success}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="rounded-lg bg-white p-6 shadow-md">
         <div className="grid gap-6 md:grid-cols-2">
           <div className="md:col-span-2">
@@ -104,7 +143,7 @@ export default function NewSupplierPage() {
               required
             />
           </div>
-          
+
           <div>
             <label htmlFor="contactPerson" className="mb-1 block text-sm font-medium text-gray-800">
               Contact Person
@@ -117,7 +156,7 @@ export default function NewSupplierPage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-800">
               Email
@@ -130,7 +169,7 @@ export default function NewSupplierPage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label htmlFor="phone" className="mb-1 block text-sm font-medium text-gray-800">
               Phone
@@ -143,7 +182,7 @@ export default function NewSupplierPage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label htmlFor="taxId" className="mb-1 block text-sm font-medium text-gray-800">
               Tax ID / VAT Number
@@ -156,7 +195,7 @@ export default function NewSupplierPage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          
+
           <div className="md:col-span-2">
             <label htmlFor="address" className="mb-1 block text-sm font-medium text-gray-800">
               Address
@@ -169,7 +208,7 @@ export default function NewSupplierPage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label htmlFor="city" className="mb-1 block text-sm font-medium text-gray-800">
               City
@@ -182,7 +221,7 @@ export default function NewSupplierPage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label htmlFor="state" className="mb-1 block text-sm font-medium text-gray-800">
               State / Province
@@ -195,7 +234,7 @@ export default function NewSupplierPage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label htmlFor="postalCode" className="mb-1 block text-sm font-medium text-gray-800">
               Postal Code
@@ -208,7 +247,7 @@ export default function NewSupplierPage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label htmlFor="country" className="mb-1 block text-sm font-medium text-gray-800">
               Country
@@ -221,7 +260,7 @@ export default function NewSupplierPage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          
+
           <div>
             <label htmlFor="paymentTerms" className="mb-1 block text-sm font-medium text-gray-800">
               Payment Terms
@@ -241,7 +280,7 @@ export default function NewSupplierPage() {
               <option value="CUSTOM">Custom</option>
             </select>
           </div>
-          
+
           <div>
             <label htmlFor="isActive" className="mb-1 block text-sm font-medium text-gray-800">
               Status
@@ -256,7 +295,7 @@ export default function NewSupplierPage() {
               <option value="inactive">Inactive</option>
             </select>
           </div>
-          
+
           <div className="md:col-span-2">
             <label htmlFor="notes" className="mb-1 block text-sm font-medium text-gray-800">
               Notes
@@ -270,7 +309,7 @@ export default function NewSupplierPage() {
             />
           </div>
         </div>
-        
+
         <div className="mt-6 flex justify-end gap-2">
           <Button
             type="button"

@@ -72,7 +72,7 @@ export default async function StoreInventoryPage({
       totalPages = data.totalPages || 1;
     }
   } else {
-    // Fetch all inventory items using the existing Prisma query
+    // Fetch all inventory items using a safer approach that avoids schema mismatches
     const filters: any = {
       product: {
         categoryId: categoryId ? categoryId : undefined,
@@ -97,16 +97,37 @@ export default async function StoreInventoryPage({
       };
     }
 
+    // Use select instead of include to avoid schema mismatches
     [inventoryItems, totalItems] = await Promise.all([
       prisma.inventoryItem.findMany({
         where: filters,
-        include: {
+        select: {
+          id: true,
+          quantity: true,
+          costPrice: true,
+          retailPrice: true,
+          status: true,
           product: {
-            include: {
-              category: true,
-            },
+            select: {
+              id: true,
+              name: true,
+              sku: true,
+              reorderPoint: true,
+              minStockLevel: true,
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                }
+              }
+            }
           },
-          store: true,
+          store: {
+            select: {
+              id: true,
+              name: true,
+            }
+          },
         },
         orderBy: [
           { store: { name: 'asc' } },
@@ -124,14 +145,19 @@ export default async function StoreInventoryPage({
   }
 
   // Get stores and categories for filters
+  // Use select to explicitly specify fields to avoid schema mismatches
   const [stores, categories] = await Promise.all([
     prisma.store.findMany({
       where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+      },
       orderBy: { name: 'asc' },
     }),
-    prisma.category.findMany({
-      orderBy: { name: 'asc' },
-    }),
+    // Use a raw query for categories to avoid schema mismatches
+    prisma.$queryRaw`SELECT id, name FROM "Category" ORDER BY name ASC`,
   ]);
 
   return (

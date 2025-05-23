@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export async function PUT(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     // Check if user is authenticated and is an admin
     if (!session || !session.user || session.user.role !== "ADMIN") {
       return NextResponse.json(
@@ -14,10 +14,11 @@ export async function PUT(req: NextRequest) {
         { status: 401 }
       );
     }
-    
+
     // Parse request body
     const body = await req.json();
     const {
+      name,
       pointsPerDollar,
       pointsRedemptionRate,
       minimumPointsRedemption,
@@ -25,7 +26,7 @@ export async function PUT(req: NextRequest) {
       birthdayBonus,
       referralBonus,
     } = body;
-    
+
     // Validate required fields
     if (
       pointsPerDollar === undefined ||
@@ -40,18 +41,20 @@ export async function PUT(req: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Find active loyalty program or create one if it doesn't exist
     const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
       where: { isActive: true },
     });
-    
+
     if (loyaltyProgram) {
       // Update existing loyalty program
       await prisma.loyaltyProgram.update({
         where: { id: loyaltyProgram.id },
         data: {
-          // Store all settings in the description as JSON
+          // Update name if provided
+          ...(name && { name }),
+          // Store settings in the description as JSON
           description: JSON.stringify({
             pointsPerDollar,
             pointsRedemptionRate,
@@ -60,13 +63,15 @@ export async function PUT(req: NextRequest) {
             birthdayBonus,
             referralBonus,
           }),
+          // Update pointsPerCurrency field directly
+          pointsPerCurrency: pointsPerDollar,
         },
       });
     } else {
       // Create new loyalty program with settings
       await prisma.loyaltyProgram.create({
         data: {
-          name: "Default Loyalty Program",
+          name: name || "Default Loyalty Program",
           description: JSON.stringify({
             pointsPerDollar,
             pointsRedemptionRate,
@@ -75,11 +80,12 @@ export async function PUT(req: NextRequest) {
             birthdayBonus,
             referralBonus,
           }),
+          pointsPerCurrency: pointsPerDollar,
           isActive: true,
         },
       });
     }
-    
+
     return NextResponse.json({
       message: "Loyalty settings updated successfully",
       settings: {
@@ -103,7 +109,7 @@ export async function PUT(req: NextRequest) {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     // Check if user is authenticated
     if (!session || !session.user) {
       return NextResponse.json(
@@ -111,12 +117,12 @@ export async function GET() {
         { status: 401 }
       );
     }
-    
+
     // Get loyalty program settings
     const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
       where: { isActive: true },
     });
-    
+
     if (!loyaltyProgram) {
       return NextResponse.json({
         settings: {
@@ -129,7 +135,7 @@ export async function GET() {
         }
       });
     }
-    
+
     // Parse settings from description
     let settings = {
       pointsPerDollar: 1,
@@ -139,7 +145,7 @@ export async function GET() {
       birthdayBonus: 100,
       referralBonus: 50,
     };
-    
+
     try {
       if (loyaltyProgram.description) {
         const parsedSettings = JSON.parse(loyaltyProgram.description);
@@ -151,7 +157,7 @@ export async function GET() {
     } catch (e) {
       console.error("Error parsing loyalty program description:", e);
     }
-    
+
     return NextResponse.json({ settings });
   } catch (error) {
     console.error("Error fetching loyalty settings:", error);

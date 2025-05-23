@@ -57,9 +57,9 @@ export default async function ReturnsPage({
     prisma.return.findMany({
       where: filters,
       include: {
-        store: true,
-        customer: true,
-        items: {
+        Store: true,
+        Customer: true,
+        ReturnItem: {
           include: {
             product: true,
           },
@@ -85,6 +85,14 @@ export default async function ReturnsPage({
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
+  // Transform the data to match the expected format in the client component
+  const formattedReturns = returns.map(returnItem => ({
+    ...returnItem,
+    store: returnItem.Store,
+    customer: returnItem.Customer,
+    items: returnItem.ReturnItem || [],
+  }));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -98,7 +106,7 @@ export default async function ReturnsPage({
       </div>
 
       <ReturnsList
-        returns={returns}
+        returns={formattedReturns}
         stores={stores}
         currentStoreId={storeId}
         currentStatus={status}
