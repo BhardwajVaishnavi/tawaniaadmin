@@ -27,12 +27,15 @@ export default function RootLayout({
   return (
     <html lang="en" className="light" style={{ colorScheme: 'light', backgroundColor: '#ffffff' }}>
       <head>
+        <script src="/suppress-hydration-error.js"></script>
+        <script src="/disable-hydration-warnings.js"></script>
         <script src="/earliest-class-fix.js"></script>
         <script src="/earliest-loyalty-fix.js"></script>
         <script src="/pre-hydration-fix.js"></script>
         <script src="/pre-react-hydration-fix.js"></script>
         <script src="/class-name-hydration-fix.js"></script>
         <script src="/null-class-fix.js"></script>
+        <script src="/force-correct-classes.js"></script>
         <script src="/fix-hydration-mismatch.js"></script>
         <script src="/fix-loyalty-hydration-mismatch.js"></script>
         <script src="/aggressive-loyalty-hydration-fix.js"></script>
@@ -54,6 +57,7 @@ export default function RootLayout({
         <script src="/post-hydration-loyalty-restore.js" defer></script>
         <script src="/sidebar-component-fix.js" defer></script>
         <script src="/post-hydration-class-fix.js" defer></script>
+        <script src="/ensure-loyalty-visible.js" defer></script>
         <link rel="stylesheet" href="/hydration-mismatch-fix.css" />
         <link rel="stylesheet" href="/hide-loyalty-button.css" />
         <link rel="stylesheet" href="/hydration-fix.css" />
