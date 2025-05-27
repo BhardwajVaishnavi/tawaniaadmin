@@ -1,9 +1,0 @@
-/* CSS to hide the loyalty program button in the sidebar */
-a[href="/loyalty"] {
-  visibility: hidden !important;
-}
-
-/* Hide elements with the data-menu-item="loyalty" attribute */
-li[data-menu-item="loyalty"] {
-  display: none !important;
-}

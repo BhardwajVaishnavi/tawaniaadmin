@@ -27,45 +27,16 @@ export default function RootLayout({
   return (
     <html lang="en" className="light" style={{ colorScheme: 'light', backgroundColor: '#ffffff' }}>
       <head>
-        <script src="/suppress-hydration-error.js"></script>
-        <script src="/disable-hydration-warnings.js"></script>
-        <script src="/earliest-class-fix.js"></script>
-        <script src="/earliest-loyalty-fix.js"></script>
-        <script src="/pre-hydration-fix.js"></script>
-        <script src="/pre-react-hydration-fix.js"></script>
-        <script src="/class-name-hydration-fix.js"></script>
-        <script src="/null-class-fix.js"></script>
-        <script src="/force-correct-classes.js"></script>
-        <script src="/fix-hydration-mismatch.js"></script>
-        <script src="/fix-loyalty-hydration-mismatch.js"></script>
-        <script src="/aggressive-loyalty-hydration-fix.js"></script>
-        <script src="/force-restore-loyalty.js"></script>
-        <script src="/immediate-loyalty-fix.js"></script>
-        <script src="/enhanced-hydration-fix.js"></script>
+        {/* Suppress hydration warnings in development */}
+        <script src="/suppress-hydration-warnings.js"></script>
+        {/* Keep only essential scripts that exist and are needed */}
         <script src="/disable-dark-mode.js" defer></script>
         <script src="/clear-mock-data.js" defer></script>
         <script src="/quality-control-api-fix.js" defer></script>
         <script src="/quality-control-patch.js" defer></script>
         <script src="/quality-control-form-fix.js" defer></script>
-        <script src="/hide-loyalty-button.js" defer></script>
-        <script src="/restore-loyalty-button.js" defer></script>
-        <script src="/hide-loyalty-program-line.js" defer></script>
-        <script src="/hydration-fix-v2.js" defer></script>
         <script src="/nextauth-fix.js"></script>
         <script src="/nextauth-session-fix.js" defer></script>
-        <script src="/post-hydration-loyalty-fix.js" defer></script>
-        <script src="/post-hydration-loyalty-restore.js" defer></script>
-        <script src="/sidebar-component-fix.js" defer></script>
-        <script src="/post-hydration-class-fix.js" defer></script>
-        <script src="/ensure-loyalty-visible.js" defer></script>
-        <link rel="stylesheet" href="/hydration-mismatch-fix.css" />
-        <link rel="stylesheet" href="/hide-loyalty-button.css" />
-        <link rel="stylesheet" href="/hydration-fix.css" />
-        <link rel="stylesheet" href="/hide-loyalty-program.css" />
-        <link rel="stylesheet" href="/loyalty-hydration-fix.css" />
-        <link rel="stylesheet" href="/aggressive-loyalty-fix.css" />
-        <link rel="stylesheet" href="/class-name-fix.css" />
-        <link rel="stylesheet" href="/restore-loyalty-button.css" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

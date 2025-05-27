@@ -60,7 +60,7 @@ interface Zone {
 export default function AuditCountPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
   // Use React.use() to unwrap the params Promise

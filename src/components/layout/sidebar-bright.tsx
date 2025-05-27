@@ -6,6 +6,8 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
 import { UserRole } from "@prisma/client";
+import { useState, useEffect } from "react";
+import { ClientOnly } from "@/components/client-only";
 
 interface SidebarItemProps {
   href: string;
@@ -17,24 +19,58 @@ interface SidebarItemProps {
 const SidebarItem = ({ href, icon, label, roles }: SidebarItemProps) => {
   const pathname = usePathname();
   const isActive = pathname === href || pathname.startsWith(`${href}/`);
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
-  // If roles are specified, check if user has permission
-  if (roles && session?.user?.role && !roles.includes(session.user.role as UserRole)) {
-    return null;
-  }
-
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "flex items-center gap-3 rounded-lg px-4 py-2.5 text-gray-800 transition-all duration-200 hover:bg-gradient-to-r hover:from-amber-50 hover:to-amber-100 hover:text-amber-700 hover:shadow-sm",
-        isActive ? "bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 font-medium shadow-sm" : ""
-      )}
-    >
+  // Create a fallback component that matches the expected structure
+  const fallbackComponent = (
+    <div className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-gray-800 transition-all duration-200 hover:bg-gradient-to-r hover:from-amber-50 hover:to-amber-100 hover:text-amber-700 hover:shadow-sm">
       <span className="flex h-6 w-6 items-center justify-center">{icon}</span>
       <span className="font-medium">{label}</span>
-    </Link>
+    </div>
+  );
+
+  // The actual component that will be rendered on the client
+  const clientComponent = () => {
+    // If roles are specified, check if user has permission
+    if (roles && session?.user?.role && !roles.includes(session.user.role as UserRole)) {
+      return null;
+    }
+
+    return (
+      <Link
+        href={href}
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-4 py-2.5 text-gray-800 transition-all duration-200 hover:bg-gradient-to-r hover:from-amber-50 hover:to-amber-100 hover:text-amber-700 hover:shadow-sm",
+          isActive ? "bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 font-medium shadow-sm" : ""
+        )}
+      >
+        <span className="flex h-6 w-6 items-center justify-center">{icon}</span>
+        <span className="font-medium">{label}</span>
+      </Link>
+    );
+  };
+
+  // For items without role restrictions, render directly to avoid hydration issues
+  if (!roles) {
+    return (
+      <Link
+        href={href}
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-4 py-2.5 text-gray-800 transition-all duration-200 hover:bg-gradient-to-r hover:from-amber-50 hover:to-amber-100 hover:text-amber-700 hover:shadow-sm",
+          isActive ? "bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 font-medium shadow-sm" : ""
+        )}
+      >
+        <span className="flex h-6 w-6 items-center justify-center">{icon}</span>
+        <span className="font-medium">{label}</span>
+      </Link>
+    );
+  }
+
+  // For items with role restrictions, use ClientOnly to prevent hydration mismatches
+  return (
+    <ClientOnly fallback={fallbackComponent}>
+      {clientComponent()}
+    </ClientOnly>
   );
 };
 
