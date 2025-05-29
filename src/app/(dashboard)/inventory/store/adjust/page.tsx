@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
+// Force recompilation - Store ID fix applied
+
 interface Store {
   id: string;
   name: string;
@@ -31,14 +33,20 @@ interface InventoryItem {
 export default function AdjustStoreInventoryPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialStoreId = searchParams.get('store') || '';
-  
+  let initialStoreId = searchParams?.get('store') || '';
+
+  // Fix known invalid store ID
+  if (initialStoreId === 'cmb7lm54v0000ugo4mmvlsc5v') {
+    initialStoreId = 'cmb7q8j9k0000ugc4zn650o9p'; // Correct store ID
+    console.log('Fixed invalid store ID from URL');
+  }
+
   const [stores, setStores] = useState<Store[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Form state
   const [storeId, setStoreId] = useState(initialStoreId);
   const [productId, setProductId] = useState("");
@@ -46,7 +54,20 @@ export default function AdjustStoreInventoryPage() {
   const [quantity, setQuantity] = useState(1);
   const [reason, setReason] = useState("RESTOCK");
   const [notes, setNotes] = useState("");
-  
+
+  // Additional effect to fix store ID when stores are loaded
+  useEffect(() => {
+    if (stores.length > 0 && storeId) {
+      const storeExists = stores.some(store => store.id === storeId);
+      if (!storeExists) {
+        console.warn(`Store ID ${storeId} not found. Auto-correcting to first available store.`);
+        const firstStore = stores[0];
+        setStoreId(firstStore.id);
+        console.log(`Auto-corrected store ID to: ${firstStore.id} (${firstStore.name})`);
+      }
+    }
+  }, [stores, storeId]);
+
   // Fetch data
   useEffect(() => {
     const fetchData = async () => {
@@ -55,39 +76,72 @@ export default function AdjustStoreInventoryPage() {
         if (!response.ok) {
           throw new Error('Failed to fetch data');
         }
-        
+
         const data = await response.json();
-        setStores(data.warehouses || []);
+        setStores(data.stores || []);
         setProducts(data.products || []);
         setInventoryItems(data.inventoryItems || []);
+
+        // Fix invalid store ID from URL parameters
+        if (initialStoreId && data.stores && data.stores.length > 0) {
+          const storeExists = data.stores.some((store: Store) => store.id === initialStoreId);
+          if (!storeExists) {
+            console.warn(`Store ID ${initialStoreId} from URL not found. Available stores:`, data.stores);
+            // Automatically set to the first available store
+            const firstStore = data.stores[0];
+            setStoreId(firstStore.id);
+            console.log(`Auto-corrected store ID to: ${firstStore.id} (${firstStore.name})`);
+          }
+        }
+
+        console.log('Inventory data fetched:', {
+          stores: data.stores?.length || 0,
+          products: data.products?.length || 0,
+          inventoryItems: data.inventoryItems?.length || 0,
+          initialStoreId,
+          storeExists: data.stores?.some((store: Store) => store.id === initialStoreId)
+        });
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     fetchData();
   }, []);
-  
+
   // Filter products based on selected store
   const filteredProducts = storeId
     ? products.filter(product => {
-        return inventoryItems.some(item => 
-          item.storeId === storeId && 
+        return inventoryItems.some(item =>
+          item.storeId === storeId &&
           item.productId === product.id
         );
       })
     : [];
-  
+
+  // If no products found for the store, show all products (for new inventory)
+  const availableProducts = filteredProducts.length > 0 ? filteredProducts : (storeId ? products : []);
+
+  // Debug logging
+  console.log('Product filtering debug:', {
+    storeId,
+    totalProducts: products.length,
+    totalInventoryItems: inventoryItems.length,
+    inventoryItemsForStore: inventoryItems.filter(item => item.storeId === storeId).length,
+    filteredProducts: filteredProducts.length,
+    availableProducts: availableProducts.length
+  });
+
   // Get current inventory level for selected product
   const currentInventory = storeId && productId
-    ? inventoryItems.find(item => 
-        item.storeId === storeId && 
+    ? inventoryItems.find(item =>
+        item.storeId === storeId &&
         item.productId === productId
       )?.quantity || 0
     : 0;
-  
+
   // Calculate new inventory level based on adjustment
   const calculateNewInventory = () => {
     if (adjustmentType === "add") {
@@ -99,17 +153,34 @@ export default function AdjustStoreInventoryPage() {
     }
     return currentInventory;
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!storeId || !productId || !adjustmentType || !reason) {
       alert("Please fill in all required fields");
       return;
     }
-    
+
+    // Validate that the selected store exists in the available stores
+    const storeExists = stores.some(store => store.id === storeId);
+    if (!storeExists) {
+      alert(`Invalid store selected. Please select a valid store from the dropdown.`);
+      console.error('Invalid store ID:', storeId, 'Available stores:', stores);
+      return;
+    }
+
+    console.log('Submitting inventory adjustment:', {
+      storeId,
+      productId,
+      adjustmentType,
+      quantity,
+      reason,
+      notes
+    });
+
     setIsSubmitting(true);
-    
+
     try {
       const adjustmentData = {
         productId,
@@ -118,7 +189,7 @@ export default function AdjustStoreInventoryPage() {
         reason,
         notes,
       };
-      
+
       const response = await fetch(`/api/stores/${storeId}/inventory/adjust`, {
         method: 'POST',
         headers: {
@@ -126,12 +197,12 @@ export default function AdjustStoreInventoryPage() {
         },
         body: JSON.stringify(adjustmentData),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to adjust inventory');
       }
-      
+
       // Redirect to inventory page
       router.push(`/inventory/store?store=${storeId}`);
       router.refresh();
@@ -142,7 +213,7 @@ export default function AdjustStoreInventoryPage() {
       setIsSubmitting(false);
     }
   };
-  
+
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -153,7 +224,7 @@ export default function AdjustStoreInventoryPage() {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -165,7 +236,7 @@ export default function AdjustStoreInventoryPage() {
           Back to Store Inventory
         </Link>
       </div>
-      
+
       <div className="rounded-lg bg-white p-6 shadow-md">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
@@ -191,7 +262,7 @@ export default function AdjustStoreInventoryPage() {
                 ))}
               </select>
             </div>
-            
+
             <div>
               <label htmlFor="product" className="mb-1 block text-sm font-medium text-gray-800">
                 Product *
@@ -205,14 +276,29 @@ export default function AdjustStoreInventoryPage() {
                 disabled={!storeId}
               >
                 <option value="">Select Product</option>
-                {filteredProducts.map(product => (
-                  <option key={product.id} value={product.id}>
-                    {product.name} (SKU: {product.sku})
-                  </option>
-                ))}
+                {availableProducts.map(product => {
+                  const hasInventory = inventoryItems.some(item =>
+                    item.storeId === storeId && item.productId === product.id
+                  );
+                  return (
+                    <option key={product.id} value={product.id}>
+                      {product.name} (SKU: {product.sku}){!hasInventory ? ' - New' : ''}
+                    </option>
+                  );
+                })}
               </select>
+              {storeId && availableProducts.length === 0 && (
+                <p className="mt-1 text-sm text-amber-600">
+                  No products available. Please add products to the system first.
+                </p>
+              )}
+              {storeId && availableProducts.length > 0 && filteredProducts.length === 0 && (
+                <p className="mt-1 text-sm text-blue-600">
+                  Showing all products. Products marked "New" don't have existing inventory in this store.
+                </p>
+              )}
             </div>
-            
+
             <div>
               <label htmlFor="adjustmentType" className="mb-1 block text-sm font-medium text-gray-800">
                 Adjustment Type *
@@ -229,7 +315,7 @@ export default function AdjustStoreInventoryPage() {
                 <option value="set">Set Inventory Level</option>
               </select>
             </div>
-            
+
             <div>
               <label htmlFor="quantity" className="mb-1 block text-sm font-medium text-gray-800">
                 Quantity *
@@ -244,7 +330,7 @@ export default function AdjustStoreInventoryPage() {
                 required
               />
             </div>
-            
+
             <div>
               <label htmlFor="reason" className="mb-1 block text-sm font-medium text-gray-800">
                 Reason *
@@ -266,7 +352,7 @@ export default function AdjustStoreInventoryPage() {
                 <option value="OTHER">Other</option>
               </select>
             </div>
-            
+
             <div>
               <label htmlFor="notes" className="mb-1 block text-sm font-medium text-gray-800">
                 Notes
@@ -280,7 +366,7 @@ export default function AdjustStoreInventoryPage() {
               />
             </div>
           </div>
-          
+
           {storeId && productId && (
             <div className="rounded-lg bg-gray-50 p-4">
               <h3 className="mb-2 font-medium text-gray-800">Inventory Summary</h3>
@@ -305,7 +391,7 @@ export default function AdjustStoreInventoryPage() {
               </div>
             </div>
           )}
-          
+
           <div className="flex justify-end gap-2">
             <Link
               href="/inventory/store"

@@ -11,9 +11,9 @@ async function verifyDatabaseConnection() {
   }
 }
 
-// Run the verification in development mode
-if (process.env.NODE_ENV === 'development') {
-  verifyDatabaseConnection()
-}
+// Temporarily disable verification to prevent startup hanging
+// if (process.env.NODE_ENV === 'development') {
+//   verifyDatabaseConnection()
+// }
 
 export { prisma }

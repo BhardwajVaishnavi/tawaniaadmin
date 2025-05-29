@@ -97,7 +97,7 @@ export default async function SaleDetailPage({
           inventoryItem: true,
         },
       },
-      payments: {
+      Payment: {
         orderBy: {
           createdAt: 'desc',
         },
@@ -112,12 +112,12 @@ export default async function SaleDetailPage({
   // Calculate totals
   const totalItems = sale.items.length;
   const totalQuantity = sale.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
-  const subtotal = Number(sale.subtotalAmount);
+  const subtotal = Number(sale.subtotal);
   const tax = Number(sale.taxAmount);
   const total = Number(sale.totalAmount);
 
   // Calculate payment totals
-  const totalPaid = sale.payments.reduce((sum: number, payment: any) => sum + Number(payment.amount), 0);
+  const totalPaid = (sale.Payment || []).reduce((sum: number, payment: any) => sum + Number(payment.amount), 0);
   const balance = total - totalPaid;
 
   return (
@@ -175,10 +175,10 @@ export default async function SaleDetailPage({
                         ${item.unitPrice.toFixed(2)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">
-                        {item.discount > 0 ? `${item.discount}%` : "-"}
+                        {item.discountAmount > 0 ? `$${item.discountAmount.toFixed(2)}` : "-"}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm font-medium">
-                        ${item.total.toFixed(2)}
+                        ${item.totalPrice.toFixed(2)}
                       </td>
                     </tr>
                   ))}
@@ -190,7 +190,7 @@ export default async function SaleDetailPage({
                       Subtotal:
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm font-medium">
-                      ${sale.subtotal.toFixed(2)}
+                      ${subtotal.toFixed(2)}
                     </td>
                   </tr>
                   <tr>
@@ -199,7 +199,7 @@ export default async function SaleDetailPage({
                       Tax:
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm font-medium">
-                      ${sale.tax.toFixed(2)}
+                      ${tax.toFixed(2)}
                     </td>
                   </tr>
                   <tr>
@@ -208,7 +208,7 @@ export default async function SaleDetailPage({
                       Total:
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm font-bold text-gray-900">
-                      ${sale.total.toFixed(2)}
+                      ${total.toFixed(2)}
                     </td>
                   </tr>
                 </tfoot>
@@ -241,9 +241,9 @@ export default async function SaleDetailPage({
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Status</p>
+                <p className="text-sm text-gray-500">Payment Status</p>
                 <p className="inline-flex rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                  {sale.status}
+                  {sale.paymentStatus}
                 </p>
               </div>
               <div>

@@ -31,10 +31,6 @@ export default function RootLayout({
         <script src="/suppress-hydration-warnings.js"></script>
         {/* Keep only essential scripts that exist and are needed */}
         <script src="/disable-dark-mode.js" defer></script>
-        <script src="/clear-mock-data.js" defer></script>
-        <script src="/quality-control-api-fix.js" defer></script>
-        <script src="/quality-control-patch.js" defer></script>
-        <script src="/quality-control-form-fix.js" defer></script>
         <script src="/nextauth-fix.js"></script>
         <script src="/nextauth-session-fix.js" defer></script>
       </head>

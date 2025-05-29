@@ -202,15 +202,18 @@ export default function NewPurchaseOrderPage() {
       // Ensure all items have proper numeric values
       const formattedItems = items.map(item => {
         // Make sure we're using the correct field name for quantity
+        const quantity = Math.round(Number(item.orderedQuantity || item.quantity));
+        const unitPrice = Number(item.unitPrice);
+        const discount = Number(item.discount || 0);
+        const tax = Number(item.tax || 0);
+
         return {
           productId: item.productId,
-          description: item.description || '',
-          orderedQuantity: Math.round(Number(item.orderedQuantity)),
-          unitPrice: Number(item.unitPrice),
-          discount: Number(item.discount || 0),
-          tax: Number(item.tax || 0),
-          subtotal: Number(item.subtotal || (item.unitPrice * item.orderedQuantity)),
-          total: Number(item.total || ((item.unitPrice * item.orderedQuantity) + (item.tax || 0) - (item.discount || 0))),
+          orderedQuantity: quantity, // API expects this field name
+          unitPrice: unitPrice,
+          discount: discount,
+          tax: tax,
+          total: (unitPrice * quantity) + tax - discount,
           notes: item.notes || ''
         };
       });
@@ -221,7 +224,7 @@ export default function NewPurchaseOrderPage() {
         expectedDeliveryDate: expectedDeliveryDate || undefined,
         notes,
         items: formattedItems,
-        status: saveAsDraft ? "DRAFT" : "ORDERED",
+        status: saveAsDraft ? "DRAFT" : "PENDING_APPROVAL",
         shipping: Number(shipping || 0),
         discount: Number(discount || 0),
         tax: Number(tax || 0),

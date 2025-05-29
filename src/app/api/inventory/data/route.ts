@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
 
     // Use separate try-catch blocks for each query to identify which one fails
     let warehouses = [];
+    let stores = [];
     let products = [];
     let inventoryItems = [];
 
@@ -47,6 +48,23 @@ export async function GET(req: NextRequest) {
     } catch (error) {
       console.error("Error fetching warehouses:", error);
       throw new Error(`Failed to fetch warehouses: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    try {
+      // Get stores
+      stores = await prisma.store.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          code: true
+        },
+        orderBy: { name: 'asc' },
+      });
+      debug(`Found ${stores.length} stores`);
+    } catch (error) {
+      console.error("Error fetching stores:", error);
+      throw new Error(`Failed to fetch stores: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     try {
@@ -97,6 +115,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       warehouses,
+      stores,
       products,
       inventoryItems,
     });

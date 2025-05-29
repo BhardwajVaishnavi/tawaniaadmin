@@ -184,96 +184,30 @@ export function QualityControlForm({
         })),
       };
 
-      try {
-        // First try to use the real API
-        const response = await fetch("/api/quality-control", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(qualityControlData),
-        });
+      const response = await fetch("/api/quality-control", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(qualityControlData),
+      });
 
-        if (response.ok) {
-          const data = await response.json();
+      if (response.ok) {
+        const data = await response.json();
 
-          // Redirect to the quality control detail page
-          if (data && data.id) {
-            router.push(`/quality-control/${data.id}`);
-          } else {
-            // If we got a response with no ID, just go back to the quality control list
-            router.push('/quality-control');
-          }
-          return;
-        }
-
-        // If the API call failed, throw an error to trigger the fallback
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create quality control");
-      } catch (apiError) {
-        console.error("API Error:", apiError);
-
-        // Fallback: Create a mock quality control and save it to localStorage
-        const id = "qc-" + Date.now();
-        const date = new Date();
-        const year = date.getFullYear().toString().slice(-2);
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        const sequence = Math.floor(Math.random() * 999).toString().padStart(3, '0');
-        const referenceNumber = `QC-${year}${month}${day}-${sequence}`;
-
-        // Find warehouse name
-        const warehouse = warehouses.find(w => w.id === warehouseId);
-        const warehouseName = warehouse ? warehouse.name : "Unknown Warehouse";
-
-        // Create mock quality control
-        const mockQC = {
-          id,
-          referenceNumber,
-          type,
-          status: "PENDING",
-          warehouseId,
-          inspectionDate: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          notes,
-          items: items.map(item => ({
-            id: "item-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
-            productId: item.productId,
-            product: item.product,
-            quantity: item.quantity,
-            passedQuantity: item.passedQuantity,
-            failedQuantity: item.failedQuantity,
-            pendingQuantity: item.pendingQuantity || (item.quantity - (item.passedQuantity + item.failedQuantity)),
-            status: item.status,
-            reason: item.reason,
-            action: item.action,
-            notes: item.notes,
-          })),
-          warehouse: {
-            id: warehouseId,
-            name: warehouseName,
-          },
-          inspectedBy: {
-            id: "user-001",
-            name: "Current User",
-          },
-        };
-
-        // Save to localStorage
-        try {
-          const existingQCs = JSON.parse(localStorage.getItem('qualityControls') || '[]');
-          existingQCs.unshift(mockQC);
-          localStorage.setItem('qualityControls', JSON.stringify(existingQCs));
-
-          // Redirect to the quality control list page
+        // Redirect to the quality control detail page
+        if (data && data.id) {
+          router.push(`/quality-control/${data.id}`);
+        } else {
+          // If we got a response with no ID, just go back to the quality control list
           router.push('/quality-control');
-        } catch (storageError) {
-          console.error("Storage Error:", storageError);
-          alert("Failed to save quality control. Please try again.");
-          setIsSubmitting(false);
         }
+        return;
       }
+
+      // If the API call failed, show error
+      const error = await response.json();
+      throw new Error(error.error || "Failed to create quality control");
     } catch (error) {
       console.error("Error creating quality control:", error);
       alert("An unexpected error occurred. Please try again.");

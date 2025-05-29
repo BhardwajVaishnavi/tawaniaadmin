@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatCurrency } from "@/lib/utils";
 
 interface CartItem {
   name: string;
@@ -96,9 +97,9 @@ export function POSCheckout({
                     <p className="text-sm font-medium text-gray-800">
                       {item.name} × {item.quantity} {item.unit}
                     </p>
-                    <p className="text-xs text-gray-800">${item.unitPrice.toFixed(2)} each</p>
+                    <p className="text-xs text-gray-800">{formatCurrency(item.unitPrice)} each</p>
                   </div>
-                  <p className="text-sm font-medium text-gray-800">${item.totalPrice.toFixed(2)}</p>
+                  <p className="text-sm font-medium text-gray-800">{formatCurrency(item.totalPrice)}</p>
                 </div>
               ))}
             </div>
@@ -106,15 +107,15 @@ export function POSCheckout({
             <div className="space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-800">Subtotal</span>
-                <span className="font-medium">${subtotal.toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-800">Tax ({taxRate}%)</span>
-                <span className="font-medium">${taxAmount.toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(taxAmount)}</span>
               </div>
               <div className="flex justify-between border-t border-gray-300 pt-2 text-base font-bold">
                 <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{formatCurrency(total)}</span>
               </div>
             </div>
 
@@ -161,7 +162,7 @@ export function POSCheckout({
                 </label>
                 <div className="flex rounded-md shadow-sm">
                   <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-gray-800">
-                    $
+                    ₹
                   </span>
                   <input
                     type="number"
@@ -182,28 +183,28 @@ export function POSCheckout({
                       onClick={() => handleQuickAmount(Math.ceil(total))}
                       className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 hover:bg-gray-50"
                     >
-                      ${Math.ceil(total)}
+                      {formatCurrency(Math.ceil(total))}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleQuickAmount(Math.ceil(total / 5) * 5)}
                       className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 hover:bg-gray-50"
                     >
-                      ${Math.ceil(total / 5) * 5}
+                      {formatCurrency(Math.ceil(total / 5) * 5)}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleQuickAmount(Math.ceil(total / 10) * 10)}
                       className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 hover:bg-gray-50"
                     >
-                      ${Math.ceil(total / 10) * 10}
+                      {formatCurrency(Math.ceil(total / 10) * 10)}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleQuickAmount(Math.ceil(total / 20) * 20)}
                       className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 hover:bg-gray-50"
                     >
-                      ${Math.ceil(total / 20) * 20}
+                      {formatCurrency(Math.ceil(total / 20) * 20)}
                     </button>
                     <button
                       type="button"
@@ -250,7 +251,7 @@ export function POSCheckout({
                 <div className="rounded-md bg-green-50 p-3">
                   <div className="flex justify-between">
                     <span className="text-sm font-medium text-green-800">Change</span>
-                    <span className="text-sm font-medium text-green-800">${change.toFixed(2)}</span>
+                    <span className="text-sm font-medium text-green-800">{formatCurrency(change)}</span>
                   </div>
                 </div>
               )}
@@ -259,7 +260,7 @@ export function POSCheckout({
                 <div className="rounded-md bg-amber-50 p-3">
                   <div className="flex justify-between">
                     <span className="text-sm font-medium text-amber-800">Remaining</span>
-                    <span className="text-sm font-medium text-amber-800">${(total - amountPaid).toFixed(2)}</span>
+                    <span className="text-sm font-medium text-amber-800">{formatCurrency(total - amountPaid)}</span>
                   </div>
                   <p className="mt-1 text-xs text-amber-700">
                     This will be recorded as a partial payment.

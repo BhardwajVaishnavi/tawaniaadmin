@@ -6,7 +6,7 @@ import { ReturnsList } from "./_components/returns-list";
 export default async function ReturnsPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const session = await getServerSession(authOptions);
 
@@ -19,11 +19,13 @@ export default async function ReturnsPage({
     };
   }
 
+  const resolvedSearchParams = await searchParams;
+
   // Parse search parameters
-  const storeId = searchParams.store as string | undefined;
-  const status = searchParams.status as string | undefined;
-  const search = searchParams.search as string | undefined;
-  const page = parseInt(searchParams.page as string || "1");
+  const storeId = resolvedSearchParams.store as string | undefined;
+  const status = resolvedSearchParams.status as string | undefined;
+  const search = resolvedSearchParams.search as string | undefined;
+  const page = parseInt(resolvedSearchParams.page as string || "1");
   const pageSize = 10;
 
   // Get stores for filter
@@ -52,36 +54,48 @@ export default async function ReturnsPage({
     ];
   }
 
-  const [returns, totalCount] = await Promise.all([
-    // @ts-ignore - Dynamically access the model
-    prisma.return.findMany({
-      where: filters,
-      include: {
-        Store: true,
-        Customer: true,
-        ReturnItem: {
-          include: {
-            product: true,
+  let returns: any[] = [];
+  let totalCount = 0;
+
+  try {
+    const [returnsResult, countResult] = await Promise.all([
+      prisma.return.findMany({
+        where: filters,
+        include: {
+          Store: true,
+          Customer: true,
+          ReturnItem: {
+            include: {
+              Product: true,
+            },
+          },
+          User: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-        processedBy: {
-          select: {
-            id: true,
-            name: true,
-          },
+        orderBy: {
+          createdAt: 'desc',
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    // @ts-ignore - Dynamically access the model
-    prisma.return.count({
-      where: filters,
-    }),
-  ]);
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.return.count({
+        where: filters,
+      }),
+    ]);
+
+    returns = returnsResult;
+    totalCount = countResult;
+  } catch (error) {
+    console.error("Error fetching returns:", error);
+    // Set default values in case of error
+    returns = [];
+    totalCount = 0;
+  }
 
   const totalPages = Math.ceil(totalCount / pageSize);
 

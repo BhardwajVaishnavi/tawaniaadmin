@@ -58,6 +58,7 @@ export function QualityControlList({ warehouses }: QualityControlListProps) {
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalItems, setTotalItems] = useState<number>(0);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   // Filters
   const [warehouseId, setWarehouseId] = useState<string>("");
@@ -88,64 +89,24 @@ export function QualityControlList({ warehouses }: QualityControlListProps) {
         params.append("status", status);
       }
 
-      try {
-        const response = await fetch(`/api/quality-control?${params.toString()}`);
+      const response = await fetch(`/api/quality-control?${params.toString()}`);
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch quality controls");
-        }
+      if (!response.ok) {
+        throw new Error("Failed to fetch quality controls");
+      }
 
-        const data = await response.json();
+      const data = await response.json();
 
-        // Check if we got valid data
-        if (data && Array.isArray(data.qualityControls)) {
-          setQualityControls(data.qualityControls);
-          setTotalPages(data.totalPages || 1);
-          setTotalItems(data.totalItems || data.qualityControls.length);
-        } else {
-          // If the data format is unexpected, try to get data from localStorage
-          throw new Error("Invalid data format");
-        }
-      } catch (fetchError) {
-        console.error("Error fetching from API:", fetchError);
-
-        // Fallback: Try to get data from localStorage
-        try {
-          const storedQCs = JSON.parse(localStorage.getItem('qualityControls') || '[]');
-
-          // Apply filters
-          let filteredQCs = storedQCs;
-
-          if (warehouseId) {
-            filteredQCs = filteredQCs.filter((qc: any) =>
-              qc.warehouseId === warehouseId || qc.warehouse?.id === warehouseId
-            );
-          }
-
-          if (type) {
-            filteredQCs = filteredQCs.filter((qc: any) => qc.type === type);
-          }
-
-          if (status) {
-            filteredQCs = filteredQCs.filter((qc: any) => qc.status === status);
-          }
-
-          // Calculate pagination
-          const startIndex = (page - 1) * 10;
-          const endIndex = startIndex + 10;
-          const paginatedQCs = filteredQCs.slice(startIndex, endIndex);
-
-          setQualityControls(paginatedQCs);
-          setTotalPages(Math.ceil(filteredQCs.length / 10) || 1);
-          setTotalItems(filteredQCs.length);
-        } catch (storageError) {
-          console.error("Error reading from localStorage:", storageError);
-
-          // If localStorage also fails, use empty data
-          setQualityControls([]);
-          setTotalPages(1);
-          setTotalItems(0);
-        }
+      // Check if we got valid data
+      if (data && Array.isArray(data.qualityControls)) {
+        setQualityControls(data.qualityControls);
+        setTotalPages(data.totalPages || 1);
+        setTotalItems(data.totalItems || data.qualityControls.length);
+      } else {
+        // If the data format is unexpected, set empty data
+        setQualityControls([]);
+        setTotalPages(1);
+        setTotalItems(0);
       }
     } catch (err) {
       console.error("Error in fetchQualityControls:", err);
@@ -160,24 +121,50 @@ export function QualityControlList({ warehouses }: QualityControlListProps) {
     fetchQualityControls();
   }, [page, warehouseId, type, status]);
 
-  // Also fetch when the component mounts
+  // Fetch when the component mounts
   useEffect(() => {
     fetchQualityControls();
-
-    // Set up an interval to refresh the data every 2 seconds
-    // This ensures that newly created quality controls are displayed
-    const intervalId = setInterval(() => {
-      fetchQualityControls();
-    }, 2000);
-
-    // Clean up the interval when the component unmounts
-    return () => clearInterval(intervalId);
   }, []);
 
   // Handle search
   const handleSearch = () => {
     setPage(1);
     fetchQualityControls();
+  };
+
+  // Handle status update
+  const handleStatusUpdate = async (qualityControlId: string, newStatus: string) => {
+    setUpdatingStatus(qualityControlId);
+
+    try {
+      const response = await fetch(`/api/quality-control/${qualityControlId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update status');
+      }
+
+      // Update the local state to reflect the change
+      setQualityControls(prev =>
+        prev.map(qc =>
+          qc.id === qualityControlId
+            ? { ...qc, status: newStatus }
+            : qc
+        )
+      );
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status. Please try again.');
+    } finally {
+      setUpdatingStatus(null);
+    }
   };
 
   // Get status badge color
@@ -364,8 +351,25 @@ export function QualityControlList({ warehouses }: QualityControlListProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                     {qc.inspectedBy.name}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                    {getStatusBadge(qc.status)}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 relative">
+                    <select
+                      value={qc.status}
+                      onChange={(e) => handleStatusUpdate(qc.id, e.target.value)}
+                      disabled={updatingStatus === qc.id}
+                      className={`block w-full rounded-md border border-gray-300 px-3 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                        updatingStatus === qc.id ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      <option value="PENDING">Pending</option>
+                      <option value="IN_PROGRESS">In Progress</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
+                    {updatingStatus === qc.id && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <RotateCw className="h-4 w-4 animate-spin text-blue-600" />
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                     {qc.items.length}

@@ -2,15 +2,17 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import { use } from "react";
 import { InventoryAdjustmentForm } from "../../_components/inventory-adjustment-form";
 
 export default async function InventoryAdjustmentPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = use(params);
   const session = await getServerSession(authOptions);
-  const inventoryId = params.id;
+  const inventoryId = id;
 
   // Get inventory item with related data
   const inventoryItem = await prisma.inventoryItem.findUnique({
@@ -44,7 +46,7 @@ export default async function InventoryAdjustmentPage({
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-800">Adjust Inventory</h1>
-      
+
       <div className="rounded-lg bg-white p-6 shadow-md">
         <div className="mb-6 grid gap-4 md:grid-cols-3">
           <div>
@@ -71,10 +73,10 @@ export default async function InventoryAdjustmentPage({
             </p>
           </div>
         </div>
-        
-        <InventoryAdjustmentForm 
-          inventoryItem={inventoryItem} 
-          adjustmentReasons={adjustmentReasons} 
+
+        <InventoryAdjustmentForm
+          inventoryItem={inventoryItem}
+          adjustmentReasons={adjustmentReasons}
         />
       </div>
     </div>

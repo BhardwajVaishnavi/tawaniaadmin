@@ -1,12 +1,14 @@
 "use client";
 
+import { formatCurrency } from "@/lib/utils";
+
 interface Product {
   id: string;
   name: string;
   sku: string;
   barcode: string | null;
   description: string | null;
-  unit: string;
+  unit: string | null;
   // Removed category fields for simplified schema
 }
 
@@ -15,9 +17,9 @@ interface InventoryItem {
   productId: string;
   storeId: string;
   quantity: number;
-  reservedQuantity: number;
-  costPrice: number;
-  retailPrice: number;
+  reservedQuantity: number | null;
+  costPrice: number | null;
+  retailPrice: number | null;
   product: Product;
 }
 
@@ -55,9 +57,11 @@ export function POSProductList({
           <h3 className="mb-1 text-sm font-medium text-gray-900 line-clamp-2">{item.product.name}</h3>
           <p className="mb-1 text-xs text-gray-800">{item.product.sku}</p>
           <div className="mt-auto flex items-center justify-between">
-            <span className="text-sm font-bold text-gray-900">${item.retailPrice.toFixed(2)}</span>
+            <span className="text-sm font-bold text-gray-900">
+              {formatCurrency(item.retailPrice || 0)}
+            </span>
             <span className="text-xs text-gray-800">
-              {item.quantity - item.reservedQuantity} {item.product.unit}
+              {item.quantity - (item.reservedQuantity || 0)} {item.product.unit || 'each'}
             </span>
           </div>
           {/* Category display removed for simplified schema */}

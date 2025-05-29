@@ -10,11 +10,11 @@ export default function AuthErrorPage() {
   const [errorDescription, setErrorDescription] = useState<string | null>(null);
 
   useEffect(() => {
-    const errorParam = searchParams.get("error");
-    
+    const errorParam = searchParams?.get("error");
+
     if (errorParam) {
       setError(errorParam);
-      
+
       // Set error description based on error type
       switch (errorParam) {
         case "Configuration":

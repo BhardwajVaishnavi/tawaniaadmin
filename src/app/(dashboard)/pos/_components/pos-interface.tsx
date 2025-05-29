@@ -15,7 +15,7 @@ interface Product {
   sku: string;
   barcode: string | null;
   description: string | null;
-  unit: string;
+  unit: string | null;
   // Removed category fields for simplified schema
 }
 
@@ -24,9 +24,9 @@ interface InventoryItem {
   productId: string;
   storeId: string;
   quantity: number;
-  reservedQuantity: number;
-  costPrice: number;
-  retailPrice: number;
+  reservedQuantity: number | null;
+  costPrice: number | null;
+  retailPrice: number | null;
   product: Product;
 }
 
@@ -90,6 +90,8 @@ export function POSInterface({
   userId,
 }: POSInterfaceProps) {
   const router = useRouter();
+
+
 
   // State
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -176,12 +178,14 @@ export function POSInterface({
       setCart(updatedCart);
     } else {
       // Add new item to cart
-      const availableQuantity = inventoryItem.quantity - inventoryItem.reservedQuantity;
+      const availableQuantity = inventoryItem.quantity - (inventoryItem.reservedQuantity || 0);
 
       if (availableQuantity <= 0) {
         alert("This product is out of stock.");
         return;
       }
+
+      const retailPrice = inventoryItem.retailPrice || 0;
 
       const newItem: CartItem = {
         inventoryItemId: inventoryItem.id,
@@ -190,10 +194,10 @@ export function POSInterface({
         sku: inventoryItem.product.sku,
         quantity: 1,
         maxQuantity: availableQuantity,
-        unitPrice: inventoryItem.retailPrice,
+        unitPrice: retailPrice,
         discount: 0,
-        totalPrice: inventoryItem.retailPrice,
-        unit: inventoryItem.product.unit,
+        totalPrice: retailPrice,
+        unit: inventoryItem.product.unit || 'each',
       };
 
       setCart([...cart, newItem]);

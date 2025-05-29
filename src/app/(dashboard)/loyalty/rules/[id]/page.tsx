@@ -238,7 +238,7 @@ export default async function LoyaltyRuleDetailPage({
                     Permanently delete this rule. This action cannot be undone.
                   </p>
                   <Button
-                    variant="destructive"
+                    variant="danger"
                     className="mt-2 w-full"
                   >
                     <Trash className="mr-2 h-4 w-4" />

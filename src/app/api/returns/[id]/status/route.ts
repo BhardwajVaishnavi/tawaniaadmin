@@ -6,7 +6,7 @@ import { createAuditLog } from "@/lib/audit";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -18,7 +18,8 @@ export async function PATCH(
       );
     }
 
-    const returnId = params.id;
+    const resolvedParams = await params;
+    const returnId = resolvedParams.id;
     const data = await req.json();
     const { status, notes, userId } = data;
 
@@ -62,14 +63,14 @@ export async function PATCH(
       where: { id: returnId },
       data: updateData,
       include: {
-        store: true,
-        customer: true,
-        items: {
+        Store: true,
+        Customer: true,
+        ReturnItem: {
           include: {
-            product: true,
+            Product: true,
           },
         },
-        processedBy: {
+        User: {
           select: {
             id: true,
             name: true,
@@ -81,7 +82,7 @@ export async function PATCH(
     // If status is COMPLETED, update inventory
     if (status === "COMPLETED") {
       // Process each return item
-      for (const item of updatedReturn.items) {
+      for (const item of updatedReturn.ReturnItem || []) {
         // Get the product's inventory in the store
         const inventoryItem = await prisma.inventoryItem.findFirst({
           where: {
@@ -106,28 +107,28 @@ export async function PATCH(
             const { randomUUID } = require("crypto");
             await prisma.$queryRaw`
               INSERT INTO "InventoryTransaction" (
-                "id", 
-                "inventoryItemId", 
-                "transactionType", 
-                "quantity", 
-                "previousQuantity", 
-                "newQuantity", 
-                "reason", 
-                "notes", 
-                "createdById", 
-                "createdAt", 
+                "id",
+                "inventoryItemId",
+                "transactionType",
+                "quantity",
+                "previousQuantity",
+                "newQuantity",
+                "reason",
+                "notes",
+                "createdById",
+                "createdAt",
                 "updatedAt"
               ) VALUES (
-                ${randomUUID()}, 
-                ${inventoryItem.id}, 
-                'RETURN', 
-                ${-item.quantity}, 
-                ${inventoryItem.quantity + item.quantity}, 
-                ${inventoryItem.quantity}, 
-                'RETURN', 
-                ${`Return #${updatedReturn.returnNumber}`}, 
-                ${userId || session.user.id}, 
-                ${new Date()}, 
+                ${randomUUID()},
+                ${inventoryItem.id},
+                'RETURN',
+                ${-item.quantity},
+                ${inventoryItem.quantity + item.quantity},
+                ${inventoryItem.quantity},
+                'RETURN',
+                ${`Return #${updatedReturn.returnNumber}`},
+                ${userId || session.user.id},
+                ${new Date()},
                 ${new Date()}
               )
             `;
@@ -153,7 +154,19 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json(updatedReturn);
+    // Transform the data to match the expected format in the client component
+    const formattedReturnData = {
+      ...updatedReturn,
+      store: updatedReturn.Store,
+      customer: updatedReturn.Customer,
+      items: (updatedReturn.ReturnItem || []).map(item => ({
+        ...item,
+        product: item.Product
+      })),
+      processedBy: updatedReturn.User,
+    };
+
+    return NextResponse.json(formattedReturnData);
   } catch (error) {
     console.error("Error updating return status:", error);
     return NextResponse.json(

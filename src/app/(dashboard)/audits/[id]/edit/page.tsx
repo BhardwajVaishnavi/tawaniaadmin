@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -22,30 +22,31 @@ interface Audit {
   };
 }
 
-export default function EditAuditPage({ params }: { params: { id: string } }) {
+export default function EditAuditPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const { id: auditId } = use(params);
   const [audit, setAudit] = useState<Audit | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
-  
+
   // Fetch audit details
   useEffect(() => {
     const fetchAudit = async () => {
       try {
-        const response = await fetch(`/api/audits/${params.id}`);
-        
+        const response = await fetch(`/api/audits/${auditId}`);
+
         if (!response.ok) {
           throw new Error("Failed to fetch audit details");
         }
-        
+
         const data = await response.json();
         setAudit(data.audit);
-        
+
         // Initialize form values
         setStartDate(data.audit.startDate ? format(new Date(data.audit.startDate), "yyyy-MM-dd") : "");
         setEndDate(data.audit.endDate ? format(new Date(data.audit.endDate), "yyyy-MM-dd") : "");
@@ -57,18 +58,18 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
         setIsLoading(false);
       }
     };
-    
+
     fetchAudit();
-  }, [params.id]);
-  
+  }, [auditId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!audit) return;
-    
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
       const response = await fetch(`/api/audits/${audit.id}`, {
         method: "PUT",
@@ -81,12 +82,12 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
           notes,
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to update audit");
       }
-      
+
       // Redirect to audit details page
       router.push(`/audits/${audit.id}`);
       router.refresh();
@@ -97,7 +98,7 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
       setIsSubmitting(false);
     }
   };
-  
+
   if (isLoading) {
     return (
       <div className="flex h-48 items-center justify-center">
@@ -108,14 +109,14 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="rounded-lg bg-red-50 p-6 text-center">
         <h2 className="text-lg font-semibold text-red-800">Error</h2>
         <p className="mt-2 text-red-600">{error}</p>
         <Link
-          href={`/audits/${params.id}`}
+          href={`/audits/${auditId}`}
           className="mt-4 inline-block rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors"
         >
           Back to Audit Details
@@ -123,7 +124,7 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
       </div>
     );
   }
-  
+
   if (!audit) {
     return (
       <div className="rounded-lg bg-yellow-50 p-6 text-center">
@@ -138,7 +139,7 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
       </div>
     );
   }
-  
+
   // Only allow editing of PLANNED audits
   if (audit.status !== "PLANNED") {
     return (
@@ -156,7 +157,7 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -168,7 +169,7 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
           Cancel
         </Link>
       </div>
-      
+
       <div className="rounded-lg bg-white p-6 shadow-md">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
@@ -184,7 +185,7 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
                 className="mt-1 block w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            
+
             <div>
               <label htmlFor="warehouse" className="block text-sm font-medium text-gray-700">
                 Warehouse
@@ -197,7 +198,7 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
                 className="mt-1 block w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            
+
             <div>
               <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
                 Start Date
@@ -211,7 +212,7 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            
+
             <div>
               <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
                 End Date
@@ -225,7 +226,7 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
               />
             </div>
           </div>
-          
+
           <div>
             <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
               Notes
@@ -238,13 +239,13 @@ export default function EditAuditPage({ params }: { params: { id: string } }) {
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             ></textarea>
           </div>
-          
+
           {error && (
             <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
               {error}
             </div>
           )}
-          
+
           <div className="flex justify-end gap-2">
             <Link
               href={`/audits/${audit.id}`}

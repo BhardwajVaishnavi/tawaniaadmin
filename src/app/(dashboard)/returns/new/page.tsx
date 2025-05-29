@@ -12,22 +12,41 @@ export default async function NewReturnPage() {
   }
 
   // Get stores and products for the form
-  const [stores, products, customers] = await Promise.all([
-    prisma.store.findMany({
-      where: { isActive: true },
-      orderBy: { name: 'asc' },
-    }),
-    prisma.product.findMany({
-      where: { isActive: true },
-      include: {
-        category: true,
-      },
-      orderBy: { name: 'asc' },
-    }),
-    prisma.customer.findMany({
-      orderBy: { name: 'asc' },
-    }),
-  ]);
+  let stores: any[] = [];
+  let products: any[] = [];
+  let customers: any[] = [];
+
+  try {
+    const [storesResult, productsResult, customersResult] = await Promise.all([
+      prisma.store.findMany({
+        where: { isActive: true },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.product.findMany({
+        where: { isActive: true },
+        include: {
+          category: true,
+        },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.customer.findMany({
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+
+    stores = storesResult;
+    products = productsResult;
+    customers = customersResult;
+
+    console.log(`Fetched ${stores.length} stores, ${products.length} products, ${customers.length} customers`);
+  } catch (error) {
+    console.error("Error fetching data for new return form:", error);
+
+    // Provide fallback empty arrays
+    stores = [];
+    products = [];
+    customers = [];
+  }
 
   return (
     <div className="space-y-6">
@@ -35,10 +54,17 @@ export default async function NewReturnPage() {
         <h1 className="text-2xl font-bold text-gray-800">New Return</h1>
       </div>
 
-      <NewReturnForm 
-        stores={stores} 
-        products={products} 
-        customers={customers} 
+      {/* Debug information */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="rounded-md bg-blue-50 p-4 text-sm text-blue-700">
+          <p>Debug: Stores: {stores.length}, Products: {products.length}, Customers: {customers.length}</p>
+        </div>
+      )}
+
+      <NewReturnForm
+        stores={stores}
+        products={products}
+        customers={customers}
         userId={session.user.id}
       />
     </div>

@@ -89,10 +89,10 @@ export async function createTransfer(input: CreateTransferInput, userId: string)
           product: true,
         },
       },
-      fromWarehouse: true,
-      fromStore: true,
-      toWarehouse: true,
-      toStore: true,
+      Warehouse_Transfer_fromWarehouseIdToWarehouse: true,
+      Store_Transfer_fromStoreIdToStore: true,
+      Warehouse_Transfer_toWarehouseIdToWarehouse: true,
+      Store_Transfer_toStoreIdToStore: true,
     },
   });
 
@@ -162,10 +162,10 @@ export async function updateTransferStatus(
           product: true,
         },
       },
-      fromWarehouse: true,
-      fromStore: true,
-      toWarehouse: true,
-      toStore: true,
+      Warehouse_Transfer_fromWarehouseIdToWarehouse: true,
+      Store_Transfer_fromStoreIdToStore: true,
+      Warehouse_Transfer_toWarehouseIdToWarehouse: true,
+      Store_Transfer_toStoreIdToStore: true,
     },
   });
 
@@ -178,7 +178,7 @@ export async function updateTransferStatus(
   await createAuditLog({
     entityType: 'Transfer',
     entityId: transferId,
-    action: status === TransferStatus.APPROVED ? 'APPROVAL' : 
+    action: status === TransferStatus.APPROVED ? 'APPROVAL' :
             status === TransferStatus.REJECTED ? 'REJECTION' : 'UPDATE',
     details: {
       status,

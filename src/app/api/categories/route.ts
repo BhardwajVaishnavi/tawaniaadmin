@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
     // Get categories using raw query to avoid schema mismatches
     const categories = await prisma.$queryRaw`
-      SELECT id, name, description, "createdAt", "updatedAt", "isActive"
+      SELECT id, name, code, description, "createdAt", "updatedAt", "isActive"
       FROM "Category"
       ORDER BY name ASC
     `;
@@ -43,14 +43,27 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { name, code, description } = data;
+    let { name, code, description } = data;
 
     // Validate required fields
-    if (!name || !code) {
+    if (!name) {
       return NextResponse.json(
-        { error: "Name and code are required" },
+        { error: "Name is required" },
         { status: 400 }
       );
+    }
+
+    // Auto-generate code if not provided
+    if (!code) {
+      code = name
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .substring(0, 6);
+
+      // Add random suffix if code is too short
+      if (code.length < 3) {
+        code += Math.floor(Math.random() * 100).toString().padStart(2, '0');
+      }
     }
 
     // Check if category with same name or code already exists using raw query

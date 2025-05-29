@@ -66,7 +66,7 @@ export default function POSPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [notes, setNotes] = useState("");
 
   // Fetch data
@@ -90,8 +90,8 @@ export default function POSPage() {
         }
 
         // Check for store and product in URL params
-        const storeId = searchParams.get('store');
-        const productId = searchParams.get('product');
+        const storeId = searchParams?.get('store');
+        const productId = searchParams?.get('product');
 
         if (storeId) {
           setSelectedStoreId(storeId);
@@ -172,7 +172,7 @@ export default function POSPage() {
           productId: product.id,
           product,
           quantity: 1,
-          price: inventoryItem.retailPrice,
+          price: inventoryItem.retailPrice || product.retailPrice || 0,
           discount: 0,
         },
       ]);
@@ -257,13 +257,14 @@ export default function POSPage() {
           inventoryItemId: item.inventoryItemId,
           productId: item.productId,
           quantity: item.quantity,
-          price: item.price,
+          unitPrice: item.price,
           discount: item.discount,
         })),
         paymentMethod,
-        subtotal,
-        tax,
-        total,
+        subtotalAmount: subtotal,
+        taxAmount: tax,
+        totalAmount: total,
+        paymentStatus: "PAID",
         notes,
       };
 
@@ -406,7 +407,7 @@ export default function POSPage() {
                         <h3 className="mb-1 font-medium text-blue-600">{product.name}</h3>
                         <p className="text-xs text-gray-800">{product.sku}</p>
                         <div className="mt-2 flex items-center justify-between">
-                          <span className="text-lg font-bold">{formatCurrency(inventoryItem.retailPrice)}</span>
+                          <span className="text-lg font-bold">{formatCurrency(inventoryItem.retailPrice || product.retailPrice || 0)}</span>
                           <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
                             {inventoryItem.quantity} in stock
                           </span>
@@ -525,9 +526,11 @@ export default function POSPage() {
                       className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       required
                     >
-                      <option value="cash">Cash</option>
-                      <option value="card">Credit/Debit Card</option>
-                      <option value="mobile">Mobile Payment</option>
+                      <option value="CASH">Cash</option>
+                      <option value="CREDIT_CARD">Credit Card</option>
+                      <option value="DEBIT_CARD">Debit Card</option>
+                      <option value="MOBILE_PAYMENT">Mobile Payment</option>
+                      <option value="BANK_TRANSFER">Bank Transfer</option>
                     </select>
                   </div>
 

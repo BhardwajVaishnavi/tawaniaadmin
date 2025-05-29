@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -17,11 +17,12 @@ export async function GET(
       );
     }
 
-    const categoryId = params.id;
+    const resolvedParams = await params;
+    const categoryId = resolvedParams.id;
 
     // Get category using raw query to avoid schema mismatches
     const categories = await prisma.$queryRaw`
-      SELECT id, name, description, "createdAt", "updatedAt", "isActive"
+      SELECT id, name, code, description, "createdAt", "updatedAt", "isActive"
       FROM "Category"
       WHERE id = ${categoryId}
     `;
@@ -47,7 +48,7 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -59,16 +60,30 @@ export async function PUT(
       );
     }
 
-    const categoryId = params.id;
+    const resolvedParams = await params;
+    const categoryId = resolvedParams.id;
     const data = await req.json();
-    const { name, code, description } = data;
+    let { name, code, description } = data;
 
     // Validate required fields
-    if (!name || !code) {
+    if (!name) {
       return NextResponse.json(
-        { error: "Name and code are required" },
+        { error: "Name is required" },
         { status: 400 }
       );
+    }
+
+    // Auto-generate code if not provided
+    if (!code) {
+      code = name
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .substring(0, 6);
+
+      // Add random suffix if code is too short
+      if (code.length < 3) {
+        code += Math.floor(Math.random() * 100).toString().padStart(2, '0');
+      }
     }
 
     // Check if category exists using raw query
@@ -139,7 +154,7 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -151,7 +166,8 @@ export async function DELETE(
       );
     }
 
-    const categoryId = params.id;
+    const resolvedParams = await params;
+    const categoryId = resolvedParams.id;
 
     // Check if category exists using raw query
     const existingCategories = await prisma.$queryRaw`

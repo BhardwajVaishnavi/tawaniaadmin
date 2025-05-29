@@ -248,10 +248,10 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Start a transaction
+      // Start a transaction with increased timeout
       // @ts-ignore - Dynamically access the model
       const result = await prisma.$transaction(async (tx) => {
-        console.log("Transaction started");
+        console.log("Transaction started with 15s timeout");
 
         // Create audit
         let audit;
@@ -472,6 +472,8 @@ export async function POST(req: NextRequest) {
           // Return the basic audit object if we can't fetch the details
           return audit;
         }
+      }, {
+        timeout: 15000, // 15 seconds timeout
       });
 
       return NextResponse.json({ audit: result });

@@ -50,10 +50,10 @@ interface Return {
     phone: string | null;
   } | null;
   items: ReturnItem[];
-  processedBy: {
+  processedBy?: {
     id: string;
     name: string;
-  };
+  } | null;
 }
 
 interface ReturnDetailsProps {
@@ -71,7 +71,7 @@ export function ReturnDetails({ returnData, currentUserId }: ReturnDetailsProps)
 
   // Calculate total refund amount
   const totalRefundAmount = returnData.items.reduce(
-    (total, item) => total + item.refundAmount * item.quantity,
+    (total, item) => total + (item.unitPrice || 0) * item.quantity,
     0
   );
 
@@ -128,13 +128,26 @@ export function ReturnDetails({ returnData, currentUserId }: ReturnDetailsProps)
     window.print();
   };
 
+
+
   return (
-    <div className="space-y-6">
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+    <>
+      {/* Print header - only visible when printing */}
+      <div className="print-header">
+        <h1 style={{ fontSize: '24pt', fontWeight: 'bold', margin: '0 0 10px 0' }}>
+          Tawania Smart Bazar
+        </h1>
+        <p style={{ fontSize: '14pt', margin: '0' }}>
+          Return Receipt
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        {error && (
+          <div className="rounded-md bg-red-50 p-4 text-sm text-red-700 print-hide">
+            {error}
+          </div>
+        )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <Card>
@@ -154,7 +167,7 @@ export function ReturnDetails({ returnData, currentUserId }: ReturnDetailsProps)
               <div className="flex justify-between">
                 <dt className="text-sm font-medium text-gray-800">Date:</dt>
                 <dd className="text-sm">
-                  {format(new Date(returnData.createdAt), "MMM d, yyyy h:mm a")}
+                  {format(new Date(returnData.returnDate), "MMM d, yyyy h:mm a")}
                 </dd>
               </div>
               <div className="flex justify-between">
@@ -163,7 +176,7 @@ export function ReturnDetails({ returnData, currentUserId }: ReturnDetailsProps)
               </div>
               <div className="flex justify-between">
                 <dt className="text-sm font-medium text-gray-800">Processed By:</dt>
-                <dd className="text-sm">{returnData.processedBy.name}</dd>
+                <dd className="text-sm">{returnData.processedBy?.name || 'Unknown'}</dd>
               </div>
               {returnData.returnDate && (
                 <div className="flex justify-between">
@@ -234,7 +247,14 @@ export function ReturnDetails({ returnData, currentUserId }: ReturnDetailsProps)
               placeholder="Add notes about this return"
               rows={5}
               disabled={returnData.status !== "PENDING"}
+              className="print-hide"
             />
+            {/* Show notes as text when printing */}
+            <div className="hidden print:block">
+              <p className="text-sm text-gray-800">
+                {notes || "No notes added"}
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -260,15 +280,19 @@ export function ReturnDetails({ returnData, currentUserId }: ReturnDetailsProps)
                 {returnData.items.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/products/${item.product.id}`}
-                        className="font-medium text-blue-600 hover:text-blue-800"
-                      >
-                        {item.product.name}
-                      </Link>
+                      {item.product ? (
+                        <Link
+                          href={`/products/${item.product.id}`}
+                          className="font-medium text-blue-600 hover:text-blue-800"
+                        >
+                          {item.product.name}
+                        </Link>
+                      ) : (
+                        <span className="text-gray-500">Product not found</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-800">
-                      {item.product.sku}
+                      {item.product?.sku || 'N/A'}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-800">
                       {item.reason}
@@ -298,7 +322,7 @@ export function ReturnDetails({ returnData, currentUserId }: ReturnDetailsProps)
         </CardContent>
       </Card>
 
-      <div className="flex justify-between">
+      <div className="flex justify-between print-hide">
         <Button
           type="button"
           variant="outline"
@@ -356,6 +380,7 @@ export function ReturnDetails({ returnData, currentUserId }: ReturnDetailsProps)
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

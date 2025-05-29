@@ -7,7 +7,7 @@ import { ReturnDetails } from "../_components/return-details";
 export default async function ReturnDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
 
@@ -20,7 +20,8 @@ export default async function ReturnDetailPage({
     };
   }
 
-  const returnId = params.id;
+  const resolvedParams = await params;
+  const returnId = resolvedParams.id;
 
   // Get return details
   // @ts-ignore - Dynamically access the model
@@ -31,10 +32,10 @@ export default async function ReturnDetailPage({
       Customer: true,
       ReturnItem: {
         include: {
-          product: true,
+          Product: true,
         },
       },
-      processedBy: {
+      User: {
         select: {
           id: true,
           name: true,
@@ -52,7 +53,11 @@ export default async function ReturnDetailPage({
     ...returnData,
     store: returnData.Store,
     customer: returnData.Customer,
-    items: returnData.ReturnItem || [],
+    items: (returnData.ReturnItem || []).map(item => ({
+      ...item,
+      product: item.Product
+    })),
+    processedBy: returnData.User,
   };
 
   return (

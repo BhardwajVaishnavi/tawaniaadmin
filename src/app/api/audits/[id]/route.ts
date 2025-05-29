@@ -52,7 +52,16 @@ export async function GET(
         },
         items: {
           include: {
-            product: true,
+            product: {
+              include: {
+                inventoryItems: {
+                  select: {
+                    costPrice: true,
+                  },
+                  take: 1,
+                },
+              },
+            },
             inventoryItem: {
               include: {
                 bin: {
@@ -181,31 +190,59 @@ export async function PUT(
 
       // If status is changed to COMPLETED, update inventory based on audit findings
       if (status === "COMPLETED" && existingAudit.status !== "COMPLETED") {
-        // Get all audit items with discrepancies
-        const auditItems = await tx.auditItem.findMany({
+        // Get all audit items
+        const allAuditItems = await tx.auditItem.findMany({
           where: {
             auditId,
-            status: "COUNTED",
-            NOT: {
-              countedQuantity: null,
-            },
           },
           include: {
             inventoryItem: true,
           },
         });
 
-        // Update inventory items and create inventory transactions
-        for (const item of auditItems) {
-          if (item.countedQuantity !== null && item.countedQuantity !== item.expectedQuantity) {
+        // Process each audit item
+        for (const item of allAuditItems) {
+          // If item was never counted, assume expected quantity as counted quantity
+          const countedQuantity = item.countedQuantity !== null ? item.countedQuantity : item.expectedQuantity;
+          const variance = countedQuantity - item.expectedQuantity;
+
+          // Determine the final status
+          let finalStatus: string;
+          if (item.countedQuantity === null) {
+            // Item was never counted, mark as counted with no variance
+            finalStatus = "COUNTED";
+          } else if (variance !== 0) {
+            // Item has variance, mark as reconciled
+            finalStatus = "RECONCILED";
+          } else {
+            // Item was counted with no variance
+            finalStatus = "COUNTED";
+          }
+
+          // Update audit item with final status and quantities
+          await tx.auditItem.update({
+            where: {
+              id: item.id,
+            },
+            data: {
+              countedQuantity: countedQuantity,
+              discrepancy: variance,
+              status: finalStatus,
+              countedAt: item.countedAt || new Date(),
+              countedById: item.countedById || session.user.id,
+            },
+          });
+
+          // Only update inventory and create transactions for items with actual changes
+          if (item.countedQuantity !== null && variance !== 0) {
             // Update inventory item quantity
             await tx.inventoryItem.update({
               where: {
                 id: item.inventoryItemId,
               },
               data: {
-                quantity: item.countedQuantity,
-                status: item.countedQuantity > 0 ? InventoryStatus.AVAILABLE : InventoryStatus.EXPIRED,
+                quantity: countedQuantity,
+                status: countedQuantity > 0 ? InventoryStatus.AVAILABLE : InventoryStatus.EXPIRED,
               },
             });
 
@@ -213,28 +250,28 @@ export async function PUT(
             try {
               await tx.$queryRaw`
                 INSERT INTO "InventoryTransaction" (
-                  "id", 
-                  "inventoryItemId", 
-                  "transactionType", 
-                  "quantity", 
-                  "previousQuantity", 
-                  "newQuantity", 
-                  "reason", 
-                  "notes", 
-                  "createdById", 
-                  "createdAt", 
+                  "id",
+                  "inventoryItemId",
+                  "transactionType",
+                  "quantity",
+                  "previousQuantity",
+                  "newQuantity",
+                  "reason",
+                  "notes",
+                  "createdById",
+                  "createdAt",
                   "updatedAt"
                 ) VALUES (
-                  ${crypto.randomUUID()}, 
-                  ${item.inventoryItemId}, 
-                  'AUDIT_ADJUSTMENT', 
-                  ${Math.abs(item.countedQuantity - item.expectedQuantity)}, 
-                  ${item.expectedQuantity}, 
-                  ${item.countedQuantity}, 
-                  'AUDIT', 
-                  ${'Audit adjustment from audit ' + audit.referenceNumber}, 
-                  ${session.user.id}, 
-                  ${new Date()}, 
+                  ${crypto.randomUUID()},
+                  ${item.inventoryItemId},
+                  'AUDIT_ADJUSTMENT',
+                  ${Math.abs(variance)},
+                  ${item.expectedQuantity},
+                  ${countedQuantity},
+                  'AUDIT',
+                  ${'Audit adjustment from audit ' + audit.referenceNumber},
+                  ${session.user.id},
+                  ${new Date()},
                   ${new Date()}
                 )
               `;
@@ -242,17 +279,6 @@ export async function PUT(
               console.error("Failed to create inventory transaction:", error);
               // Continue with the rest of the process even if transaction creation fails
             }
-
-            // Update audit item status
-            await tx.auditItem.update({
-              where: {
-                id: item.id,
-              },
-              data: {
-                status: "RECONCILED",
-                discrepancy: item.countedQuantity - item.expectedQuantity,
-              },
-            });
           }
         }
 
@@ -266,6 +292,35 @@ export async function PUT(
               endDate: new Date(),
             },
           });
+        }
+      }
+
+      // Fix for existing completed audits: if audit is already completed but items have wrong status
+      if (status === "COMPLETED" && existingAudit.status === "COMPLETED") {
+        // Check if any items have PENDING status
+        const pendingItems = await tx.auditItem.findMany({
+          where: {
+            auditId,
+            status: "PENDING",
+          },
+        });
+
+        // If there are pending items in a completed audit, fix them
+        if (pendingItems.length > 0) {
+          for (const item of pendingItems) {
+            await tx.auditItem.update({
+              where: {
+                id: item.id,
+              },
+              data: {
+                countedQuantity: item.expectedQuantity,
+                discrepancy: 0,
+                status: "COUNTED",
+                countedAt: new Date(),
+                countedById: session.user.id,
+              },
+            });
+          }
         }
       }
 

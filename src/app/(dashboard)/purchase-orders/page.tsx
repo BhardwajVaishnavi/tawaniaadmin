@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { format } from "date-fns";
 import { PurchaseOrderFilters } from "./_components/purchase-order-filters";
+import { StatusDropdown } from "./_components/status-dropdown";
 
 // Define interfaces for type safety
 interface PurchaseOrder {
@@ -14,22 +15,25 @@ interface PurchaseOrder {
   status: string;
   createdAt: Date;
   total?: number;
+  totalAmount?: number;
   supplierName: string;
   items?: Array<any>;
+  itemCount?: number;
 }
 
 export default async function PurchaseOrdersPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const session = await getServerSession(authOptions);
+  const resolvedSearchParams = await searchParams;
 
-  // Use default values for search parameters
-  const supplierId = undefined;
-  const status = undefined;
-  const search = undefined;
-  const page = 1;
+  // Parse search parameters
+  const supplierId = resolvedSearchParams.supplier as string | undefined;
+  const status = resolvedSearchParams.status as string | undefined;
+  const search = resolvedSearchParams.search as string | undefined;
+  const page = parseInt(resolvedSearchParams.page as string || "1");
   const pageSize = 10;
 
   // Build query filters
@@ -66,9 +70,17 @@ export default async function PurchaseOrdersPage({
           po.status,
           po."createdAt",
           po."totalAmount" as total,
-          s.name as "supplierName"
+          s.name as "supplierName",
+          COALESCE(item_counts.item_count, 0) as "itemCount"
         FROM "PurchaseOrder" po
         JOIN "Supplier" s ON po."supplierId" = s.id
+        LEFT JOIN (
+          SELECT
+            "purchaseOrderId",
+            COUNT(*) as item_count
+          FROM "PurchaseOrderItem"
+          GROUP BY "purchaseOrderId"
+        ) item_counts ON po.id = item_counts."purchaseOrderId"
         WHERE 1=1
         ${supplierId ? Prisma.sql`AND po."supplierId" = ${supplierId}` : Prisma.empty}
         ${status ? Prisma.sql`AND po.status = ${status}` : Prisma.empty}
@@ -134,7 +146,7 @@ export default async function PurchaseOrdersPage({
       />
 
       <div className="rounded-lg bg-white shadow-md">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-visible">
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-800">
@@ -165,15 +177,16 @@ export default async function PurchaseOrdersPage({
                       </Link>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
-                      {order.items?.length || 0}
+                      {order.itemCount || 0}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
                       ${(order.totalAmount || order.total || 0).toFixed(2)}
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm">
-                      <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusClass(order.status)}`}>
-                        {formatStatus(order.status)}
-                      </span>
+                    <td className="relative px-6 py-4 text-sm">
+                      <StatusDropdown
+                        orderId={order.id}
+                        currentStatus={order.status}
+                      />
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm">
                       <div className="flex items-center gap-2">
@@ -198,7 +211,7 @@ export default async function PurchaseOrdersPage({
                             </svg>
                           </Link>
                         )}
-                        {(order.status === "ORDERED" || order.status === "PARTIAL") && (
+                        {(order.status === "ORDERED" || order.status === "PARTIALLY_RECEIVED") && (
                           <Link
                             href={`/purchase-orders/${order.id}/receive`}
                             className="rounded bg-purple-50 p-1 text-purple-600 hover:bg-purple-100"
@@ -232,7 +245,7 @@ export default async function PurchaseOrdersPage({
                 href={{
                   pathname: '/purchase-orders',
                   query: {
-                    ...searchParams,
+                    ...resolvedSearchParams,
                     page: page > 1 ? page - 1 : 1,
                   },
                 }}
@@ -244,7 +257,7 @@ export default async function PurchaseOrdersPage({
                 href={{
                   pathname: '/purchase-orders',
                   query: {
-                    ...searchParams,
+                    ...resolvedSearchParams,
                     page: page < totalPages ? page + 1 : totalPages,
                   },
                 }}
@@ -269,7 +282,7 @@ export default async function PurchaseOrdersPage({
                     href={{
                       pathname: '/purchase-orders',
                       query: {
-                        ...searchParams,
+                        ...resolvedSearchParams,
                         page: page > 1 ? page - 1 : 1,
                       },
                     }}
@@ -288,7 +301,7 @@ export default async function PurchaseOrdersPage({
                         href={{
                           pathname: '/purchase-orders',
                           query: {
-                            ...searchParams,
+                            ...resolvedSearchParams,
                             page: pageNum,
                           },
                         }}
@@ -306,7 +319,7 @@ export default async function PurchaseOrdersPage({
                     href={{
                       pathname: '/purchase-orders',
                       query: {
-                        ...searchParams,
+                        ...resolvedSearchParams,
                         page: page < totalPages ? page + 1 : totalPages,
                       },
                     }}
@@ -331,11 +344,13 @@ function getStatusClass(status: string): string {
   switch (status) {
     case "DRAFT":
       return "bg-gray-100 text-gray-800";
-    case "PENDING":
+    case "SUBMITTED":
       return "bg-yellow-100 text-yellow-800";
-    case "ORDERED":
+    case "APPROVED":
       return "bg-blue-100 text-blue-800";
-    case "PARTIAL":
+    case "ORDERED":
+      return "bg-indigo-100 text-indigo-800";
+    case "PARTIALLY_RECEIVED":
       return "bg-purple-100 text-purple-800";
     case "RECEIVED":
       return "bg-green-100 text-green-800";
@@ -350,11 +365,13 @@ function formatStatus(status: string): string {
   switch (status) {
     case "DRAFT":
       return "Draft";
-    case "PENDING":
-      return "Pending";
+    case "SUBMITTED":
+      return "Submitted";
+    case "APPROVED":
+      return "Approved";
     case "ORDERED":
       return "Ordered";
-    case "PARTIAL":
+    case "PARTIALLY_RECEIVED":
       return "Partially Received";
     case "RECEIVED":
       return "Received";

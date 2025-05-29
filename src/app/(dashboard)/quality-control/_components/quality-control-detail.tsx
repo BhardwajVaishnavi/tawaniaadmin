@@ -23,32 +23,14 @@ export function QualityControlDetail({ id }: QualityControlDetailProps) {
 
       try {
         // Fetch from API
-        try {
-          const response = await fetch(`/api/quality-control/${id}`);
+        const response = await fetch(`/api/quality-control/${id}`);
 
-          if (!response.ok) {
-            throw new Error("Failed to fetch quality control");
-          }
-
-          const data = await response.json();
-          setQualityControl(data);
-        } catch (apiError) {
-          console.error("API Error:", apiError);
-
-          // Create a fallback quality control object
-          const fallbackQC = {
-            id: id,
-            referenceNumber: `QC-${id.substring(0, 8)}`,
-            type: "RECEIVING",
-            status: "PENDING",
-            inspectionDate: new Date().toISOString(),
-            warehouse: { id: "wh-001", name: "Main Warehouse" },
-            inspectedBy: { id: "user-001", name: "System User" },
-            items: []
-          };
-
-          setQualityControl(fallbackQC);
+        if (!response.ok) {
+          throw new Error("Failed to fetch quality control");
         }
+
+        const data = await response.json();
+        setQualityControl(data);
       } catch (err) {
         console.error("Error in fetchQualityControl:", err);
         setError("Failed to load quality control details. Please try again.");
@@ -78,12 +60,39 @@ export function QualityControlDetail({ id }: QualityControlDetailProps) {
     );
   }
 
+  // Helper function to safely format dates
+  const formatSafeDate = (dateValue: any, formatString: string = "MMMM d, yyyy") => {
+    try {
+      if (!dateValue) {
+        return "Not specified";
+      }
+
+      const date = new Date(dateValue);
+
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        return "Invalid date";
+      }
+
+      return format(date, formatString);
+    } catch (error) {
+      console.error("Date formatting error:", error);
+      return "Invalid date";
+    }
+  };
+
   // Helper function to get status badge
   const getStatusBadge = (status: string) => {
+    // Handle undefined or null status
+    if (!status) {
+      status = "UNKNOWN";
+    }
+
     const statusClasses: any = {
       PENDING: "bg-yellow-100 text-yellow-800",
       COMPLETED: "bg-green-100 text-green-800",
       CANCELLED: "bg-red-100 text-red-800",
+      UNKNOWN: "bg-gray-100 text-gray-800",
     };
 
     return (
@@ -95,11 +104,17 @@ export function QualityControlDetail({ id }: QualityControlDetailProps) {
 
   // Helper function to get item status badge
   const getItemStatusBadge = (status: string) => {
+    // Handle undefined or null status
+    if (!status) {
+      status = "UNKNOWN";
+    }
+
     const statusClasses: any = {
       PENDING: "bg-yellow-100 text-yellow-800",
       PASSED: "bg-green-100 text-green-800",
       FAILED: "bg-red-100 text-red-800",
       PARTIALLY_PASSED: "bg-orange-100 text-orange-800",
+      UNKNOWN: "bg-gray-100 text-gray-800",
     };
 
     return (
@@ -119,7 +134,7 @@ export function QualityControlDetail({ id }: QualityControlDetailProps) {
           <div className="mt-1 flex items-center gap-2">
             {getStatusBadge(qualityControl.status)}
             <span className="text-sm text-gray-500">
-              Inspected on {format(new Date(qualityControl.inspectionDate), "MMMM d, yyyy")}
+              Inspected on {formatSafeDate(qualityControl.inspectionDate)}
             </span>
           </div>
         </div>
@@ -159,7 +174,7 @@ export function QualityControlDetail({ id }: QualityControlDetailProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-medium text-gray-500">Inspection Date</p>
-                <p className="text-gray-800">{format(new Date(qualityControl.inspectionDate), "MMMM d, yyyy")}</p>
+                <p className="text-gray-800">{formatSafeDate(qualityControl.inspectionDate)}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">Inspected By</p>

@@ -5,11 +5,11 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -17,7 +17,8 @@ export async function GET(
       );
     }
 
-    const purchaseOrderId = params.id;
+    const resolvedParams = await params;
+    const purchaseOrderId = resolvedParams.id;
 
     // Get purchase order
     const purchaseOrder = await prisma.purchaseOrder.findUnique({
@@ -48,7 +49,6 @@ export async function GET(
       },
       data: {
         status: "CANCELLED",
-        updatedById: session.user.id,
       },
     });
 
@@ -65,11 +65,11 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -77,7 +77,8 @@ export async function POST(
       );
     }
 
-    const purchaseOrderId = params.id;
+    const resolvedParams = await params;
+    const purchaseOrderId = resolvedParams.id;
 
     // Get purchase order
     const purchaseOrder = await prisma.purchaseOrder.findUnique({
@@ -108,7 +109,6 @@ export async function POST(
       },
       data: {
         status: "CANCELLED",
-        updatedById: session.user.id,
       },
       include: {
         supplier: true,
@@ -121,9 +121,9 @@ export async function POST(
       },
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       purchaseOrder: updatedOrder,
-      message: "Purchase order cancelled successfully" 
+      message: "Purchase order cancelled successfully"
     });
   } catch (error) {
     console.error("Error cancelling purchase order:", error);

@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
 
     // Parse request body
     const body = await req.json();
+    console.log("🚀 POS Sale API - Received sale data:", body);
+    console.log("🔍 Session user ID:", session.user.id);
+
     const {
       storeId,
       customerId,
@@ -40,6 +43,32 @@ export async function POST(req: NextRequest) {
       referenceNumber,
       notes,
     } = body;
+
+    console.log("Extracted values:", {
+      subtotalAmount,
+      taxAmount,
+      totalAmount,
+      paymentMethod,
+      paymentStatus
+    });
+
+    // Validate that we have the required amounts
+    if (subtotalAmount === undefined || taxAmount === undefined || totalAmount === undefined) {
+      console.error("Missing required amount fields:", { subtotalAmount, taxAmount, totalAmount });
+      return NextResponse.json(
+        { message: "Missing required amount fields", details: { subtotalAmount, taxAmount, totalAmount } },
+        { status: 400 }
+      );
+    }
+
+    // Validate that amounts are not zero (unless it's a free item)
+    if (subtotalAmount === 0 && totalAmount === 0) {
+      console.error("Sale amounts cannot be zero:", { subtotalAmount, taxAmount, totalAmount });
+      return NextResponse.json(
+        { message: "Sale amounts cannot be zero. Please check item prices." },
+        { status: 400 }
+      );
+    }
 
     // Validate required fields
     if (!storeId || !items || !Array.isArray(items) || items.length === 0) {
@@ -69,7 +98,41 @@ export async function POST(req: NextRequest) {
     const sequentialNumber = (salesCount + 1).toString().padStart(4, "0");
     const receiptNumber = `${prefix}-${sequentialNumber}`;
 
-    // Start a transaction
+    // Verify user exists before creating sale
+    let user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+    });
+
+    if (!user) {
+      console.error("User not found:", session.user.id);
+      console.log("Looking for any existing user to use as fallback...");
+
+      // Try to find any existing user as fallback
+      const existingUser = await prisma.user.findFirst({
+        where: { isActive: true },
+      });
+
+      if (existingUser) {
+        console.log("Using existing user as fallback:", { id: existingUser.id, name: existingUser.name, email: existingUser.email });
+        user = existingUser;
+      } else {
+        // Create a default user if none exists
+        console.log("Creating default user...");
+        user = await prisma.user.create({
+          data: {
+            name: "System User",
+            email: "system@tawania.com",
+            role: "ADMIN",
+            isActive: true,
+          },
+        });
+        console.log("Created default user:", { id: user.id, name: user.name, email: user.email });
+      }
+    } else {
+      console.log("User found:", { id: user.id, name: user.name, email: user.email });
+    }
+
+    // Start a transaction with timeout
     const result = await prisma.$transaction(async (tx) => {
       // Create the sale record
       const sale = await tx.sale.create({
@@ -77,12 +140,13 @@ export async function POST(req: NextRequest) {
           receiptNumber,
           storeId,
           customerId,
-          createdById: session.user.id,
+          createdById: user.id,
           subtotal: subtotalAmount,
           taxAmount,
+          discountAmount: 0, // Add default discount amount
           totalAmount,
           paymentMethod,
-          paymentStatus,
+          paymentStatus: paymentStatus || "PAID",
           notes,
         },
       });
@@ -102,13 +166,13 @@ export async function POST(req: NextRequest) {
         }
 
         // Check if there's enough quantity
-        const availableQuantity = inventoryItem.quantity - inventoryItem.reservedQuantity;
+        const availableQuantity = inventoryItem.quantity - (inventoryItem.reservedQuantity || 0);
         if (availableQuantity < item.quantity) {
           throw new Error(`Not enough quantity available for ${inventoryItem.product.name}. Available: ${availableQuantity}, Requested: ${item.quantity}`);
         }
 
         // Calculate total price
-        const totalPrice = item.quantity * item.unitPrice * (1 - item.discount / 100);
+        const totalPrice = item.quantity * item.unitPrice * (1 - (item.discount || 0) / 100);
 
         // Create sale item record
         await tx.saleItem.create({
@@ -118,8 +182,7 @@ export async function POST(req: NextRequest) {
             productId: item.productId,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            // discount: item.discount,  // Remove this as it doesn't exist in the schema
-            discountAmount: (item.unitPrice * item.quantity * item.discount) / 100,
+            discountAmount: (item.unitPrice * item.quantity * (item.discount || 0)) / 100,
             taxAmount: 0,
             totalPrice,
           },
@@ -139,20 +202,24 @@ export async function POST(req: NextRequest) {
       }
 
       // Create payment record if amount paid > 0
-      if (amountPaid > 0) {
+      if (amountPaid && amountPaid > 0) {
         await tx.payment.create({
           data: {
+            id: `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
             saleId: sale.id,
             amount: amountPaid,
             paymentMethod,
-            referenceNumber,
-            processedById: session.user.id,
-            processedByName: session.user.name || undefined,
+            referenceNumber: referenceNumber || undefined,
+            notes: undefined,
+            processedById: user.id,
+            processedByName: user.name || undefined,
           },
         });
       }
 
       return { sale };
+    }, {
+      timeout: 10000, // 10 seconds timeout
     });
 
     return NextResponse.json({

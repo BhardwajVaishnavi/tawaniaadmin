@@ -7,27 +7,28 @@ import { redirect } from "next/navigation";
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const session = await getServerSession(authOptions);
-  
+
   if (!session) {
     redirect("/auth/signin");
   }
-  
+
   // Parse search parameters
-  const storeId = searchParams.store as string | undefined;
-  const search = searchParams.search as string | undefined;
-  const page = parseInt(searchParams.page as string || "1");
+  const params = await searchParams;
+  const storeId = params.store as string | undefined;
+  const search = params.search as string | undefined;
+  const page = parseInt(params.page as string || "1");
   const pageSize = 10;
-  
+
   // Build query filters
   const filters: any = {};
-  
+
   if (storeId) {
     filters.storeId = storeId;
   }
-  
+
   if (search) {
     filters.product = {
       OR: [
@@ -37,7 +38,7 @@ export default async function InventoryPage({
       ],
     };
   }
-  
+
   // Get inventory items with pagination
   const [inventoryItems, totalItems, stores] = await Promise.all([
     prisma.inventoryItem.findMany({
@@ -61,9 +62,9 @@ export default async function InventoryPage({
       orderBy: { name: 'asc' },
     }),
   ]);
-  
+
   const totalPages = Math.ceil(totalItems / pageSize);
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -77,7 +78,7 @@ export default async function InventoryPage({
           </Link>
         </div>
       </div>
-      
+
       <div className="rounded-lg bg-white p-4 shadow-md">
         <form className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
@@ -99,7 +100,7 @@ export default async function InventoryPage({
                 ))}
               </select>
             </div>
-            
+
             <div>
               <label htmlFor="search" className="mb-1 block text-sm font-medium text-gray-800">
                 Search
@@ -114,7 +115,7 @@ export default async function InventoryPage({
               />
             </div>
           </div>
-          
+
           <div className="flex justify-end">
             <button
               type="submit"
@@ -125,7 +126,7 @@ export default async function InventoryPage({
           </div>
         </form>
       </div>
-      
+
       <div className="rounded-lg bg-white shadow-md">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -147,7 +148,7 @@ export default async function InventoryPage({
                   // Calculate stock status
                   let stockStatus = "Available";
                   let statusColor = "bg-green-100 text-green-800";
-                  
+
                   if (item.quantity <= 0) {
                     stockStatus = "Out of Stock";
                     statusColor = "bg-red-100 text-red-800";
@@ -155,7 +156,7 @@ export default async function InventoryPage({
                     stockStatus = "Low Stock";
                     statusColor = "bg-yellow-100 text-yellow-800";
                   }
-                  
+
                   return (
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-blue-600">
@@ -219,7 +220,7 @@ export default async function InventoryPage({
             </tbody>
           </table>
         </div>
-        
+
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
@@ -228,7 +229,7 @@ export default async function InventoryPage({
                 href={{
                   pathname: '/inventory',
                   query: {
-                    ...searchParams,
+                    ...params,
                     page: page > 1 ? page - 1 : 1,
                   },
                 }}
@@ -240,7 +241,7 @@ export default async function InventoryPage({
                 href={{
                   pathname: '/inventory',
                   query: {
-                    ...searchParams,
+                    ...params,
                     page: page < totalPages ? page + 1 : totalPages,
                   },
                 }}
@@ -265,7 +266,7 @@ export default async function InventoryPage({
                     href={{
                       pathname: '/inventory',
                       query: {
-                        ...searchParams,
+                        ...params,
                         page: page > 1 ? page - 1 : 1,
                       },
                     }}
@@ -284,7 +285,7 @@ export default async function InventoryPage({
                         href={{
                           pathname: '/inventory',
                           query: {
-                            ...searchParams,
+                            ...params,
                             page: pageNum,
                           },
                         }}
@@ -302,7 +303,7 @@ export default async function InventoryPage({
                     href={{
                       pathname: '/inventory',
                       query: {
-                        ...searchParams,
+                        ...params,
                         page: page < totalPages ? page + 1 : totalPages,
                       },
                     }}

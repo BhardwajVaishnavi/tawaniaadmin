@@ -5,11 +5,11 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -17,7 +17,8 @@ export async function GET(
       );
     }
 
-    const purchaseOrderId = params.id;
+    const resolvedParams = await params;
+    const purchaseOrderId = resolvedParams.id;
 
     // Get purchase order
     const purchaseOrder = await prisma.purchaseOrder.findUnique({
@@ -30,20 +31,6 @@ export async function GET(
         items: {
           include: {
             product: true,
-          },
-        },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        updatedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
           },
         },
       },
@@ -68,11 +55,11 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -80,9 +67,10 @@ export async function PUT(
       );
     }
 
-    const purchaseOrderId = params.id;
+    const resolvedParams = await params;
+    const purchaseOrderId = resolvedParams.id;
     const data = await req.json();
-    
+
     // Check if purchase order exists
     const existingOrder = await prisma.purchaseOrder.findUnique({
       where: {
@@ -109,11 +97,11 @@ export async function PUT(
     }
 
     // Extract data
-    const { 
-      supplierId, 
-      warehouseId, 
-      expectedDeliveryDate, 
-      notes, 
+    const {
+      supplierId,
+      warehouseId,
+      expectedDeliveryDate,
+      notes,
       items,
       status,
       shipping,
@@ -130,23 +118,23 @@ export async function PUT(
             purchaseOrderId,
           },
         });
-        
+
         // Calculate totals
         let subtotal = 0;
         let totalTax = 0;
         let totalDiscount = 0;
-        
+
         // Create new items
         const orderItems = items.map((item: any) => {
           const itemSubtotal = item.unitPrice * item.orderedQuantity;
           const itemTax = (item.tax || 0);
           const itemDiscount = (item.discount || 0);
           const itemTotal = itemSubtotal + itemTax - itemDiscount;
-          
+
           subtotal += itemSubtotal;
           totalTax += itemTax;
           totalDiscount += itemDiscount;
-          
+
           return {
             purchaseOrderId,
             productId: item.productId,
@@ -161,17 +149,17 @@ export async function PUT(
             notes: item.notes,
           };
         });
-        
+
         // Create new items
         await tx.purchaseOrderItem.createMany({
           data: orderItems,
         });
-        
+
         // Calculate final total
         const shippingAmount = shipping || 0;
         const discountAmount = discount || totalDiscount;
         const total = subtotal + totalTax + shippingAmount - discountAmount;
-        
+
         // Update purchase order
         const updatedOrder = await tx.purchaseOrder.update({
           where: {
@@ -184,11 +172,8 @@ export async function PUT(
             notes: notes !== undefined ? notes : undefined,
             status: status || undefined,
             subtotal,
-            tax: totalTax,
-            shipping: shippingAmount,
-            discount: discountAmount,
-            total,
-            updatedById: session.user.id,
+            taxAmount: totalTax,
+            totalAmount: total,
           },
           include: {
             supplier: true,
@@ -200,7 +185,7 @@ export async function PUT(
             },
           },
         });
-        
+
         return updatedOrder;
       } else {
         // Update purchase order without changing items
@@ -214,9 +199,6 @@ export async function PUT(
             expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : undefined,
             notes: notes !== undefined ? notes : undefined,
             status: status || undefined,
-            shipping: shipping !== undefined ? shipping : undefined,
-            discount: discount !== undefined ? discount : undefined,
-            updatedById: session.user.id,
           },
           include: {
             supplier: true,
@@ -228,30 +210,10 @@ export async function PUT(
             },
           },
         });
-        
-        // If shipping or discount changed, recalculate total
-        if (shipping !== undefined || discount !== undefined) {
-          const total = updatedOrder.subtotal + updatedOrder.tax + updatedOrder.shipping - updatedOrder.discount;
-          
-          return await tx.purchaseOrder.update({
-            where: {
-              id: purchaseOrderId,
-            },
-            data: {
-              total,
-            },
-            include: {
-              supplier: true,
-              warehouse: true,
-              items: {
-                include: {
-                  product: true,
-                },
-              },
-            },
-          });
-        }
-        
+
+        // Note: shipping, discount, and total fields don't exist in schema
+        // The schema only has subtotal, taxAmount, and totalAmount
+
         return updatedOrder;
       }
     });
@@ -268,11 +230,11 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -280,7 +242,8 @@ export async function DELETE(
       );
     }
 
-    const purchaseOrderId = params.id;
+    const resolvedParams = await params;
+    const purchaseOrderId = resolvedParams.id;
 
     // Check if purchase order exists
     const existingOrder = await prisma.purchaseOrder.findUnique({
@@ -299,7 +262,7 @@ export async function DELETE(
     // Only allow deletion of draft orders
     if (existingOrder.status !== "DRAFT") {
       return NextResponse.json(
-        { 
+        {
           error: "Only draft orders can be deleted. Consider cancelling the order instead.",
           suggestion: "Use PUT to update the status to CANCELLED"
         },

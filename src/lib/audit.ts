@@ -19,7 +19,7 @@ export async function createAuditLog({
 }: AuditLogParams) {
   try {
     const session = await getServerSession(authOptions);
-    const headersList = headers();
+    const headersList = await headers();
     const ipAddress = headersList.get('x-forwarded-for') || 'unknown';
     const userAgent = headersList.get('user-agent') || 'unknown';
 
@@ -28,6 +28,7 @@ export async function createAuditLog({
 
     await prisma.auditLog.create({
       data: {
+        id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         entityType,
         entityId,
         action,

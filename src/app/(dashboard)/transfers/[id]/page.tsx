@@ -19,9 +19,9 @@ export default async function TransferDetailPage({
   const transfer = await prisma.transfer.findUnique({
     where: { id: transferId },
     include: {
-      fromWarehouse: true,
-      toWarehouse: true,
-      toStore: true,
+      Warehouse_Transfer_fromWarehouseIdToWarehouse: true,
+      Warehouse_Transfer_toWarehouseIdToWarehouse: true,
+      Store_Transfer_toStoreIdToStore: true,
       items: {
         include: {
           product: {
@@ -80,20 +80,20 @@ export default async function TransferDetailPage({
                 <h3 className="text-sm font-medium text-gray-500">From Warehouse</h3>
                 <p className="mt-1 text-base text-gray-900">
                   <Link href={`/warehouses/${transfer.fromWarehouseId}`} className="text-blue-600 hover:underline">
-                    {transfer.fromWarehouse?.name}
+                    {transfer.Warehouse_Transfer_fromWarehouseIdToWarehouse?.name || 'Unknown Warehouse'}
                   </Link>
                 </p>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Destination</h3>
                 <p className="mt-1 text-base text-gray-900">
-                  {transfer.toWarehouse ? (
+                  {transfer.Warehouse_Transfer_toWarehouseIdToWarehouse ? (
                     <Link href={`/warehouses/${transfer.toWarehouseId}`} className="text-blue-600 hover:underline">
-                      {transfer.toWarehouse.name}
+                      {transfer.Warehouse_Transfer_toWarehouseIdToWarehouse.name}
                     </Link>
-                  ) : transfer.toStore ? (
+                  ) : transfer.Store_Transfer_toStoreIdToStore ? (
                     <Link href={`/stores/${transfer.toStoreId}`} className="text-blue-600 hover:underline">
-                      {transfer.toStore.name}
+                      {transfer.Store_Transfer_toStoreIdToStore.name}
                     </Link>
                   ) : (
                     "N/A"

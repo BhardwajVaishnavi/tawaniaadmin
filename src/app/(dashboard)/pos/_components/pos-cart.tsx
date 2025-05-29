@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCurrency } from "@/lib/utils";
+
 interface CartItem {
   inventoryItemId: string;
   productId: string;
@@ -53,7 +55,7 @@ export function POSCart({
           </div>
         </div>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto p-4">
         {items.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center">
@@ -80,7 +82,7 @@ export function POSCart({
                     </svg>
                   </button>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <button
@@ -106,13 +108,13 @@ export function POSCart({
                     </button>
                     <span className="ml-2 text-sm text-gray-800">{item.unit}</span>
                   </div>
-                  
+
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">${item.totalPrice.toFixed(2)}</p>
-                    <p className="text-xs text-gray-800">${item.unitPrice.toFixed(2)} each</p>
+                    <p className="text-sm font-medium text-gray-900">{formatCurrency(item.totalPrice)}</p>
+                    <p className="text-xs text-gray-800">{formatCurrency(item.unitPrice)} each</p>
                   </div>
                 </div>
-                
+
                 <div className="mt-2 flex items-center">
                   <label htmlFor={`discount-${index}`} className="mr-2 text-xs text-gray-800">
                     Discount:
@@ -127,10 +129,10 @@ export function POSCart({
                     className="w-16 rounded-md border border-gray-300 py-1 text-center text-sm"
                   />
                   <span className="ml-1 text-xs text-gray-800">%</span>
-                  
+
                   {item.discount > 0 && (
                     <span className="ml-2 text-xs text-green-600">
-                      Save ${(item.quantity * item.unitPrice * (item.discount / 100)).toFixed(2)}
+                      Save {formatCurrency(item.quantity * item.unitPrice * (item.discount / 100))}
                     </span>
                   )}
                 </div>
@@ -139,23 +141,23 @@ export function POSCart({
           </div>
         )}
       </div>
-      
+
       <div className="border-t border-gray-200 bg-white p-4">
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-800">Subtotal</span>
-            <span className="font-medium">${subtotal.toFixed(2)}</span>
+            <span className="font-medium">{formatCurrency(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-800">Tax ({taxRate}%)</span>
-            <span className="font-medium">${taxAmount.toFixed(2)}</span>
+            <span className="font-medium">{formatCurrency(taxAmount)}</span>
           </div>
           <div className="flex justify-between border-t border-gray-200 pt-2 text-base font-bold">
             <span>Total</span>
-            <span>${total.toFixed(2)}</span>
+            <span>{formatCurrency(total)}</span>
           </div>
         </div>
-        
+
         <button
           onClick={onCheckout}
           disabled={items.length === 0}

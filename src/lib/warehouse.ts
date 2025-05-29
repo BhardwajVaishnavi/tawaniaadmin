@@ -14,7 +14,7 @@ export const getWarehouses = cache(async () => {
         name: "asc",
       },
     });
-    
+
     return warehouses;
   } catch (error) {
     console.error("Error fetching warehouses:", error);
@@ -35,7 +35,7 @@ export const getWarehouse = cache(async (id: string) => {
         zones: true,
       },
     });
-    
+
     return warehouse;
   } catch (error) {
     console.error(`Error fetching warehouse with ID ${id}:`, error);
@@ -80,7 +80,7 @@ export const getWarehouseInventory = cache(async (warehouseId: string) => {
         },
       },
     });
-    
+
     return inventory;
   } catch (error) {
     console.error(`Error fetching inventory for warehouse ${warehouseId}:`, error);
@@ -93,31 +93,17 @@ export const getWarehouseInventory = cache(async (warehouseId: string) => {
  */
 export const getLowStockItems = cache(async (warehouseId: string) => {
   try {
-    const lowStockItems = await prisma.inventoryItem.findMany({
-      where: {
-        warehouseId,
-        product: {
-          reorderPoint: {
-            gt: 0,
-          },
-        },
-        quantity: {
-          lte: prisma.product.fields.reorderPoint,
-        },
-      },
-      include: {
-        product: {
-          include: {
-            supplier: true,
-            category: true,
-          },
-        },
-      },
-      orderBy: {
-        quantity: "asc",
-      },
-    });
-    
+    // Use raw query to compare quantity with reorderPoint from related product
+    const lowStockItems = await prisma.$queryRaw`
+      SELECT i.*, p.name as productName, p.reorderPoint
+      FROM "InventoryItem" i
+      JOIN "Product" p ON i."productId" = p.id
+      WHERE i."warehouseId" = ${warehouseId}
+        AND p."reorderPoint" > 0
+        AND i.quantity <= p."reorderPoint"
+      ORDER BY i.quantity ASC
+    ` as any[];
+
     return lowStockItems;
   } catch (error) {
     console.error(`Error fetching low stock items for warehouse ${warehouseId}:`, error);
@@ -149,7 +135,7 @@ export const getWarehouseZones = cache(async (warehouseId: string) => {
         name: "asc",
       },
     });
-    
+
     return zones;
   } catch (error) {
     console.error(`Error fetching zones for warehouse ${warehouseId}:`, error);

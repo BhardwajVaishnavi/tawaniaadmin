@@ -18,7 +18,8 @@ export async function GET(
       );
     }
 
-    const auditId = params.id;
+    // Await params to fix Next.js error
+    const { id: auditId } = await params;
 
     // Parse query parameters
     const url = new URL(req.url);
@@ -103,21 +104,6 @@ export async function GET(
       },
       orderBy: [
         {
-          inventoryItem: {
-            bin: {
-              shelf: {
-                aisle: {
-                  zone: {
-                    name: "asc",
-                  },
-                },
-                name: "asc",
-              },
-              name: "asc",
-            },
-          },
-        },
-        {
           product: {
             name: "asc",
           },
@@ -149,7 +135,8 @@ export async function PUT(
       );
     }
 
-    const auditId = params.id;
+    // Await params to fix Next.js error
+    const { id: auditId } = await params;
     const data = await req.json();
     const { items } = data;
 

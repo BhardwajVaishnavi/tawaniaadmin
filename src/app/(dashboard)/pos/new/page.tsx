@@ -145,6 +145,9 @@ export default async function NewPOSPage({
           storeId: true,
           productId: true,
           quantity: true,
+          reservedQuantity: true,
+          costPrice: true,
+          retailPrice: true,
           status: true,
           product: {
             select: {
@@ -152,15 +155,9 @@ export default async function NewPOSPage({
               name: true,
               sku: true,
               description: true,
-              // Removed price field which doesn't exist in schema
-              retailPrice: true,
-              costPrice: true,
-              category: {
-                select: {
-                  id: true,
-                  name: true
-                }
-              }
+              unit: true,
+              barcode: true,
+              // Removed category relation to avoid schema issues
             }
           }
         },
@@ -231,8 +228,11 @@ export default async function NewPOSPage({
     (item): item is typeof item & { storeId: string } => item.storeId !== null
   );
 
+
+
   return (
     <div className="h-full">
+
       <POSInterface
         store={store}
         stores={stores}

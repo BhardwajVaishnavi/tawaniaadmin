@@ -21,7 +21,7 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
   const [code, setCode] = useState("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Set initial form values if editing
   useEffect(() => {
     if (initialData) {
@@ -30,38 +30,45 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
       setDescription(initialData.description || "");
     }
   }, [initialData]);
-  
+
   // Generate code from name
   const generateCode = () => {
     if (!name) return;
-    
+
     // Convert name to uppercase and remove special characters
     const generatedCode = name
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, "")
       .substring(0, 6);
-    
+
     setCode(generatedCode);
   };
-  
+
+  // Auto-generate code when name changes (only for new categories)
+  useEffect(() => {
+    if (!initialData && name && !code) {
+      generateCode();
+    }
+  }, [name, initialData, code]);
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!name || !code) {
       alert('Name and code are required');
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       await onSubmit({
         name,
         code,
         description: description || null,
       });
-      
+
       // Reset form
       setName("");
       setCode("");
@@ -72,7 +79,7 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
@@ -89,7 +96,7 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
             required
           />
         </div>
-        
+
         <div>
           <label htmlFor="code" className="mb-1 block text-sm font-medium text-gray-800">
             Category Code *
@@ -103,16 +110,17 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               required
             />
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={generateCode}
-              className="rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200 transition-colors"
             >
               Generate
-            </button>
+            </Button>
           </div>
         </div>
-        
+
         <div className="md:col-span-2">
           <label htmlFor="description" className="mb-1 block text-sm font-medium text-gray-800">
             Description
@@ -126,7 +134,7 @@ export function CategoryForm({ initialData, onSubmit, onCancel }: CategoryFormPr
           />
         </div>
       </div>
-      
+
       <div className="flex justify-end gap-2">
         <Button
           type="button"

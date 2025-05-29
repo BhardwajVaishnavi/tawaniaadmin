@@ -36,6 +36,89 @@ export default function NewStorePage() {
     setCodeError("");
   };
 
+  // Generate store code automatically
+  const generateStoreCode = async (storeName: string) => {
+    if (!storeName) return "";
+
+    // Create base code from store name
+    let baseCode = storeName
+      .toUpperCase()
+      .replace(/[^A-Z0-9\s]/g, '') // Remove special characters
+      .replace(/\s+/g, '_') // Replace spaces with underscores
+      .substring(0, 10); // Limit to 10 characters
+
+    // If the base code is too short, pad it
+    if (baseCode.length < 3) {
+      baseCode = baseCode + "STORE";
+    }
+
+    // Check if this code exists, if so, add numbers
+    let finalCode = baseCode;
+    let counter = 1;
+
+    while (true) {
+      try {
+        const response = await fetch(`/api/stores/check-code?code=${encodeURIComponent(finalCode)}`);
+        const data = await response.json();
+
+        if (!data.exists) {
+          // Code is available
+          return finalCode;
+        } else {
+          // Code exists, try with number suffix
+          finalCode = `${baseCode}_${counter}`;
+          counter++;
+
+          // Prevent infinite loop
+          if (counter > 999) {
+            finalCode = `${baseCode}_${Date.now()}`;
+            break;
+          }
+        }
+      } catch (error) {
+        console.error("Error checking store code:", error);
+        // If there's an error, use timestamp suffix
+        finalCode = `${baseCode}_${Date.now()}`;
+        break;
+      }
+    }
+
+    return finalCode;
+  };
+
+  // Auto-generate code when name changes
+  const handleNameChange = async (newName: string) => {
+    setName(newName);
+
+    // Auto-generate code if code field is empty or was auto-generated
+    if (!code || code.includes('_') || code === code.toUpperCase()) {
+      if (newName.length >= 2) {
+        const generatedCode = await generateStoreCode(newName);
+        setCode(generatedCode);
+        // Check the generated code
+        if (generatedCode) {
+          setTimeout(() => checkStoreCode(generatedCode), 100);
+        }
+      }
+    }
+  };
+
+  // Manual code generation
+  const handleGenerateCode = async () => {
+    if (!name) {
+      setErrorMessage("Please enter a store name first");
+      return;
+    }
+
+    const generatedCode = await generateStoreCode(name);
+    setCode(generatedCode);
+
+    // Check the generated code
+    if (generatedCode) {
+      setTimeout(() => checkStoreCode(generatedCode), 100);
+    }
+  };
+
   // Check if store code already exists
   const checkStoreCode = async (code: string) => {
     if (!code) return;
@@ -287,10 +370,11 @@ export default function NewStorePage() {
                 id="name"
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => handleNameChange(e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 required
                 disabled={storeCreated || isSubmitting}
+                placeholder="Enter store name (code will be auto-generated)"
               />
             </div>
 
@@ -298,30 +382,44 @@ export default function NewStorePage() {
               <label htmlFor="code" className="mb-1 block text-sm font-medium text-gray-800">
                 Store Code *
               </label>
-              <input
-                id="code"
-                type="text"
-                value={code}
-                onChange={(e) => {
-                  setCode(e.target.value);
-                  // Check code after a short delay to avoid too many requests
-                  if (e.target.value) {
-                    setTimeout(() => checkStoreCode(e.target.value), 500);
-                  } else {
-                    setCodeError("");
-                  }
-                }}
-                className={`w-full rounded-md border ${codeError ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                required
-                disabled={storeCreated || isSubmitting}
-              />
+              <div className="flex gap-2">
+                <input
+                  id="code"
+                  type="text"
+                  value={code}
+                  onChange={(e) => {
+                    setCode(e.target.value);
+                    // Check code after a short delay to avoid too many requests
+                    if (e.target.value) {
+                      setTimeout(() => checkStoreCode(e.target.value), 500);
+                    } else {
+                      setCodeError("");
+                    }
+                  }}
+                  className={`flex-1 rounded-md border ${codeError ? 'border-red-500' : 'border-gray-300'} px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                  required
+                  disabled={storeCreated || isSubmitting}
+                  placeholder="Auto-generated from store name"
+                />
+                <button
+                  type="button"
+                  onClick={handleGenerateCode}
+                  disabled={!name || storeCreated || isSubmitting}
+                  className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  title="Generate code from store name"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
               {codeError ? (
                 <p className="mt-1 text-xs text-red-600">
                   {codeError}
                 </p>
               ) : (
-                <p className="mt-1 text-xs text-gray-800">
-                  Unique identifier for the store (e.g., MAIN, BRANCH1)
+                <p className="mt-1 text-xs text-gray-600">
+                  Auto-generated from store name. Click refresh to regenerate or edit manually.
                 </p>
               )}
             </div>

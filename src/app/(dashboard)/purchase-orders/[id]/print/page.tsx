@@ -13,10 +13,8 @@ interface PurchaseOrder {
   orderDate: string;
   expectedDeliveryDate: string | null;
   subtotal: number;
-  tax: number;
-  shipping: number;
-  discount: number;
-  total: number;
+  taxAmount: number;
+  totalAmount: number;
   notes: string | null;
   supplier: {
     id: string;
@@ -48,14 +46,11 @@ interface PurchaseOrder {
       name: string;
       sku: string;
     };
-    description: string | null;
-    orderedQuantity: number;
+    notes: string | null;
+    quantity: number;
     receivedQuantity: number;
     unitPrice: number;
-    discount: number;
-    tax: number;
-    subtotal: number;
-    total: number;
+    totalPrice: number;
   }[];
   createdBy: {
     id: string;
@@ -68,24 +63,34 @@ interface PurchaseOrder {
 export default function PrintPurchaseOrderPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
-  const purchaseOrderId = params.id;
-  
+  const [purchaseOrderId, setPurchaseOrderId] = useState<string | null>(null);
+
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
+  // Resolve params
+  useEffect(() => {
+    const resolveParams = async () => {
+      const resolvedParams = await params;
+      setPurchaseOrderId(resolvedParams.id);
+    };
+    resolveParams();
+  }, [params]);
+
   // Fetch purchase order data
   useEffect(() => {
+    if (!purchaseOrderId) return;
     const fetchPurchaseOrder = async () => {
       try {
         const response = await fetch(`/api/purchase-orders/${purchaseOrderId}`);
         if (!response.ok) {
           throw new Error('Failed to fetch purchase order');
         }
-        
+
         const data = await response.json();
         setPurchaseOrder(data.purchaseOrder);
       } catch (error) {
@@ -95,10 +100,10 @@ export default function PrintPurchaseOrderPage({
         setIsLoading(false);
       }
     };
-    
+
     fetchPurchaseOrder();
   }, [purchaseOrderId]);
-  
+
   // Print the page when it loads
   useEffect(() => {
     if (!isLoading && purchaseOrder && !error) {
@@ -106,11 +111,11 @@ export default function PrintPurchaseOrderPage({
       const timer = setTimeout(() => {
         window.print();
       }, 500);
-      
+
       return () => clearTimeout(timer);
     }
   }, [isLoading, purchaseOrder, error]);
-  
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -121,7 +126,7 @@ export default function PrintPurchaseOrderPage({
       </div>
     );
   }
-  
+
   if (error || !purchaseOrder) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -137,7 +142,7 @@ export default function PrintPurchaseOrderPage({
       </div>
     );
   }
-  
+
   return (
     <div className="mx-auto max-w-4xl p-6 print:p-0">
       <div className="mb-6 flex items-center justify-between print:hidden">
@@ -156,8 +161,8 @@ export default function PrintPurchaseOrderPage({
           </Link>
         </div>
       </div>
-      
-      <div className="rounded-lg bg-white p-8 shadow-md print:shadow-none">
+
+      <div className="print-content rounded-lg bg-white p-8 shadow-md print:shadow-none">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
@@ -171,7 +176,7 @@ export default function PrintPurchaseOrderPage({
             )}
           </div>
         </div>
-        
+
         {/* Addresses */}
         <div className="mb-8 grid gap-6 md:grid-cols-2">
           <div>
@@ -201,7 +206,7 @@ export default function PrintPurchaseOrderPage({
               )}
             </div>
           </div>
-          
+
           <div>
             <h2 className="mb-2 text-lg font-semibold text-gray-800">Ship To</h2>
             <div className="rounded-lg border border-gray-200 p-4">
@@ -221,7 +226,7 @@ export default function PrintPurchaseOrderPage({
             </div>
           </div>
         </div>
-        
+
         {/* Order Items */}
         <div className="mb-8">
           <h2 className="mb-4 text-lg font-semibold text-gray-800">Order Items</h2>
@@ -245,22 +250,22 @@ export default function PrintPurchaseOrderPage({
                       {item.product.name}
                     </td>
                     <td className="px-4 py-2 text-sm text-gray-500">
-                      {item.description || item.product.sku}
+                      {item.notes || item.product.sku}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-right">
-                      {item.orderedQuantity}
+                      {item.quantity}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-right">
                       ${item.unitPrice.toFixed(2)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-right">
-                      ${item.discount.toFixed(2)}
+                      $0.00
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500 text-right">
-                      ${item.tax.toFixed(2)}
+                      $0.00
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-right">
-                      ${item.total.toFixed(2)}
+                      ${item.totalPrice.toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -274,28 +279,18 @@ export default function PrintPurchaseOrderPage({
                 <tr>
                   <td colSpan={5} className="px-4 py-2"></td>
                   <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-700 text-right">Tax:</td>
-                  <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-right">${purchaseOrder.tax.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td colSpan={5} className="px-4 py-2"></td>
-                  <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-700 text-right">Shipping:</td>
-                  <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-right">${purchaseOrder.shipping.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td colSpan={5} className="px-4 py-2"></td>
-                  <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-700 text-right">Discount:</td>
-                  <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-right">${purchaseOrder.discount.toFixed(2)}</td>
+                  <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-right">${purchaseOrder.taxAmount.toFixed(2)}</td>
                 </tr>
                 <tr className="border-t border-gray-300">
                   <td colSpan={5} className="px-4 py-2"></td>
                   <td className="whitespace-nowrap px-4 py-2 text-base font-bold text-gray-700 text-right">Total:</td>
-                  <td className="whitespace-nowrap px-4 py-2 text-base font-bold text-right">${purchaseOrder.total.toFixed(2)}</td>
+                  <td className="whitespace-nowrap px-4 py-2 text-base font-bold text-right">${purchaseOrder.totalAmount.toFixed(2)}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
         </div>
-        
+
         {/* Notes */}
         {purchaseOrder.notes && (
           <div className="mb-8">
@@ -305,7 +300,7 @@ export default function PrintPurchaseOrderPage({
             </div>
           </div>
         )}
-        
+
         {/* Footer */}
         <div className="mt-12 border-t border-gray-300 pt-6">
           <div className="grid gap-6 md:grid-cols-2">
@@ -330,16 +325,68 @@ export default function PrintPurchaseOrderPage({
           </div>
         </div>
       </div>
-      
+
       <style jsx global>{`
         @media print {
           @page {
             size: A4;
             margin: 1cm;
           }
+
+          /* Hide all admin panel elements */
+          body * {
+            visibility: hidden;
+          }
+
+          /* Show only the print content */
+          .print-content,
+          .print-content * {
+            visibility: visible;
+          }
+
+          /* Position the print content */
+          .print-content {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+
+          /* Hide navigation, sidebar, and other UI elements */
+          nav,
+          aside,
+          .sidebar,
+          .navigation,
+          .header,
+          .footer,
+          .print\\:hidden,
+          [class*="sidebar"],
+          [class*="nav"],
+          [data-sidebar],
+          .bg-gray-50,
+          .bg-gray-100 {
+            display: none !important;
+            visibility: hidden !important;
+          }
+
+          /* Ensure clean print layout */
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          /* Remove shadows and borders for print */
+          .print-content .shadow-md {
+            box-shadow: none !important;
+          }
+
+          /* Ensure proper spacing */
+          .print-content {
+            margin: 0 !important;
+            padding: 20px !important;
           }
         }
       `}</style>

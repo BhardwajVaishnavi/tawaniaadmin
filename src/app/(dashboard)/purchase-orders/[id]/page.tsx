@@ -50,20 +50,8 @@ export default async function PurchaseOrderDetailPage({
             product: true,
           },
         },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        updatedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        // Note: createdBy and updatedBy relations don't exist in schema
+        // We'll handle these with createdById and updatedById
       },
     });
   } catch (error) {
@@ -108,7 +96,7 @@ export default async function PurchaseOrderDetailPage({
                 <p className="text-sm text-gray-500">Supplier</p>
                 <p className="font-medium">
                   <Link href={`/suppliers/${purchaseOrder.supplierId}`} className="text-blue-600 hover:underline">
-                    {purchaseOrder.supplier.name}
+                    {purchaseOrder.supplier?.name || 'Unknown Supplier'}
                   </Link>
                 </p>
               </div>
@@ -116,7 +104,7 @@ export default async function PurchaseOrderDetailPage({
                 <p className="text-sm text-gray-500">Warehouse</p>
                 <p className="font-medium">
                   <Link href={`/warehouses/${purchaseOrder.warehouseId}`} className="text-blue-600 hover:underline">
-                    {purchaseOrder.warehouse.name}
+                    {purchaseOrder.warehouse?.name || 'Unknown Warehouse'}
                   </Link>
                 </p>
               </div>
@@ -134,18 +122,11 @@ export default async function PurchaseOrderDetailPage({
                     : "Not specified"}
                 </p>
               </div>
-              {purchaseOrder.deliveredDate && (
-                <div>
-                  <p className="text-sm text-gray-500">Delivered Date</p>
-                  <p className="font-medium">
-                    {format(new Date(purchaseOrder.deliveredDate), "MMMM d, yyyy")}
-                  </p>
-                </div>
-              )}
+              {/* deliveredDate field doesn't exist in schema */}
               <div>
                 <p className="text-sm text-gray-500">Created By</p>
                 <p className="font-medium">
-                  {purchaseOrder.createdBy?.name || "System"}
+                  System {/* createdBy relation doesn't exist */}
                 </p>
               </div>
             </div>
@@ -169,21 +150,21 @@ export default async function PurchaseOrderDetailPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {purchaseOrder.items.map((item: PurchaseOrderItem) => (
+                  {(purchaseOrder.items || []).map((item: any) => (
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap px-4 py-2 text-sm font-medium">
                         <Link href={`/products/${item.productId}`} className="text-blue-600 hover:underline">
-                          {item.product.name}
+                          {item.product?.name || 'Unknown Product'}
                         </Link>
                       </td>
                       <td className="px-4 py-2 text-sm text-gray-500">
                         {item.description || "-"}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">
-                        {item.orderedQuantity}
+                        {item.quantity}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">
-                        <span className={item.receivedQuantity === item.orderedQuantity
+                        <span className={item.receivedQuantity === item.quantity
                           ? "text-green-600 font-medium"
                           : item.receivedQuantity > 0
                             ? "text-yellow-600"
@@ -196,13 +177,13 @@ export default async function PurchaseOrderDetailPage({
                         ${item.unitPrice.toFixed(2)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">
-                        ${item.discount.toFixed(2)}
+                        $0.00 {/* discount field doesn't exist */}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-500">
-                        ${item.tax.toFixed(2)}
+                        $0.00 {/* tax field doesn't exist */}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm font-medium">
-                        ${item.total.toFixed(2)}
+                        ${item.totalPrice.toFixed(2)}
                       </td>
                     </tr>
                   ))}
@@ -216,22 +197,12 @@ export default async function PurchaseOrderDetailPage({
                   <tr>
                     <td colSpan={6} className="px-4 py-2"></td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-700">Tax:</td>
-                    <td className="whitespace-nowrap px-4 py-2 text-sm font-medium">${purchaseOrder.tax.toFixed(2)}</td>
-                  </tr>
-                  <tr>
-                    <td colSpan={6} className="px-4 py-2"></td>
-                    <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-700">Shipping:</td>
-                    <td className="whitespace-nowrap px-4 py-2 text-sm font-medium">${purchaseOrder.shipping.toFixed(2)}</td>
-                  </tr>
-                  <tr>
-                    <td colSpan={6} className="px-4 py-2"></td>
-                    <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-gray-700">Discount:</td>
-                    <td className="whitespace-nowrap px-4 py-2 text-sm font-medium">${purchaseOrder.discount.toFixed(2)}</td>
+                    <td className="whitespace-nowrap px-4 py-2 text-sm font-medium">${purchaseOrder.taxAmount.toFixed(2)}</td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td colSpan={6} className="px-4 py-2"></td>
                     <td className="whitespace-nowrap px-4 py-2 text-base font-bold text-gray-700">Total:</td>
-                    <td className="whitespace-nowrap px-4 py-2 text-base font-bold">${purchaseOrder.total.toFixed(2)}</td>
+                    <td className="whitespace-nowrap px-4 py-2 text-base font-bold">${purchaseOrder.totalAmount.toFixed(2)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -337,18 +308,18 @@ export default async function PurchaseOrderDetailPage({
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Items</p>
-                <p className="font-medium">{purchaseOrder.items.length}</p>
+                <p className="font-medium">{purchaseOrder.items?.length || 0}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Quantity</p>
                 <p className="font-medium">
-                  {purchaseOrder.items.reduce((sum: number, item: PurchaseOrderItem) => sum + item.orderedQuantity, 0)}
+                  {purchaseOrder.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Received Quantity</p>
                 <p className="font-medium">
-                  {purchaseOrder.items.reduce((sum: number, item: PurchaseOrderItem) => sum + item.receivedQuantity, 0)}
+                  {purchaseOrder.items?.reduce((sum: number, item: any) => sum + item.receivedQuantity, 0) || 0}
                 </p>
               </div>
             </div>
@@ -362,23 +333,23 @@ export default async function PurchaseOrderDetailPage({
                 <p className="text-sm text-gray-500">Supplier</p>
                 <p className="font-medium">
                   <Link href={`/suppliers/${purchaseOrder.supplierId}`} className="text-blue-600 hover:underline">
-                    {purchaseOrder.supplier.name}
+                    {purchaseOrder.supplier?.name || 'Unknown Supplier'}
                   </Link>
                 </p>
               </div>
-              {purchaseOrder.supplier.contactPerson && (
+              {purchaseOrder.supplier?.contactPerson && (
                 <div>
                   <p className="text-sm text-gray-500">Contact Person</p>
                   <p className="font-medium">{purchaseOrder.supplier.contactPerson}</p>
                 </div>
               )}
-              {purchaseOrder.supplier.email && (
+              {purchaseOrder.supplier?.email && (
                 <div>
                   <p className="text-sm text-gray-500">Email</p>
                   <p className="font-medium">{purchaseOrder.supplier.email}</p>
                 </div>
               )}
-              {purchaseOrder.supplier.phone && (
+              {purchaseOrder.supplier?.phone && (
                 <div>
                   <p className="text-sm text-gray-500">Phone</p>
                   <p className="font-medium">{purchaseOrder.supplier.phone}</p>

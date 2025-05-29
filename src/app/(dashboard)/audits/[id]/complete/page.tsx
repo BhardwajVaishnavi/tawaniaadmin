@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -42,10 +42,10 @@ interface AuditItem {
 export default function AuditCompletePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
-  const auditId = params.id;
+  const { id: auditId } = use(params);
 
   const [audit, setAudit] = useState<Audit | null>(null);
   const [items, setItems] = useState<AuditItem[]>([]);

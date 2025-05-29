@@ -61,8 +61,15 @@ export function NewReturnForm({ stores, products, customers, userId }: NewReturn
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Debug logging
+  console.log("NewReturnForm received:", {
+    storesCount: stores?.length || 0,
+    productsCount: products?.length || 0,
+    customersCount: customers?.length || 0
+  });
+
   // Filtered products based on search
-  const filteredProducts = products.filter((product) => {
+  const filteredProducts = (products || []).filter((product) => {
     const searchLower = searchTerm.toLowerCase();
     return (
       product.name.toLowerCase().includes(searchLower) ||
@@ -185,7 +192,6 @@ export function NewReturnForm({ stores, products, customers, userId }: NewReturn
             condition: "GOOD",
           })),
           reason: "Customer Return",
-          processedById: userId,
         }),
       });
 
@@ -227,12 +233,15 @@ export function NewReturnForm({ stores, products, customers, userId }: NewReturn
                 required
               >
                 <option value="">Select Store</option>
-                {stores.map((store) => (
+                {(stores || []).map((store) => (
                   <option key={store.id} value={store.id}>
                     {store.name}
                   </option>
                 ))}
               </Select>
+              {(!stores || stores.length === 0) && (
+                <p className="text-sm text-red-600 mt-1">No stores available. Please check database connection.</p>
+              )}
             </div>
 
             <div>
@@ -242,7 +251,7 @@ export function NewReturnForm({ stores, products, customers, userId }: NewReturn
                 onChange={(e) => setCustomerId(e.target.value)}
               >
                 <option value="">Walk-in Customer</option>
-                {customers.map((customer) => (
+                {(customers || []).map((customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.name} - {customer.phone || customer.email}
                   </option>
@@ -282,9 +291,10 @@ export function NewReturnForm({ stores, products, customers, userId }: NewReturn
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-800" />
               </div>
 
-              {searchTerm && (
-                <div className="mt-2 max-h-60 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-sm">
-                  {filteredProducts.length > 0 ? (
+              <div className="mt-2 max-h-60 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-sm">
+                {searchTerm ? (
+                  // Show filtered results when searching
+                  filteredProducts.length > 0 ? (
                     <ul className="divide-y divide-gray-200">
                       {filteredProducts.slice(0, 10).map((product) => (
                         <li
@@ -313,10 +323,47 @@ export function NewReturnForm({ stores, products, customers, userId }: NewReturn
                       ))}
                     </ul>
                   ) : (
-                    <p className="p-3 text-center text-sm text-gray-800">No products found</p>
-                  )}
-                </div>
-              )}
+                    <p className="p-3 text-center text-sm text-gray-800">
+                      No products found matching "{searchTerm}"
+                    </p>
+                  )
+                ) : (
+                  // Show all products when not searching
+                  products && products.length > 0 ? (
+                    <ul className="divide-y divide-gray-200">
+                      {products.slice(0, 10).map((product) => (
+                        <li
+                          key={product.id}
+                          className="flex cursor-pointer items-center justify-between p-3 hover:bg-gray-50"
+                          onClick={() => addItem(product)}
+                        >
+                          <div>
+                            <p className="font-medium text-gray-800">{product.name}</p>
+                            <p className="text-xs text-gray-800">
+                              SKU: {product.sku} | Category: {product.category?.name || "Uncategorized"}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addItem(product);
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="p-3 text-center text-sm text-gray-800">
+                      No products available. Please add products to the system first.
+                    </p>
+                  )
+                )}
+              </div>
             </div>
 
             <div className="mt-4">

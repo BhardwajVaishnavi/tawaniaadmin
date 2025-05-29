@@ -48,15 +48,16 @@ interface Audit {
 export default async function AuditsPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const session = await getServerSession(authOptions);
+  const resolvedSearchParams = await searchParams;
 
   // Parse search parameters
-  const status = searchParams.status as string | undefined;
-  const warehouseId = searchParams.warehouse as string | undefined;
-  const search = searchParams.search as string | undefined;
-  const page = parseInt(searchParams.page as string || "1");
+  const status = resolvedSearchParams.status as string | undefined;
+  const warehouseId = resolvedSearchParams.warehouse as string | undefined;
+  const search = resolvedSearchParams.search as string | undefined;
+  const page = parseInt(resolvedSearchParams.page as string || "1");
   const pageSize = 10;
 
   // Build query filters
@@ -355,7 +356,7 @@ export default async function AuditsPage({
                 href={{
                   pathname: '/audits',
                   query: {
-                    ...searchParams,
+                    ...resolvedSearchParams,
                     page: page > 1 ? page - 1 : 1,
                   },
                 }}
@@ -367,7 +368,7 @@ export default async function AuditsPage({
                 href={{
                   pathname: '/audits',
                   query: {
-                    ...searchParams,
+                    ...resolvedSearchParams,
                     page: page < totalPages ? page + 1 : totalPages,
                   },
                 }}
@@ -392,7 +393,7 @@ export default async function AuditsPage({
                     href={{
                       pathname: '/audits',
                       query: {
-                        ...searchParams,
+                        ...resolvedSearchParams,
                         page: page > 1 ? page - 1 : 1,
                       },
                     }}
@@ -411,7 +412,7 @@ export default async function AuditsPage({
                         href={{
                           pathname: '/audits',
                           query: {
-                            ...searchParams,
+                            ...resolvedSearchParams,
                             page: pageNum,
                           },
                         }}
@@ -429,7 +430,7 @@ export default async function AuditsPage({
                     href={{
                       pathname: '/audits',
                       query: {
-                        ...searchParams,
+                        ...resolvedSearchParams,
                         page: page < totalPages ? page + 1 : totalPages,
                       },
                     }}

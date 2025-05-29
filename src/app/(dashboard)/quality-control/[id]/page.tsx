@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export default async function QualityControlDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
 
@@ -23,7 +23,8 @@ export default async function QualityControlDetailPage({
     redirect("/auth/signin");
   }
 
-  const qualityControlId = params.id;
+  const resolvedParams = await params;
+  const qualityControlId = resolvedParams.id;
 
   // We'll always render the detail component and let it handle the data fetching
   return <QualityControlDetail id={qualityControlId} />;

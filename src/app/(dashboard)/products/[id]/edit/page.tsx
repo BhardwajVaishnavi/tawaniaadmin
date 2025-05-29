@@ -10,7 +10,7 @@ import { use } from "react";
 export default function EditProductPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
   // Use React.use() to unwrap the params object

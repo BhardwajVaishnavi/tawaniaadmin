@@ -6,11 +6,11 @@ import { createAuditLog } from "@/lib/audit";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -18,7 +18,8 @@ export async function GET(
       );
     }
 
-    const qualityControlId = params.id;
+    const resolvedParams = await params;
+    const qualityControlId = resolvedParams.id;
 
     // Get quality control details
     const qualityControl = await prisma.qualityControl.findUnique({
@@ -26,15 +27,15 @@ export async function GET(
         id: qualityControlId,
       },
       include: {
-        warehouse: true,
-        inspectedBy: {
+        Warehouse: true,
+        User: {
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        purchaseOrder: {
+        PurchaseOrder: {
           select: {
             id: true,
             orderNumber: true,
@@ -46,11 +47,11 @@ export async function GET(
             },
           },
         },
-        return: {
+        Return: {
           select: {
             id: true,
             returnNumber: true,
-            store: {
+            Store: {
               select: {
                 id: true,
                 name: true,
@@ -58,9 +59,9 @@ export async function GET(
             },
           },
         },
-        items: {
+        QualityControlItem: {
           include: {
-            product: true,
+            Product: true,
           },
         },
       },
@@ -73,7 +74,20 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(qualityControl);
+    // Transform the response to match frontend expectations
+    const transformedQualityControl = {
+      ...qualityControl,
+      warehouse: qualityControl.Warehouse,
+      inspectedBy: qualityControl.User,
+      purchaseOrder: qualityControl.PurchaseOrder,
+      return: qualityControl.Return,
+      items: qualityControl.QualityControlItem.map(item => ({
+        ...item,
+        product: item.Product,
+      })),
+    };
+
+    return NextResponse.json(transformedQualityControl);
   } catch (error) {
     console.error("Error fetching quality control:", error);
     return NextResponse.json(
@@ -85,11 +99,11 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -97,16 +111,17 @@ export async function PUT(
       );
     }
 
-    const qualityControlId = params.id;
+    const resolvedParams = await params;
+    const qualityControlId = resolvedParams.id;
     const data = await req.json();
-    
+
     // Check if quality control exists
     const existingQC = await prisma.qualityControl.findUnique({
       where: {
         id: qualityControlId,
       },
       include: {
-        items: true,
+        QualityControlItem: true,
       },
     });
 
@@ -118,7 +133,7 @@ export async function PUT(
     }
 
     // Extract data
-    const { 
+    const {
       status,
       notes,
       items = [],
@@ -135,7 +150,7 @@ export async function PUT(
         completedDate: status === "COMPLETED" ? new Date() : existingQC.completedDate,
       },
       include: {
-        items: true,
+        QualityControlItem: true,
       },
     });
 
@@ -177,27 +192,40 @@ export async function PUT(
       await handleQualityControlCompletion(qualityControlId);
     }
 
+    const updatedQualityControl = await prisma.qualityControl.findUnique({
+      where: {
+        id: qualityControlId,
+      },
+      include: {
+        Warehouse: true,
+        User: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        QualityControlItem: {
+          include: {
+            Product: true,
+          },
+        },
+      },
+    });
+
+    // Transform the response to match frontend expectations
+    const transformedQualityControl = {
+      ...updatedQualityControl,
+      warehouse: updatedQualityControl?.Warehouse,
+      inspectedBy: updatedQualityControl?.User,
+      items: updatedQualityControl?.QualityControlItem.map(item => ({
+        ...item,
+        product: item.Product,
+      })) || [],
+    };
+
     return NextResponse.json({
-      qualityControl: await prisma.qualityControl.findUnique({
-        where: {
-          id: qualityControlId,
-        },
-        include: {
-          warehouse: true,
-          inspectedBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          items: {
-            include: {
-              product: true,
-            },
-          },
-        },
-      }),
+      qualityControl: transformedQualityControl,
     });
   } catch (error) {
     console.error("Error updating quality control:", error);
@@ -215,13 +243,13 @@ async function handleQualityControlCompletion(qualityControlId: string) {
       id: qualityControlId,
     },
     include: {
-      items: {
+      QualityControlItem: {
         include: {
-          product: true,
+          Product: true,
         },
       },
-      purchaseOrder: true,
-      return: true,
+      PurchaseOrder: true,
+      Return: true,
     },
   });
 
@@ -230,7 +258,7 @@ async function handleQualityControlCompletion(qualityControlId: string) {
   // Process based on QC type
   if (qc.type === "RECEIVING" && qc.purchaseOrderId) {
     // For receiving QC, add passed items to inventory
-    for (const item of qc.items) {
+    for (const item of qc.QualityControlItem) {
       if (item.passedQuantity > 0) {
         // Check if inventory item exists
         const existingInventory = await prisma.inventoryItem.findFirst({
@@ -274,8 +302,8 @@ async function handleQualityControlCompletion(qualityControlId: string) {
               productId: item.productId,
               warehouseId: qc.warehouseId,
               quantity: item.passedQuantity,
-              costPrice: item.product.costPrice,
-              retailPrice: item.product.retailPrice,
+              costPrice: item.Product.costPrice,
+              retailPrice: item.Product.retailPrice,
               status: "AVAILABLE",
               inventoryMethod: "FIFO",
               receivedDate: new Date(),
