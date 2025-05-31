@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ProductStatusDropdown } from "./product-status-dropdown";
 
 interface Product {
   id: string;
@@ -60,7 +61,7 @@ export function ProductsTable({
       }
 
       const result = await response.json();
-      
+
       if (result.message.includes('marked as inactive')) {
         alert(`Product "${productName}" has been marked as inactive because it is used in inventory.`);
       } else {
@@ -124,9 +125,12 @@ export function ProductsTable({
                     {product.reorderPoint}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm">
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${product.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                      {product.isActive ? "Active" : "Inactive"}
-                    </span>
+                    <ProductStatusDropdown
+                      productId={product.id}
+                      currentIsActive={product.isActive}
+                      currentCondition={product.condition}
+                      productName={product.name}
+                    />
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm">
                     <div className="flex items-center gap-2">

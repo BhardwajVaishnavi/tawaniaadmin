@@ -18,7 +18,7 @@ export default async function SalePaymentPage({
     include: {
       store: true,
       customer: true,
-      payments: {
+      Payment: {
         orderBy: {
           createdAt: 'desc',
         },
@@ -37,13 +37,13 @@ export default async function SalePaymentPage({
 
   // Calculate payment totals
   const totalAmount = Number(sale.totalAmount);
-  const totalPaid = sale.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const totalPaid = sale.Payment.reduce((sum, payment) => sum + Number(payment.amount), 0);
   const balanceDue = totalAmount - totalPaid;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-800">Process Payment</h1>
-      
+
       <div className="rounded-lg bg-white p-6 shadow-md">
         <div className="mb-6 grid gap-4 md:grid-cols-3">
           <div>
@@ -73,7 +73,7 @@ export default async function SalePaymentPage({
             <p className="mt-1 text-base font-bold text-red-600">${balanceDue.toFixed(2)}</p>
           </div>
         </div>
-        
+
         <PaymentForm sale={sale} balanceDue={balanceDue} />
       </div>
     </div>

@@ -16,12 +16,29 @@ export default async function TransferReceivePage({
   const transfer = await prisma.transfer.findUnique({
     where: { id: transferId },
     include: {
-      fromWarehouse: true,  // Changed from sourceWarehouse to fromWarehouse
-      toWarehouse: true,    // Changed from destinationWarehouse to toWarehouse
-      toStore: true,        // Changed from destinationStore to toStore
+      Warehouse_Transfer_fromWarehouseIdToWarehouse: {
+        select: { id: true, name: true, code: true }
+      },
+      Warehouse_Transfer_toWarehouseIdToWarehouse: {
+        select: { id: true, name: true, code: true }
+      },
+      Store_Transfer_toStoreIdToStore: {
+        select: { id: true, name: true, code: true }
+      },
+      Store_Transfer_fromStoreIdToStore: {
+        select: { id: true, name: true, code: true }
+      },
       items: {
         include: {
-          product: true,
+          product: {
+            select: {
+              id: true,
+              name: true,
+              sku: true,
+              costPrice: true,
+              retailPrice: true
+            }
+          },
         },
       },
     },
@@ -92,7 +109,7 @@ export default async function TransferReceivePage({
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-800">Receive Transfer #{transfer.transferNumber}</h1>
-      
+
       <div className="rounded-lg bg-white p-6 shadow-md">
         <div className="mb-6 grid gap-4 md:grid-cols-3">
           <div>
@@ -120,9 +137,9 @@ export default async function TransferReceivePage({
             )}
           </div>
         </div>
-        
-        <TransferReceiveForm 
-          transfer={adaptedTransfer as any} 
+
+        <TransferReceiveForm
+          transfer={adaptedTransfer as any}
           destinationBins={destinationBins}
         />
       </div>

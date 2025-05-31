@@ -95,83 +95,15 @@ export default function OutwardsComponent() {
         }
 
         if (!success) {
-          // If all endpoints fail, use mock data
-          console.log("All endpoints failed, using mock data");
-
-          const mockTransfers = [
-            {
-              id: "mock-transfer-1",
-              transferNumber: "TRF-20230501-0001",
-              createdAt: new Date().toISOString(),
-              status: "PENDING",
-              fromWarehouse: {
-                id: "mock-warehouse-1",
-                name: "Main Warehouse"
-              },
-              toStore: {
-                id: "mock-store-1",
-                name: "Downtown Store"
-              },
-              items: [
-                { id: "item-1", productId: "prod-1", requestedQuantity: 10 }
-              ],
-              totalItems: 10,
-              totalCost: 199.90
-            },
-            {
-              id: "mock-transfer-2",
-              transferNumber: "TRF-20230502-0002",
-              createdAt: new Date(Date.now() - 86400000).toISOString(),
-              status: "COMPLETED",
-              fromWarehouse: {
-                id: "mock-warehouse-1",
-                name: "Main Warehouse"
-              },
-              toStore: {
-                id: "mock-store-2",
-                name: "Mall Store"
-              },
-              items: [
-                { id: "item-2", productId: "prod-2", requestedQuantity: 5 }
-              ],
-              totalItems: 5,
-              totalCost: 149.95
-            }
-          ];
-
-          setTransfers(mockTransfers);
-          setTransfersError("Using mock data - API endpoints not available");
+          // If all endpoints fail, show empty state
+          console.log("All endpoints failed, no transfers available");
+          setTransfers([]);
+          setTransfersError("Unable to load transfers. Please check your connection and try again.");
         }
       } catch (error: any) {
         console.error("Error fetching transfers:", error);
-
-        // Set error message and mock data
-        setTransfersError(error.message || "Failed to fetch transfers. API endpoint may not be implemented yet.");
-
-        // Use mock data on error
-        const mockTransfers = [
-          {
-            id: "mock-error-1",
-            transferNumber: "TRF-ERROR-0001",
-            createdAt: new Date().toISOString(),
-            status: "PENDING",
-            fromWarehouse: {
-              id: "mock-warehouse-1",
-              name: "Main Warehouse"
-            },
-            toStore: {
-              id: "mock-store-1",
-              name: "Error Fallback Store"
-            },
-            items: [
-              { id: "item-error-1", productId: "prod-1", requestedQuantity: 3 }
-            ],
-            totalItems: 3,
-            totalCost: 59.97
-          }
-        ];
-
-        setTransfers(mockTransfers);
+        setTransfersError(error.message || "Failed to fetch transfers");
+        setTransfers([]);
       } finally {
         setIsTransfersLoading(false);
       }

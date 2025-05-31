@@ -232,7 +232,7 @@ export default function AuditItemsPage({
             </p>
           </div>
         ) : (
-          <AuditItemsTable items={items} />
+          <AuditItemsTable items={items} auditId={auditId} />
         )}
       </div>
     </div>

@@ -9,7 +9,7 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     // Check if user is authenticated
     if (!session || !session.user) {
       return NextResponse.json(
@@ -17,13 +17,13 @@ export async function POST(
         { status: 401 }
       );
     }
-    
+
     const saleId = params.id;
-    
+
     // Parse request body
     const body = await req.json();
     const { amount, paymentMethod, referenceNumber, notes } = body;
-    
+
     // Validate required fields
     if (!amount || amount <= 0 || !paymentMethod) {
       return NextResponse.json(
@@ -31,22 +31,22 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     // Get the sale
     const sale = await prisma.sale.findUnique({
       where: { id: saleId },
       include: {
-        payments: true,
+        Payment: true,
       },
     });
-    
+
     if (!sale) {
       return NextResponse.json(
         { message: "Sale not found" },
         { status: 404 }
       );
     }
-    
+
     // Check if sale is already fully paid
     if (sale.paymentStatus === "PAID") {
       return NextResponse.json(
@@ -54,12 +54,12 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     // Calculate current balance
     const totalAmount = Number(sale.totalAmount);
-    const totalPaid = sale.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+    const totalPaid = sale.Payment.reduce((sum, payment) => sum + Number(payment.amount), 0);
     const balanceDue = totalAmount - totalPaid;
-    
+
     // Check if payment amount exceeds balance due
     if (amount > balanceDue) {
       return NextResponse.json(
@@ -67,7 +67,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     // Start a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Create the payment record
@@ -82,11 +82,11 @@ export async function POST(
           processedByName: session.user.name || undefined,
         },
       });
-      
+
       // Calculate new payment status
       const newTotalPaid = totalPaid + amount;
       const newPaymentStatus = newTotalPaid >= totalAmount ? "PAID" : "PARTIALLY_PAID";
-      
+
       // Update the sale payment status
       const updatedSale = await tx.sale.update({
         where: { id: saleId },
@@ -94,10 +94,10 @@ export async function POST(
           paymentStatus: newPaymentStatus,
         },
       });
-      
+
       return { payment, updatedSale };
     });
-    
+
     return NextResponse.json({
       message: "Payment processed successfully",
       payment: result.payment,

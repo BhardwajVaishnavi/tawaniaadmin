@@ -132,7 +132,12 @@ export default async function AuditDetailPage({
     item.status === "DISCREPANCY"
   ).length;
   const discrepancyItems = audit.items.filter((item: AuditItem) => item.status === "DISCREPANCY").length;
-  const progress = totalItems > 0 ? Math.round((countedItems / totalItems) * 100) : 0;
+
+  // Progress is 100% only when all items are COUNTED or RECONCILED (no discrepancies)
+  const perfectlyCountedItems = audit.items.filter((item: AuditItem) =>
+    item.status === "COUNTED" || item.status === "RECONCILED"
+  ).length;
+  const progress = totalItems > 0 ? Math.round((perfectlyCountedItems / totalItems) * 100) : 0;
 
   // Group items by zone
   const itemsByZone = audit.items.reduce((acc: ItemsByZone, item: AuditItem) => {
@@ -281,7 +286,10 @@ export default async function AuditDetailPage({
                 {(Object.entries(itemsByZone) as [string, AuditItem[]][]).map(([zoneName, items]) => (
                   <div key={zoneName}>
                     <h3 className="mb-2 text-md font-medium text-gray-700">Zone: {zoneName}</h3>
-                    <AuditItemsTable items={items.slice(0, 5)} />
+                    <AuditItemsTable
+                      items={items.slice(0, 5)}
+                      auditId={audit.id}
+                    />
                     {items.length > 5 && (
                       <div className="mt-2 text-right">
                         <Link
@@ -311,81 +319,7 @@ export default async function AuditDetailPage({
           {/* Actions */}
           <div className="rounded-lg bg-white p-6 shadow-md">
             <h2 className="mb-4 text-lg font-semibold text-gray-800">Actions</h2>
-            <div className="space-y-3">
-              {audit.status === "PLANNED" && (
-                <>
-                  <Link
-                    href={`/audits/${audit.id}/edit`}
-                    className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                    </svg>
-                    Edit Audit
-                  </Link>
-                  <form action={`/api/audits/${audit.id}/start`} method="GET">
-                    <button
-                      type="submit"
-                      className="flex w-full items-center justify-center gap-2 rounded-md bg-green-100 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-200 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
-                      </svg>
-                      Start Audit
-                    </button>
-                  </form>
-                </>
-              )}
-
-              {audit.status === "IN_PROGRESS" && (
-                <>
-                  <Link
-                    href={`/audits/${audit.id}/count`}
-                    className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-                    </svg>
-                    Continue Counting
-                  </Link>
-                  <Link
-                    href={`/audits/${audit.id}/complete`}
-                    className="flex w-full items-center justify-center gap-2 rounded-md bg-green-100 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-200 transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                    </svg>
-                    Complete Audit
-                  </Link>
-                </>
-              )}
-
-              {audit.status === "COMPLETED" && (
-                <Link
-                  href={`/audits/${audit.id}/report`}
-                  className="flex w-full items-center justify-center gap-2 rounded-md bg-purple-100 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-200 transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                  </svg>
-                  Generate Report
-                </Link>
-              )}
-
-              {(audit.status === "PLANNED" || audit.status === "IN_PROGRESS") && (
-                <form action={`/api/audits/${audit.id}/cancel`} method="GET">
-                  <button
-                    type="submit"
-                    className="flex w-full items-center justify-center gap-2 rounded-md bg-red-100 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-200 transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                    </svg>
-                    Cancel Audit
-                  </button>
-                </form>
-              )}
-            </div>
+            <AuditActions audit={audit} />
           </div>
 
           {/* Audit Statistics */}

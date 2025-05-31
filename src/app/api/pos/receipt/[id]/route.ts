@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -18,7 +18,7 @@ export async function GET(
     }
 
     const saleId = params.id;
-    
+
     // Get sale with all related data
     const sale = await prisma.sale.findUnique({
       where: { id: saleId },
@@ -37,17 +37,17 @@ export async function GET(
             product: true,
           },
         },
-        payments: true,
+        Payment: true,
       },
     });
-    
+
     if (!sale) {
       return NextResponse.json(
         { error: "Sale not found" },
         { status: 404 }
       );
     }
-    
+
     // Format receipt data
     const receiptData = {
       receiptNumber: sale.receiptNumber,
@@ -82,18 +82,18 @@ export async function GET(
         discount: sale.discountAmount,
         total: sale.totalAmount,
       },
-      payments: sale.payments.map(payment => ({
+      payments: sale.Payment.map(payment => ({
         method: payment.paymentMethod,
         amount: payment.amount,
         date: payment.createdAt,
         reference: payment.referenceNumber,
       })),
-      totalPaid: sale.payments.reduce((sum, payment) => sum + payment.amount, 0),
-      balance: sale.totalAmount - sale.payments.reduce((sum, payment) => sum + payment.amount, 0),
+      totalPaid: sale.Payment.reduce((sum, payment) => sum + payment.amount, 0),
+      balance: sale.totalAmount - sale.Payment.reduce((sum, payment) => sum + payment.amount, 0),
       paymentStatus: sale.paymentStatus,
       notes: sale.notes,
     };
-    
+
     return NextResponse.json({ receipt: receiptData });
   } catch (error) {
     console.error("Error generating receipt:", error);

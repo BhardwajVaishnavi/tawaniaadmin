@@ -62,7 +62,7 @@ interface SaleWithRelations {
     total: number;
     inventoryItem: any;
   }>;
-  payments: Array<{
+  Payment: Array<{
     id: string;
     amount: number;
     paymentMethod: string;

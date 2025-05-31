@@ -18,7 +18,7 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     // Check if user is authenticated
     if (!session || !session.user) {
       return NextResponse.json(
@@ -26,13 +26,13 @@ export async function POST(
         { status: 401 }
       );
     }
-    
+
     const transferId = params.id;
-    
+
     // Parse request body
     const body = await req.json();
     const { receivedItems, notes } = body;
-    
+
     // Validate required fields
     if (!receivedItems || !Array.isArray(receivedItems)) {
       return NextResponse.json(
@@ -40,25 +40,44 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     // Get the transfer
     const transfer = await prisma.transfer.findUnique({
       where: { id: transferId },
       include: {
-        items: true,
-        fromWarehouse: true,
-        toWarehouse: true,
-        toStore: true,
+        items: {
+          select: {
+            id: true,
+            productId: true,
+            quantity: true,
+            sourceCostPrice: true,
+            sourceRetailPrice: true,
+            targetCostPrice: true,
+            targetRetailPrice: true
+          }
+        },
+        Warehouse_Transfer_fromWarehouseIdToWarehouse: {
+          select: { id: true, name: true, code: true }
+        },
+        Warehouse_Transfer_toWarehouseIdToWarehouse: {
+          select: { id: true, name: true, code: true }
+        },
+        Store_Transfer_toStoreIdToStore: {
+          select: { id: true, name: true, code: true }
+        },
+        Store_Transfer_fromStoreIdToStore: {
+          select: { id: true, name: true, code: true }
+        },
       },
     });
-    
+
     if (!transfer) {
       return NextResponse.json(
         { message: "Transfer not found" },
         { status: 404 }
       );
     }
-    
+
     // Check if transfer is in IN_TRANSIT status
     if (transfer.status !== "IN_TRANSIT") {
       return NextResponse.json(
@@ -66,7 +85,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     // Start a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Update the transfer status
@@ -79,15 +98,15 @@ export async function POST(
           notes: notes || transfer.notes,
         },
       });
-      
+
       // Process each received item
       for (const receivedItem of receivedItems) {
         const transferItem = transfer.items.find(item => item.id === receivedItem.transferItemId);
-        
+
         if (!transferItem) {
           throw new Error(`Transfer item not found: ${receivedItem.transferItemId}`);
         }
-        
+
         // Update the transfer item with received quantity
         await tx.transferItem.update({
           where: { id: receivedItem.transferItemId },
@@ -95,12 +114,12 @@ export async function POST(
             notes: receivedItem.notes || transferItem.notes,
           },
         });
-        
+
         // Skip if received quantity is 0
         if (receivedItem.receivedQuantity <= 0) {
           continue;
         }
-        
+
         // Handle based on transfer type
         if (transfer.transferType === "RELOCATION" && transfer.toWarehouseId) {
           // Check if inventory item already exists at destination
@@ -111,7 +130,7 @@ export async function POST(
               binId: receivedItem.binId || null,
             },
           });
-          
+
           if (destinationInventoryItem) {
             // Update existing inventory item
             await tx.inventoryItem.update({
@@ -122,7 +141,7 @@ export async function POST(
                 },
               },
             });
-            
+
             // Create inventory transaction record
             await tx.$executeRaw`
               INSERT INTO "InventoryTransaction" (
@@ -159,7 +178,7 @@ export async function POST(
                 status: "AVAILABLE",
               },
             });
-            
+
             // Create inventory transaction record
             await tx.$executeRaw`
               INSERT INTO "InventoryTransaction" (
@@ -193,7 +212,7 @@ export async function POST(
               storeId: transfer.toStoreId,
             },
           });
-          
+
           if (destinationInventoryItem) {
             // Update existing inventory item
             await tx.inventoryItem.update({
@@ -204,7 +223,7 @@ export async function POST(
                 },
               },
             });
-            
+
             // Create inventory transaction record
             await tx.$executeRaw`
               INSERT INTO "InventoryTransaction" (
@@ -240,7 +259,7 @@ export async function POST(
                 status: "AVAILABLE",
               },
             });
-            
+
             // Create inventory transaction record
             await tx.$executeRaw`
               INSERT INTO "InventoryTransaction" (
@@ -268,10 +287,10 @@ export async function POST(
           }
         }
       }
-      
+
       return updatedTransfer;
     });
-    
+
     return NextResponse.json({
       message: "Transfer received successfully",
       transfer: result,

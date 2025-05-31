@@ -5,12 +5,15 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log("=== WAREHOUSE ZONES API CALLED ===");
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
+      console.log("No session found");
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -19,6 +22,24 @@ export async function GET(
 
     // Await params to fix Next.js error
     const { id: warehouseId } = await params;
+    console.log("Fetching zones for warehouse:", warehouseId);
+
+    // First check if warehouse exists
+    const warehouse = await prisma.warehouse.findUnique({
+      where: {
+        id: warehouseId,
+      },
+    });
+
+    if (!warehouse) {
+      console.log("Warehouse not found:", warehouseId);
+      return NextResponse.json(
+        { error: "Warehouse not found" },
+        { status: 404 }
+      );
+    }
+
+    console.log("Warehouse found:", warehouse.name);
 
     // Get warehouse zones
     const zones = await prisma.warehouseZone.findMany({
@@ -41,11 +62,26 @@ export async function GET(
       },
     });
 
+    console.log("Found zones:", zones.length);
+
     return NextResponse.json({ zones });
   } catch (error) {
+    console.error("=== ERROR IN WAREHOUSE ZONES API ===");
     console.error("Error fetching warehouse zones:", error);
+
+    let errorMessage = "Failed to fetch warehouse zones";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      console.error("Error message:", errorMessage);
+      console.error("Error stack:", error.stack);
+    }
+
     return NextResponse.json(
-      { error: "Failed to fetch warehouse zones" },
+      {
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : String(error),
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     );
   }
@@ -53,7 +89,7 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);

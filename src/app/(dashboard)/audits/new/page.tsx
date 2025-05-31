@@ -136,16 +136,42 @@ export default function NewAuditPage() {
         return;
       }
 
+      console.log("Fetching zones for warehouse:", warehouseId);
+
       try {
         const zonesResponse = await fetch(`/api/warehouses/${warehouseId}/zones`);
+
+        console.log("Zones response status:", zonesResponse.status);
+
         if (!zonesResponse.ok) {
-          throw new Error('Failed to fetch warehouse zones');
+          const errorData = await zonesResponse.json();
+          console.error('Zones API error:', errorData);
+          throw new Error(errorData.error || 'Failed to fetch warehouse zones');
         }
+
         const zonesData = await zonesResponse.json();
+        console.log("Zones data received:", zonesData);
+
         setZones(zonesData.zones || []);
       } catch (error) {
         console.error('Error fetching zones:', error);
-        alert('Failed to load warehouse zones. Please try again.');
+
+        // More specific error message
+        let errorMessage = 'Failed to load warehouse zones. ';
+        if (error instanceof Error) {
+          if (error.message.includes('Warehouse not found')) {
+            errorMessage += 'The selected warehouse was not found.';
+          } else if (error.message.includes('Unauthorized')) {
+            errorMessage += 'You are not authorized to access this warehouse.';
+          } else {
+            errorMessage += error.message;
+          }
+        } else {
+          errorMessage += 'Please try again.';
+        }
+
+        alert(errorMessage);
+        setZones([]);
       }
     };
 

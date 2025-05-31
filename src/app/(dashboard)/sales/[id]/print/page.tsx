@@ -53,7 +53,7 @@ interface SaleWithRelations {
     taxAmount: number;
     totalPrice: number;
   }>;
-  payments: Array<{
+  Payment: Array<{
     id: string;
     amount: number;
     paymentMethod: string;
@@ -82,7 +82,7 @@ export default async function SalePrintPage({
           product: true,
         },
       },
-      payments: {
+      Payment: {
         orderBy: {
           createdAt: 'desc',
         },
@@ -116,7 +116,7 @@ export default async function SalePrintPage({
             Print
           </button>
         </div>
-        
+
         <div className="rounded-lg border border-gray-200 p-6 print:border-0 print:p-0 print:shadow-none">
           <Receipt sale={sale} companyInfo={companyInfo} />
         </div>

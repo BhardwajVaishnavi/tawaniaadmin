@@ -252,7 +252,12 @@ export default async function AuditsPage({
                     item.status === "RECONCILED" ||
                     item.status === "DISCREPANCY"
                   ).length;
-                  const progress = totalItems > 0 ? Math.round((countedItems / totalItems) * 100) : 0;
+
+                  // Progress is 100% only when all items are COUNTED or RECONCILED (no discrepancies)
+                  const perfectlyCountedItems = audit.items.filter((item) =>
+                    item.status === "COUNTED" || item.status === "RECONCILED"
+                  ).length;
+                  const progress = totalItems > 0 ? Math.round((perfectlyCountedItems / totalItems) * 100) : 0;
 
                   return (
                     <tr key={audit.id} className="hover:bg-gray-50">

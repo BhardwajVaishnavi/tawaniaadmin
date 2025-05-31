@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TransferStatusBadge } from "../_components/transfer-status-badge";
 import { TransferActions } from "../_components/transfer-actions";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, ArrowLeft } from "lucide-react";
 
 export default async function TransferDetailPage({
   params,
@@ -19,15 +19,31 @@ export default async function TransferDetailPage({
   const transfer = await prisma.transfer.findUnique({
     where: { id: transferId },
     include: {
-      Warehouse_Transfer_fromWarehouseIdToWarehouse: true,
-      Warehouse_Transfer_toWarehouseIdToWarehouse: true,
-      Store_Transfer_toStoreIdToStore: true,
+      Warehouse_Transfer_fromWarehouseIdToWarehouse: {
+        select: { id: true, name: true, code: true }
+      },
+      Warehouse_Transfer_toWarehouseIdToWarehouse: {
+        select: { id: true, name: true, code: true }
+      },
+      Store_Transfer_toStoreIdToStore: {
+        select: { id: true, name: true, code: true }
+      },
+      Store_Transfer_fromStoreIdToStore: {
+        select: { id: true, name: true, code: true }
+      },
       items: {
         include: {
           product: {
-            include: {
-              category: true,
-            },
+            select: {
+              id: true,
+              name: true,
+              sku: true,
+              costPrice: true,
+              retailPrice: true,
+              category: {
+                select: { id: true, name: true }
+              }
+            }
           },
         },
       },
@@ -48,6 +64,17 @@ export default async function TransferDetailPage({
 
   return (
     <div className="space-y-6">
+      {/* Back to Transfers Button */}
+      <div className="mb-4">
+        <Link
+          href="/transfers"
+          className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-200 hover:text-gray-900"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back To Transfers
+        </Link>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Transfer #{transfer.transferNumber}</h1>

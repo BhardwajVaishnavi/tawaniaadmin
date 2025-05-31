@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
+import { AuditItemStatusDropdown } from "./audit-item-status-dropdown";
 
 interface AuditItem {
   id: string;
@@ -34,8 +35,8 @@ interface AuditItem {
     } | null;
   };
   expectedQuantity: number;
-  actualQuantity: number | null;
-  variance: number | null;
+  countedQuantity: number | null;
+  discrepancy: number | null;
   status: string;
   notes: string | null;
   countedById: string | null;
@@ -49,9 +50,11 @@ interface AuditItem {
 
 interface AuditItemsTableProps {
   items: AuditItem[];
+  auditId: string;
+  onStatusChange?: (newStatus: string) => void;
 }
 
-export function AuditItemsTable({ items }: AuditItemsTableProps) {
+export function AuditItemsTable({ items, auditId, onStatusChange }: AuditItemsTableProps) {
   if (items.length === 0) {
     return (
       <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-gray-300">
@@ -86,10 +89,10 @@ export function AuditItemsTable({ items }: AuditItemsTableProps) {
               ? `${zone} / ${aisle} / ${shelf} / ${bin}`
               : bin;
 
-            // Determine variance class
-            let varianceClass = "text-gray-800";
-            if (item.variance) {
-              varianceClass = item.variance > 0 ? "text-green-600" : "text-red-600";
+            // Determine discrepancy class
+            let discrepancyClass = "text-gray-800";
+            if (item.discrepancy) {
+              discrepancyClass = item.discrepancy > 0 ? "text-green-600" : "text-red-600";
             }
 
             // Determine status class
@@ -124,15 +127,21 @@ export function AuditItemsTable({ items }: AuditItemsTableProps) {
                   {item.expectedQuantity}
                 </td>
                 <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-800">
-                  {item.actualQuantity !== null ? item.actualQuantity : "-"}
+                  {item.countedQuantity !== null ? item.countedQuantity : "-"}
                 </td>
-                <td className={`whitespace-nowrap px-4 py-2 text-sm font-medium ${varianceClass}`}>
-                  {item.variance !== null ? (item.variance > 0 ? `+${item.variance}` : item.variance) : "-"}
+                <td className={`whitespace-nowrap px-4 py-2 text-sm font-medium ${discrepancyClass}`}>
+                  {item.discrepancy !== null ? (item.discrepancy > 0 ? `+${item.discrepancy}` : item.discrepancy) : "-"}
                 </td>
                 <td className="whitespace-nowrap px-4 py-2 text-sm">
-                  <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusClass}`}>
-                    {formatStatus(item.status)}
-                  </span>
+                  <AuditItemStatusDropdown
+                    auditId={auditId}
+                    itemId={item.id}
+                    currentStatus={item.status}
+                    productName={item.product.name}
+                    expectedQuantity={item.expectedQuantity}
+                    actualQuantity={item.countedQuantity}
+                    onStatusChange={onStatusChange}
+                  />
                 </td>
                 <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-800">
                   {item.countedBy ? (

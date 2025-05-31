@@ -15,18 +15,76 @@ function debug(...args: any[]) {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
+
+    // Test session
     const session = await getServerSession(authOptions);
 
+    return NextResponse.json({
+      message: "Transfer raw API is working",
+      timestamp: new Date().toISOString(),
+      database: "connected",
+      session: session?.user?.id ? "valid" : "invalid"
+    });
+  } catch (error) {
+    return NextResponse.json({
+      message: "Transfer raw API has issues",
+      error: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  console.log("=== TRANSFER RAW API CALLED ===");
+
+  // Global error handler to catch any unhandled errors
+  try {
+    return await handleTransferCreation(req);
+  } catch (globalError) {
+    console.error("=== GLOBAL ERROR HANDLER ===");
+    console.error("Unhandled error:", globalError);
+
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        details: globalError instanceof Error ? globalError.message : String(globalError),
+        type: "GlobalError",
+        timestamp: new Date().toISOString()
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleTransferCreation(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    console.log("Session check:", session?.user?.id ? "Valid" : "Invalid");
+
     if (!session?.user?.id) {
+      console.log("Unauthorized access attempt");
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const data = await req.json();
+    let data;
+    try {
+      data = await req.json();
+      console.log("Raw request data:", data);
+    } catch (parseError) {
+      console.error("Failed to parse request JSON:", parseError);
+      return NextResponse.json(
+        { error: "Invalid JSON in request body", details: parseError.message },
+        { status: 400 }
+      );
+    }
+
     const {
       fromWarehouseId,
       toStoreId,
@@ -38,6 +96,14 @@ export async function POST(req: NextRequest) {
       notes
     } = data;
 
+    console.log("Extracted data:", {
+      fromWarehouseId,
+      toStoreId,
+      transferType,
+      priority,
+      items: items?.length || 0
+    });
+
     debug("Received transfer request:", {
       fromWarehouseId,
       toStoreId,
@@ -48,8 +114,68 @@ export async function POST(req: NextRequest) {
 
     // Validate required fields
     if (!fromWarehouseId || !toStoreId || !items || items.length === 0) {
+      debug("Validation failed:", {
+        fromWarehouseId: !!fromWarehouseId,
+        toStoreId: !!toStoreId,
+        items: items?.length || 0
+      });
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields: fromWarehouseId, toStoreId, and items are required" },
+        { status: 400 }
+      );
+    }
+
+    // Test database connectivity first
+    try {
+      console.log("Testing database connectivity...");
+      await prisma.$queryRaw`SELECT 1`;
+      console.log("Database connection successful");
+    } catch (dbConnError) {
+      console.error("Database connection failed:", dbConnError);
+      return NextResponse.json(
+        { error: "Database connection failed", details: dbConnError.message },
+        { status: 500 }
+      );
+    }
+
+    // Validate that warehouse and store exist
+    console.log("Checking warehouse and store existence...");
+    const [warehouse, store] = await Promise.all([
+      prisma.warehouse.findUnique({ where: { id: fromWarehouseId } }),
+      prisma.store.findUnique({ where: { id: toStoreId } })
+    ]);
+
+    console.log("Warehouse found:", !!warehouse);
+    console.log("Store found:", !!store);
+
+    if (!warehouse) {
+      debug("Warehouse not found:", fromWarehouseId);
+      return NextResponse.json(
+        { error: `Warehouse with ID ${fromWarehouseId} not found` },
+        { status: 400 }
+      );
+    }
+
+    if (!store) {
+      debug("Store not found:", toStoreId);
+      return NextResponse.json(
+        { error: `Store with ID ${toStoreId} not found` },
+        { status: 400 }
+      );
+    }
+
+    // Validate that all products exist
+    const productIds = items.map(item => item.productId);
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } }
+    });
+
+    if (products.length !== productIds.length) {
+      const foundProductIds = products.map(p => p.id);
+      const missingProductIds = productIds.filter(id => !foundProductIds.includes(id));
+      debug("Products not found:", missingProductIds);
+      return NextResponse.json(
+        { error: `Products not found: ${missingProductIds.join(', ')}` },
         { status: 400 }
       );
     }
@@ -75,6 +201,18 @@ export async function POST(req: NextRequest) {
 
     // Create transfer with items using a transaction
     const transfer = await prisma.$transaction(async (tx) => {
+      debug("Creating transfer with data:", {
+        transferNumber,
+        fromWarehouseId,
+        toStoreId,
+        transferType: transferType || "RESTOCK",
+        priority: priority || "NORMAL",
+        totalItems,
+        totalCost,
+        totalRetail,
+        requestedById: session.user.id
+      });
+
       // 1. Create the transfer
       const newTransfer = await tx.transfer.create({
         data: {
@@ -149,11 +287,37 @@ export async function POST(req: NextRequest) {
 
     debug("Transfer created successfully:", transfer.id);
     return NextResponse.json(transfer);
+
   } catch (error) {
+    console.error("=== ERROR IN TRANSFER API ===");
     console.error("Error creating transfer:", error);
-    return NextResponse.json(
-      { error: "Failed to create transfer", details: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    debug("Full error details:", error);
+
+    let errorMessage = "Failed to create transfer";
+    let errorDetails = "";
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      errorDetails = error.stack || "";
+      console.error("Error message:", errorMessage);
+      console.error("Error stack:", errorDetails);
+    } else if (typeof error === 'object' && error !== null) {
+      errorMessage = JSON.stringify(error);
+      console.error("Error object:", errorMessage);
+    } else {
+      errorMessage = String(error);
+      console.error("Error string:", errorMessage);
+    }
+
+    const errorResponse = {
+      error: errorMessage,
+      details: errorDetails,
+      type: error?.constructor?.name || "Unknown",
+      timestamp: new Date().toISOString()
+    };
+
+    console.error("Returning error response:", errorResponse);
+
+    return NextResponse.json(errorResponse, { status: 500 });
   }
 }

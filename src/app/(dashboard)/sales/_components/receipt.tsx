@@ -66,7 +66,7 @@ interface Sale {
   customer: Customer | null;
   createdBy: User;
   items: SaleItem[];
-  payments: Payment[];
+  Payment: Payment[];
 }
 
 interface CompanyInfo {
@@ -98,7 +98,7 @@ export function Receipt({ sale, companyInfo }: ReceiptProps) {
   const total = Number(sale.totalAmount);
 
   // Calculate payment totals
-  const totalPaid = sale.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const totalPaid = sale.Payment.reduce((sum, payment) => sum + Number(payment.amount), 0);
   const balance = total - totalPaid;
 
   // Format date
@@ -191,10 +191,10 @@ export function Receipt({ sale, companyInfo }: ReceiptProps) {
         </div>
 
         {/* Payments */}
-        {sale.payments.length > 0 && (
+        {sale.Payment.length > 0 && (
           <div className="mt-4 border-t border-gray-200 pt-2">
             <p className="mb-2 text-sm font-semibold">Payment Information:</p>
-            {sale.payments.map((payment, index) => (
+            {sale.Payment.map((payment, index) => (
               <div key={payment.id} className="flex justify-between text-sm">
                 <span>
                   {payment.paymentMethod.replace("_", " ")}

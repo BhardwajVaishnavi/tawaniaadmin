@@ -37,16 +37,16 @@ export default async function AuditReportsPage({
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
   const session = await getServerSession(authOptions);
-  
+
   // Parse date parameters
   const startDate = searchParams.startDate as string || getDefaultStartDate();
   const endDate = searchParams.endDate as string || getDefaultEndDate();
-  
+
   // Convert to Date objects
   const startDateTime = new Date(startDate);
   const endDateTime = new Date(endDate);
   endDateTime.setHours(23, 59, 59, 999); // Set to end of day
-  
+
   // Get audits data
   // @ts-ignore - Dynamically access the model
   const audits: Audit[] = await prisma.audit.findMany({
@@ -75,13 +75,13 @@ export default async function AuditReportsPage({
       createdAt: "desc",
     },
   });
-  
+
   // Calculate audit statistics
   const totalAudits = audits.length;
   const completedAudits = audits.filter((audit: Audit) => audit.status === "COMPLETED").length;
   const inProgressAudits = audits.filter((audit: Audit) => audit.status === "IN_PROGRESS").length;
   const cancelledAudits = audits.filter((audit: Audit) => audit.status === "CANCELLED").length;
-  
+
   // Calculate discrepancy statistics
   let totalItems = 0;
   let countedItems = 0;
@@ -89,20 +89,20 @@ export default async function AuditReportsPage({
   let positiveVariance = 0;
   let negativeVariance = 0;
   let totalVariance = 0;
-  
+
   audits.forEach((audit: Audit) => {
     totalItems += audit.items.length;
-    
+
     audit.items.forEach((item: AuditItem) => {
       if (item.status === "COUNTED" || item.status === "RECONCILED" || item.status === "DISCREPANCY") {
         countedItems++;
-        
+
         if (item.status === "DISCREPANCY" || (item.variance !== null && item.variance !== 0)) {
           discrepancyItems++;
-          
+
           if (item.variance !== null) {
             totalVariance += item.variance;
-            
+
             if (item.variance > 0) {
               positiveVariance++;
             } else if (item.variance < 0) {
@@ -113,10 +113,10 @@ export default async function AuditReportsPage({
       }
     });
   });
-  
+
   // Calculate accuracy rate
   const accuracyRate = countedItems > 0 ? ((countedItems - discrepancyItems) / countedItems) * 100 : 0;
-  
+
   // Get warehouses for filtering
   // @ts-ignore - Dynamically access the model
   const warehouses = await prisma.warehouse.findMany({
@@ -127,7 +127,7 @@ export default async function AuditReportsPage({
       name: "asc",
     },
   });
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -139,9 +139,9 @@ export default async function AuditReportsPage({
           Back to Reports
         </Link>
       </div>
-      
+
       <ReportDateFilter startDate={startDate} endDate={endDate} />
-      
+
       {/* Summary Cards */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg bg-white p-6 shadow-md">
@@ -160,7 +160,7 @@ export default async function AuditReportsPage({
             During selected period
           </p>
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -177,7 +177,7 @@ export default async function AuditReportsPage({
             {countedItems} items counted
           </p>
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -194,7 +194,7 @@ export default async function AuditReportsPage({
             {positiveVariance} positive, {negativeVariance} negative
           </p>
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -214,7 +214,7 @@ export default async function AuditReportsPage({
           </p>
         </div>
       </div>
-      
+
       {/* Audit Status Breakdown */}
       <div className="rounded-lg bg-white p-6 shadow-md">
         <h2 className="mb-4 text-lg font-semibold text-gray-800">Audit Status Breakdown</h2>
@@ -225,8 +225,8 @@ export default async function AuditReportsPage({
               <span className="text-2xl font-bold text-green-600">{completedAudits}</span>
             </div>
             <div className="mt-2 h-2 w-full rounded-full bg-gray-200">
-              <div 
-                className="h-2 rounded-full bg-green-600" 
+              <div
+                className="h-2 rounded-full bg-green-600"
                 style={{ width: `${totalAudits > 0 ? (completedAudits / totalAudits) * 100 : 0}%` }}
               ></div>
             </div>
@@ -237,8 +237,8 @@ export default async function AuditReportsPage({
               <span className="text-2xl font-bold text-yellow-600">{inProgressAudits}</span>
             </div>
             <div className="mt-2 h-2 w-full rounded-full bg-gray-200">
-              <div 
-                className="h-2 rounded-full bg-yellow-600" 
+              <div
+                className="h-2 rounded-full bg-yellow-600"
                 style={{ width: `${totalAudits > 0 ? (inProgressAudits / totalAudits) * 100 : 0}%` }}
               ></div>
             </div>
@@ -251,8 +251,8 @@ export default async function AuditReportsPage({
               </span>
             </div>
             <div className="mt-2 h-2 w-full rounded-full bg-gray-200">
-              <div 
-                className="h-2 rounded-full bg-blue-600" 
+              <div
+                className="h-2 rounded-full bg-blue-600"
                 style={{ width: `${totalAudits > 0 ? ((totalAudits - completedAudits - inProgressAudits - cancelledAudits) / totalAudits) * 100 : 0}%` }}
               ></div>
             </div>
@@ -263,19 +263,19 @@ export default async function AuditReportsPage({
               <span className="text-2xl font-bold text-red-600">{cancelledAudits}</span>
             </div>
             <div className="mt-2 h-2 w-full rounded-full bg-gray-200">
-              <div 
-                className="h-2 rounded-full bg-red-600" 
+              <div
+                className="h-2 rounded-full bg-red-600"
                 style={{ width: `${totalAudits > 0 ? (cancelledAudits / totalAudits) * 100 : 0}%` }}
               ></div>
             </div>
           </div>
         </div>
       </div>
-      
+
       {/* Audit List */}
       <div className="rounded-lg bg-white p-6 shadow-md">
         <h2 className="mb-4 text-lg font-semibold text-gray-800">Audit List</h2>
-        
+
         {audits.length === 0 ? (
           <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-gray-300">
             <p className="text-gray-800">No audits found for the selected period</p>
@@ -299,17 +299,23 @@ export default async function AuditReportsPage({
                 {audits.map((audit) => {
                   // Calculate audit statistics
                   const totalItems = audit.items.length;
-                  const countedItems = audit.items.filter(item => 
-                    item.status === "COUNTED" || 
-                    item.status === "RECONCILED" || 
+                  const countedItems = audit.items.filter(item =>
+                    item.status === "COUNTED" ||
+                    item.status === "RECONCILED" ||
                     item.status === "DISCREPANCY"
                   ).length;
-                  const discrepancyItems = audit.items.filter(item => 
-                    item.status === "DISCREPANCY" || 
+
+                  // Progress is 100% only when all items are COUNTED or RECONCILED (no discrepancies)
+                  const perfectlyCountedItems = audit.items.filter(item =>
+                    item.status === "COUNTED" || item.status === "RECONCILED"
+                  ).length;
+                  const progress = totalItems > 0 ? Math.round((perfectlyCountedItems / totalItems) * 100) : 0;
+                  const discrepancyItems = audit.items.filter(item =>
+                    item.status === "DISCREPANCY" ||
                     (item.variance !== null && item.variance !== 0)
                   ).length;
                   const accuracyRate = countedItems > 0 ? ((countedItems - discrepancyItems) / countedItems) * 100 : 0;
-                  
+
                   return (
                     <tr key={audit.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-blue-600">
@@ -325,12 +331,12 @@ export default async function AuditReportsPage({
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-sm">
                         <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                          audit.status === "COMPLETED" 
-                            ? "bg-green-100 text-green-800" 
-                            : audit.status === "IN_PROGRESS" 
-                              ? "bg-yellow-100 text-yellow-800" 
-                              : audit.status === "CANCELLED" 
-                                ? "bg-red-100 text-red-800" 
+                          audit.status === "COMPLETED"
+                            ? "bg-green-100 text-green-800"
+                            : audit.status === "IN_PROGRESS"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : audit.status === "CANCELLED"
+                                ? "bg-red-100 text-red-800"
                                 : "bg-gray-100 text-gray-800"
                         }`}>
                           {audit.status}

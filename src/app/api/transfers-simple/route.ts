@@ -3,79 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// Mock data for transfers
-const mockTransfers = [
-  {
-    id: "mock-1",
-    transferNumber: "TRF-20230501-0001",
-    type: "WAREHOUSE_TO_STORE",
-    status: "DRAFT",
-    sourceWarehouseId: "mock-warehouse-1",
-    sourceWarehouse: {
-      id: "mock-warehouse-1",
-      name: "Main Warehouse"
-    },
-    destinationStoreId: "mock-store-1",
-    destinationStore: {
-      id: "mock-store-1",
-      name: "Downtown Store"
-    },
-    // For compatibility with the outwards component
-    fromWarehouseId: "mock-warehouse-1",
-    fromWarehouse: {
-      id: "mock-warehouse-1",
-      name: "Main Warehouse"
-    },
-    toStoreId: "mock-store-1",
-    toStore: {
-      id: "mock-store-1",
-      name: "Downtown Store"
-    },
-    items: [
-      { id: "item-1", productId: "prod-1", requestedQuantity: 10 }
-    ],
-    totalItems: 10,
-    totalCost: 199.90,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: "mock-2",
-    transferNumber: "TRF-20230502-0002",
-    type: "WAREHOUSE_TO_STORE",
-    status: "COMPLETED",
-    sourceWarehouseId: "mock-warehouse-1",
-    sourceWarehouse: {
-      id: "mock-warehouse-1",
-      name: "Main Warehouse"
-    },
-    destinationStoreId: "mock-store-2",
-    destinationStore: {
-      id: "mock-store-2",
-      name: "Mall Store"
-    },
-    // For compatibility with the outwards component
-    fromWarehouseId: "mock-warehouse-1",
-    fromWarehouse: {
-      id: "mock-warehouse-1",
-      name: "Main Warehouse"
-    },
-    toStoreId: "mock-store-2",
-    toStore: {
-      id: "mock-store-2",
-      name: "Mall Store"
-    },
-    items: [
-      { id: "item-2", productId: "prod-2", requestedQuantity: 5 },
-      { id: "item-3", productId: "prod-3", requestedQuantity: 3 }
-    ],
-    totalItems: 8,
-    totalCost: 149.95,
-    createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-    updatedAt: new Date(Date.now() - 86400000).toISOString()
-  }
-];
-
 export async function GET(req: NextRequest) {
   try {
     console.log("Simple Transfers API: Fetching transfers");
@@ -99,133 +26,87 @@ export async function GET(req: NextRequest) {
 
     console.log("Simple Transfers API: Query parameters:", { type, status, search, page, pageSize });
 
-    // Try to get real transfers from the database
-    try {
-      // Build the filter
-      const filter: any = {};
-
-      if (type) {
-        if (type === "warehouse-to-store") {
-          filter.type = "WAREHOUSE_TO_STORE";
-        } else if (type === "store-to-warehouse") {
-          filter.type = "STORE_TO_WAREHOUSE";
-        } else if (type === "warehouse-to-warehouse") {
-          filter.type = "WAREHOUSE_TO_WAREHOUSE";
-        } else if (type === "store-to-store") {
-          filter.type = "STORE_TO_STORE";
-        } else {
-          filter.type = type; // Use the raw value
-        }
-      }
-
-      if (status) {
-        filter.status = status;
-      }
-
-      if (search) {
-        filter.OR = [
-          { transferNumber: { contains: search, mode: 'insensitive' } },
-          { notes: { contains: search, mode: 'insensitive' } }
-        ];
-      }
-
-      const transfers = await prisma.transfer.findMany({
-        where: filter,
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: pageSize,
-        skip: (page - 1) * pageSize
-      });
-
-      console.log(`Simple Transfers API: Found ${transfers.length} real transfers`);
-
-      if (transfers.length > 0) {
-        // Add totalItems and totalCost to each transfer if they don't exist
-        const enhancedTransfers = transfers.map(transfer => ({
-          ...transfer,
-          totalItems: transfer.totalItems || 0,
-          totalCost: transfer.totalCost || 0
-        }));
-
-        return NextResponse.json({
-          transfers: enhancedTransfers,
-          pagination: {
-            total: enhancedTransfers.length,
-            page,
-            pageSize,
-            totalPages: Math.ceil(enhancedTransfers.length / pageSize)
-          },
-        });
-      }
-    } catch (dbError) {
-      console.error("Simple Transfers API: Database error:", dbError);
-    }
-
-    // Fall back to mock data if database query fails or returns no results
-    console.log("Simple Transfers API: Using mock data");
-
-    // Filter mock data based on query parameters
-    let filteredMockTransfers = [...mockTransfers];
+    // Build the filter
+    const filter: any = {};
 
     if (type) {
       if (type === "warehouse-to-store") {
-        filteredMockTransfers = filteredMockTransfers.filter(t => t.type === "WAREHOUSE_TO_STORE");
+        filter.transferType = "RESTOCK";
       } else if (type === "store-to-warehouse") {
-        filteredMockTransfers = filteredMockTransfers.filter(t => t.type === "STORE_TO_WAREHOUSE");
+        filter.transferType = "RETURN";
       } else if (type === "warehouse-to-warehouse") {
-        filteredMockTransfers = filteredMockTransfers.filter(t => t.type === "WAREHOUSE_TO_WAREHOUSE");
+        filter.transferType = "RELOCATION";
       } else if (type === "store-to-store") {
-        filteredMockTransfers = filteredMockTransfers.filter(t => t.type === "STORE_TO_STORE");
+        filter.transferType = "RELOCATION";
       } else {
-        filteredMockTransfers = filteredMockTransfers.filter(t => t.type === type);
+        filter.transferType = type;
       }
     }
 
     if (status) {
-      filteredMockTransfers = filteredMockTransfers.filter(t => t.status === status);
+      filter.status = status;
     }
 
     if (search) {
-      const searchLower = search.toLowerCase();
-      filteredMockTransfers = filteredMockTransfers.filter(t =>
-        t.transferNumber.toLowerCase().includes(searchLower)
-      );
+      filter.OR = [
+        { transferNumber: { contains: search, mode: 'insensitive' } },
+        { notes: { contains: search, mode: 'insensitive' } }
+      ];
     }
 
-    // Add totalItems and totalCost to each transfer if they don't exist
-    const enhancedMockTransfers = filteredMockTransfers.map(transfer => ({
-      ...transfer,
-      totalItems: transfer.items?.length || 0,
-      totalCost: 0 // Default value
-    }));
+    // Get transfers from database with related data
+    const transfers = await prisma.transfer.findMany({
+      where: filter,
+      include: {
+        Store_Transfer_fromStoreIdToStore: {
+          select: { id: true, name: true }
+        },
+        Warehouse_Transfer_fromWarehouseIdToWarehouse: {
+          select: { id: true, name: true }
+        },
+        Store_Transfer_toStoreIdToStore: {
+          select: { id: true, name: true }
+        },
+        Warehouse_Transfer_toWarehouseIdToWarehouse: {
+          select: { id: true, name: true }
+        },
+        items: {
+          include: {
+            product: {
+              select: { id: true, name: true, sku: true }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: pageSize,
+      skip: (page - 1) * pageSize
+    });
+
+    console.log(`Simple Transfers API: Found ${transfers.length} transfers`);
+
+    // Get total count for pagination
+    const totalCount = await prisma.transfer.count({
+      where: filter
+    });
 
     return NextResponse.json({
-      transfers: enhancedMockTransfers,
+      transfers,
       pagination: {
-        total: enhancedMockTransfers.length,
+        total: totalCount,
         page,
         pageSize,
-        totalPages: Math.ceil(enhancedMockTransfers.length / pageSize)
+        totalPages: Math.ceil(totalCount / pageSize)
       },
     });
   } catch (error) {
     console.error("Simple Transfers API: Error:", error);
-
-    // Return mock data on error
-    return NextResponse.json({
-      transfers: mockTransfers.map(transfer => ({
-        ...transfer,
-        totalItems: transfer.items?.length || 0,
-        totalCost: 0 // Default value
-      })),
-      pagination: {
-        total: mockTransfers.length,
-        page: 1,
-        pageSize: 50,
-        totalPages: 1,
-      },
-    });
+    return NextResponse.json(
+      { error: "Failed to fetch transfers" },
+      { status: 500 }
+    );
   }
 }
 
@@ -254,55 +135,26 @@ export async function POST(req: NextRequest) {
     const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
     const transferNumber = `TRF-${year}${month}${day}-${randomNum}`;
 
-    // Try to create a real transfer in the database
-    try {
-      const transfer = await prisma.transfer.create({
-        data: {
-          transferNumber,
-          status: "DRAFT",
-        },
-      });
+    // Create transfer in the database
+    const transfer = await prisma.transfer.create({
+      data: {
+        transferNumber,
+        status: "DRAFT",
+      },
+    });
 
-      console.log("Simple Transfers API: Created real transfer:", transfer);
-
-      return NextResponse.json({
-        success: true,
-        message: "Transfer created successfully",
-        transfer
-      });
-    } catch (dbError) {
-      console.error("Simple Transfers API: Database error:", dbError);
-    }
-
-    // Fall back to mock response if database operation fails
-    console.log("Simple Transfers API: Using mock response");
-
-    const mockTransfer = {
-      id: `mock-${Date.now()}`,
-      transferNumber,
-      status: "DRAFT",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    console.log("Simple Transfers API: Created transfer:", transfer);
 
     return NextResponse.json({
       success: true,
-      message: "Transfer created successfully (mock)",
-      transfer: mockTransfer
+      message: "Transfer created successfully",
+      transfer
     });
   } catch (error) {
     console.error("Simple Transfers API: Error:", error);
-
-    // Return mock response on error
-    return NextResponse.json({
-      success: true,
-      message: "Transfer created successfully (mock error fallback)",
-      transfer: {
-        id: `mock-error-${Date.now()}`,
-        transferNumber: `TRF-ERROR-${Date.now()}`,
-        status: "DRAFT",
-        createdAt: new Date().toISOString(),
-      }
-    });
+    return NextResponse.json(
+      { error: "Failed to create transfer" },
+      { status: 500 }
+    );
   }
 }

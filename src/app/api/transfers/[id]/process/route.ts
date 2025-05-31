@@ -39,13 +39,29 @@ export async function POST(
       include: {
         items: {
           include: {
-            product: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                costPrice: true,
+                retailPrice: true
+              }
+            },
           },
         },
-        fromWarehouse: true,
-        toWarehouse: true,
-        fromStore: true,
-        toStore: true,
+        Warehouse_Transfer_fromWarehouseIdToWarehouse: {
+          select: { id: true, name: true, code: true }
+        },
+        Warehouse_Transfer_toWarehouseIdToWarehouse: {
+          select: { id: true, name: true, code: true }
+        },
+        Store_Transfer_toStoreIdToStore: {
+          select: { id: true, name: true, code: true }
+        },
+        Store_Transfer_fromStoreIdToStore: {
+          select: { id: true, name: true, code: true }
+        },
       },
     });
 

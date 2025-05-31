@@ -5,23 +5,39 @@ import { EditTransferForm } from "../../_components/edit-transfer-form";
 export default async function EditTransferPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const transferId = params.id;
+  const { id: transferId } = await params;
 
   // Get transfer with related data
   const transfer = await prisma.transfer.findUnique({
     where: { id: transferId },
     include: {
-      fromWarehouse: true,
-      toWarehouse: true,
-      toStore: true,
+      Warehouse_Transfer_fromWarehouseIdToWarehouse: {
+        select: { id: true, name: true, code: true }
+      },
+      Warehouse_Transfer_toWarehouseIdToWarehouse: {
+        select: { id: true, name: true, code: true }
+      },
+      Store_Transfer_toStoreIdToStore: {
+        select: { id: true, name: true, code: true }
+      },
+      Store_Transfer_fromStoreIdToStore: {
+        select: { id: true, name: true, code: true }
+      },
       items: {
         include: {
           product: {
-            include: {
-              category: true,
-            },
+            select: {
+              id: true,
+              name: true,
+              sku: true,
+              costPrice: true,
+              retailPrice: true,
+              category: {
+                select: { id: true, name: true }
+              }
+            }
           },
         },
       },
@@ -31,6 +47,16 @@ export default async function EditTransferPage({
   if (!transfer) {
     notFound();
   }
+
+  // Create compatibility aliases for the form component
+  const transferWithAliases = {
+    ...transfer,
+    // Add compatibility aliases for the form
+    fromWarehouse: transfer.Warehouse_Transfer_fromWarehouseIdToWarehouse,
+    toWarehouse: transfer.Warehouse_Transfer_toWarehouseIdToWarehouse,
+    toStore: transfer.Store_Transfer_toStoreIdToStore,
+    fromStore: transfer.Store_Transfer_fromStoreIdToStore,
+  };
 
   // Only allow editing of transfers in DRAFT or PENDING status
   if (transfer.status !== "DRAFT" && transfer.status !== "PENDING") {
@@ -83,7 +109,7 @@ export default async function EditTransferPage({
       </div>
 
       <EditTransferForm
-        transfer={transfer}
+        transfer={transferWithAliases}
         warehouses={warehouses}
         stores={stores}
         products={products}

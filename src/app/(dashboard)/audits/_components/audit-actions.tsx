@@ -17,14 +17,47 @@ interface AuditActionsProps {
 export function AuditActions({ audit }: AuditActionsProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
+  const handleStartAudit = async () => {
+    if (!confirm("Are you sure you want to start this audit? This will generate audit items from current inventory.")) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`/api/audits/${audit.id}/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start audit');
+      }
+
+      const result = await response.json();
+      console.log('Audit started successfully:', result);
+
+      // Redirect to counting page
+      router.push(`/audits/${audit.id}/count`);
+    } catch (error) {
+      console.error('Error starting audit:', error);
+      alert('Failed to start audit. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleCompleteAudit = async () => {
     if (!confirm("Are you sure you want to complete this audit? This will update inventory based on the audit findings.")) {
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       const response = await fetch(`/api/audits/${audit.id}`, {
         method: 'PUT',
@@ -35,12 +68,12 @@ export function AuditActions({ audit }: AuditActionsProps) {
           status: "COMPLETED",
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to complete audit');
       }
-      
+
       // Refresh the page
       router.refresh();
     } catch (error) {
@@ -50,14 +83,14 @@ export function AuditActions({ audit }: AuditActionsProps) {
       setIsSubmitting(false);
     }
   };
-  
+
   const handleCancelAudit = async () => {
     if (!confirm("Are you sure you want to cancel this audit? This action cannot be undone.")) {
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       const response = await fetch(`/api/audits/${audit.id}`, {
         method: 'PUT',
@@ -68,12 +101,12 @@ export function AuditActions({ audit }: AuditActionsProps) {
           status: "CANCELLED",
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to cancel audit');
       }
-      
+
       // Refresh the page
       router.refresh();
     } catch (error) {
@@ -83,7 +116,7 @@ export function AuditActions({ audit }: AuditActionsProps) {
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <div className="flex items-center gap-2">
       {audit.status === "PLANNED" && (
@@ -94,15 +127,17 @@ export function AuditActions({ audit }: AuditActionsProps) {
           >
             Edit
           </Link>
-          <Link
-            href={`/audits/${audit.id}/start`}
-            className="rounded-md bg-green-100 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-200 transition-colors"
+          <Button
+            onClick={handleStartAudit}
+            isLoading={isSubmitting}
+            disabled={isSubmitting}
+            className="bg-green-600 hover:bg-green-700"
           >
             Start Audit
-          </Link>
+          </Button>
         </>
       )}
-      
+
       {audit.status === "IN_PROGRESS" && (
         <>
           <Link
@@ -121,7 +156,7 @@ export function AuditActions({ audit }: AuditActionsProps) {
           </Button>
         </>
       )}
-      
+
       {(audit.status === "PLANNED" || audit.status === "IN_PROGRESS") && (
         <Button
           onClick={handleCancelAudit}

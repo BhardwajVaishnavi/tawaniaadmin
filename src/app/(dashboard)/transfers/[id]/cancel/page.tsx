@@ -13,15 +13,31 @@ export default async function CancelTransferPage({
   const transfer = await prisma.transfer.findUnique({
     where: { id: transferId },
     include: {
-      fromWarehouse: true,
-      toWarehouse: true,
-      toStore: true,
+      Warehouse_Transfer_fromWarehouseIdToWarehouse: {
+        select: { id: true, name: true, code: true }
+      },
+      Warehouse_Transfer_toWarehouseIdToWarehouse: {
+        select: { id: true, name: true, code: true }
+      },
+      Store_Transfer_toStoreIdToStore: {
+        select: { id: true, name: true, code: true }
+      },
+      Store_Transfer_fromStoreIdToStore: {
+        select: { id: true, name: true, code: true }
+      },
       items: {
         include: {
           product: {
-            include: {
-              category: true,
-            },
+            select: {
+              id: true,
+              name: true,
+              sku: true,
+              costPrice: true,
+              retailPrice: true,
+              category: {
+                select: { id: true, name: true }
+              }
+            }
           },
         },
       },

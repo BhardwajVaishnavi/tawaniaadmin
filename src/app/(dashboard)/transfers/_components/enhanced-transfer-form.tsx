@@ -231,32 +231,59 @@ export function EnhancedTransferForm({
     setIsSubmitting(true);
 
     try {
-      console.log("Submitting transfer with items:", items.length);
+      console.log("=== FORM SUBMISSION DEBUG ===");
+      console.log("Warehouse ID:", warehouseId);
+      console.log("Warehouse Name:", warehouseName);
+      console.log("Destination Store ID:", destinationStoreId);
+      console.log("Available Stores:", stores);
+      console.log("Items count:", items.length);
+      console.log("Priority:", priority);
 
-      // Use the new raw API endpoint to avoid schema issues
-      const response = await fetch("/api/transfers/raw", {
+      // Validate IDs are not empty
+      if (!warehouseId) {
+        showNotification("error", "Error", "Warehouse ID is missing");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!destinationStoreId) {
+        showNotification("error", "Error", "Please select a destination store");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const requestData = {
+        fromWarehouseId: warehouseId,
+        toStoreId: destinationStoreId,
+        transferType: "RESTOCK",
+        priority,
+        requestedDate: new Date(),
+        notes,
+        items: items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          sourceCostPrice: Number(item.sourceCostPrice),
+          sourceRetailPrice: Number(item.sourceRetailPrice),
+          targetCostPrice: Number(adjustPrices ? item.targetCostPrice : item.sourceCostPrice),
+          targetRetailPrice: Number(adjustPrices ? item.targetRetailPrice : item.sourceRetailPrice),
+          adjustmentReason: adjustPrices ? item.adjustmentReason : "",
+        })),
+      };
+
+      console.log("Final request data:", JSON.stringify(requestData, null, 2));
+
+      // Use the simplified transfer API
+      console.log("Sending POST request to transfer API...");
+      const response = await fetch("/api/transfers/simple", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          fromWarehouseId: warehouseId,
-          toStoreId: destinationStoreId,
-          transferType: "RESTOCK",
-          priority,
-          requestedDate: new Date(),
-          notes,
-          items: items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            sourceCostPrice: Number(item.sourceCostPrice),
-            sourceRetailPrice: Number(item.sourceRetailPrice),
-            targetCostPrice: Number(adjustPrices ? item.targetCostPrice : item.sourceCostPrice),
-            targetRetailPrice: Number(adjustPrices ? item.targetRetailPrice : item.sourceRetailPrice),
-            adjustmentReason: adjustPrices ? item.adjustmentReason : "",
-          })),
-        }),
+        body: JSON.stringify(requestData),
       });
+
+      console.log("Response status:", response.status);
+      console.log("Response headers:", Object.fromEntries(response.headers.entries()));
 
       if (response.ok) {
         const data = await response.json();
@@ -265,9 +292,29 @@ export function EnhancedTransferForm({
         router.push(`/transfers/${data.id}`);
         router.refresh();
       } else {
-        const error = await response.json().catch(() => ({}));
-        console.error("Failed to create transfer:", error);
-        showNotification("error", "Error", error.error || "Failed to create transfer");
+        let errorMessage = "Failed to create transfer";
+        let responseText = "";
+
+        try {
+          // First try to get the response as text
+          responseText = await response.text();
+          console.log("Raw response text:", responseText);
+
+          // Then try to parse it as JSON
+          if (responseText) {
+            const error = JSON.parse(responseText);
+            console.error("Parsed error response:", error);
+            errorMessage = error.error || error.details || error.message || errorMessage;
+          } else {
+            errorMessage = `Empty response with status ${response.status}`;
+          }
+        } catch (parseError) {
+          console.error("Failed to parse error response:", parseError);
+          console.error("Response text was:", responseText);
+          errorMessage = responseText || `HTTP ${response.status}: ${response.statusText}`;
+        }
+
+        showNotification("error", "Error", errorMessage);
         setIsSubmitting(false);
       }
     } catch (error) {
@@ -605,6 +652,27 @@ export function EnhancedTransferForm({
                       </div>
                     )}
                   </div>
+
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      console.log("=== API TEST BUTTON CLICKED ===");
+                      try {
+                        const testResponse = await fetch("/api/transfers/basic");
+                        console.log("Test response status:", testResponse.status);
+                        const testData = await testResponse.json();
+                        console.log("Test response data:", testData);
+                        showNotification("success", "API Test", "API is working! Check console for details.");
+                      } catch (error) {
+                        console.error("API test failed:", error);
+                        showNotification("error", "API Test", "API test failed! Check console for details.");
+                      }
+                    }}
+                    variant="outline"
+                    className="w-full mb-2"
+                  >
+                    Test API Connection
+                  </Button>
 
                   <Button
                     type="submit"

@@ -6,7 +6,7 @@ import { AuditItemStatus } from '@prisma/client';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -123,12 +123,15 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log("=== AUDIT ITEMS UPDATE API CALLED ===");
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
+      console.log("No session found");
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -139,6 +142,8 @@ export async function PUT(
     const { id: auditId } = await params;
     const data = await req.json();
     const { items } = data;
+
+    console.log("Audit items update request:", { auditId, itemsCount: items?.length, userId: session.user.id });
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
@@ -209,18 +214,16 @@ export async function PUT(
           status = AuditItemStatus.COUNTED;
         }
 
-        // Update audit item
+        // Update audit item with correct field names
         return prisma.auditItem.update({
           where: {
             id,
           },
           data: {
-            countedQuantity: actualQuantity,
-            discrepancy: variance,
+            actualQuantity: actualQuantity,
+            variance: variance,
             status,
             notes: notes || null,
-            countedById: session.user.id,
-            countedAt: new Date(),
           },
         });
       })
@@ -245,15 +248,30 @@ export async function PUT(
     // If all items have been counted, suggest completing the audit
     const isComplete = totalItems === countedItems;
 
+    console.log("Audit items update successful:", { updatedCount: updatedItems.length, isComplete });
+
     return NextResponse.json({
       items: updatedItems,
       isComplete,
       message: "Audit items updated successfully"
     });
   } catch (error) {
+    console.error("=== ERROR IN AUDIT ITEMS UPDATE API ===");
     console.error("Error updating audit items:", error);
+
+    let errorMessage = "Failed to update audit items";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      console.error("Error message:", errorMessage);
+      console.error("Error stack:", error.stack);
+    }
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to update audit items" },
+      {
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : String(error),
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     );
   }

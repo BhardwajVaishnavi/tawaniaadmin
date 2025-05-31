@@ -33,67 +33,56 @@ export default function TransfersPage() {
 
         console.log('Fetching transfers from database...');
 
-        // Try multiple endpoints in sequence
-        const endpoints = [
-          '/api/transfers-simple',
-          '/api/transfers'
-        ];
+        // Use the working transfer API
+        try {
+          console.log('Fetching transfers from API...');
+          const response = await fetch('/api/transfers/simple');
 
-        let success = false;
-
-        for (const endpoint of endpoints) {
-          if (success) break;
-
-          try {
-            console.log(`Trying endpoint: ${endpoint}`);
-            const response = await fetch(endpoint);
-
-            if (!response.ok) {
-              console.error(`Error from ${endpoint}: ${response.status}`);
-              continue; // Try next endpoint
-            }
-
+          if (response.ok) {
             const data = await response.json();
-            console.log(`Fetched transfers from ${endpoint}:`, data);
+            console.log('Transfers data received:', data);
 
             if (data.transfers && Array.isArray(data.transfers)) {
               setTransfers(data.transfers);
-              success = true;
-              break;
-            }
-          } catch (endpointError) {
-            console.error(`Error with endpoint ${endpoint}:`, endpointError);
-            // Continue to next endpoint
-          }
-        }
+              console.log(`Loaded ${data.transfers.length} transfers`);
 
-        if (!success) {
-          // If all endpoints fail, show mock data
-          console.log('All endpoints failed, showing mock data');
-          setTransfers([
-            {
-              id: "mock-1",
-              transferNumber: "TRF-20230501-0001",
-              type: "WAREHOUSE_TO_STORE",
-              status: "DRAFT",
-              createdAt: new Date().toISOString()
+              // Debug first transfer
+              if (data.transfers.length > 0) {
+                const firstTransfer = data.transfers[0];
+                console.log('First transfer details:', {
+                  id: firstTransfer.id,
+                  transferNumber: firstTransfer.transferNumber,
+                  fromWarehouseId: firstTransfer.fromWarehouseId,
+                  toStoreId: firstTransfer.toStoreId,
+                  warehouseName: firstTransfer.Warehouse_Transfer_fromWarehouseIdToWarehouse?.name,
+                  storeName: firstTransfer.Store_Transfer_toStoreIdToStore?.name,
+                  status: firstTransfer.status,
+                  transferType: firstTransfer.transferType,
+                  itemsCount: firstTransfer._count?.items,
+                  itemsArray: firstTransfer.items?.length,
+                  totalItems: firstTransfer.totalItems,
+                  items: firstTransfer.items
+                });
+              }
+            } else {
+              setTransfers([]);
+              console.log('No transfers found in response');
             }
-          ]);
+          } else {
+            const errorText = await response.text();
+            console.error('API response error:', errorText);
+            setError(`Failed to load transfers: ${response.status} ${response.statusText}`);
+            setTransfers([]);
+          }
+        } catch (fetchError) {
+          console.error('Fetch error:', fetchError);
+          setError('Unable to load transfers. Please check your connection and try again.');
+          setTransfers([]);
         }
       } catch (err) {
         console.error('Error fetching transfers:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
-
-        // Show mock data on error
-        setTransfers([
-          {
-            id: "mock-1",
-            transferNumber: "TRF-20230501-0001",
-            type: "WAREHOUSE_TO_STORE",
-            status: "DRAFT",
-            createdAt: new Date().toISOString()
-          }
-        ]);
+        setTransfers([]);
       } finally {
         setLoading(false);
       }
@@ -171,22 +160,26 @@ export default function TransfersPage() {
                       {formatTransferType(transfer)}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
-                      {transfer.Warehouse_Transfer_sourceWarehouseIdToWarehouse?.name ||
-                       transfer.sourceWarehouse?.name ||
-                       transfer.fromWarehouse?.name ||
-                       transfer.sourceWarehouseId || "-"}
+                      {transfer.Warehouse_Transfer_fromWarehouseIdToWarehouse?.name ||
+                       transfer.fromWarehouseId || "-"}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
-                      {transfer.Store_Transfer_destinationStoreIdToStore?.name ||
-                       transfer.destinationStore?.name ||
-                       transfer.toStore?.name ||
-                       transfer.destinationStoreId || "-"}
+                      {transfer.Store_Transfer_toStoreIdToStore?.name ||
+                       transfer.toStoreId || "-"}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm">
-                      <TransferStatusBadge status={transfer.status} />
+                      <TransferStatusDropdown
+                        transferId={transfer.id}
+                        currentStatus={transfer.status}
+                        onStatusChange={(newStatus) => {
+                          setTransfers(prev => prev.map(t =>
+                            t.id === transfer.id ? { ...t, status: newStatus } : t
+                          ));
+                        }}
+                      />
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
-                      {transfer.items?.length || 0}
+                      {transfer._count?.items || transfer.items?.length || transfer.totalItems || 0}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
                       {transfer.createdAt && formatDistanceToNow(new Date(transfer.createdAt), { addSuffix: true })}
@@ -234,36 +227,11 @@ export default function TransfersPage() {
 function formatTransferType(transfer: any) {
   if (!transfer) return "Unknown";
 
-  // Handle any possible data structure
-
-  // Check if we have source and destination in any format
-  const hasSourceWarehouse = !!(
-    transfer.Warehouse_Transfer_sourceWarehouseIdToWarehouse ||
-    transfer.sourceWarehouse ||
-    transfer.fromWarehouse ||
-    transfer.sourceWarehouseId
-  );
-
-  const hasDestinationWarehouse = !!(
-    transfer.Warehouse_Transfer_destinationWarehouseIdToWarehouse ||
-    transfer.destinationWarehouse ||
-    transfer.toWarehouse ||
-    transfer.destinationWarehouseId
-  );
-
-  const hasSourceStore = !!(
-    transfer.Store_Transfer_sourceStoreIdToStore ||
-    transfer.sourceStore ||
-    transfer.fromStore ||
-    transfer.sourceStoreId
-  );
-
-  const hasDestinationStore = !!(
-    transfer.Store_Transfer_destinationStoreIdToStore ||
-    transfer.destinationStore ||
-    transfer.toStore ||
-    transfer.destinationStoreId
-  );
+  // Check if we have source and destination based on actual field values
+  const hasSourceWarehouse = !!(transfer.fromWarehouseId);
+  const hasDestinationWarehouse = !!(transfer.toWarehouseId);
+  const hasSourceStore = !!(transfer.fromStoreId);
+  const hasDestinationStore = !!(transfer.toStoreId);
 
   // Determine type based on source and destination
   if (hasSourceWarehouse && hasDestinationWarehouse) {
@@ -276,19 +244,100 @@ function formatTransferType(transfer: any) {
     return "Store to Store";
   }
 
-  // Fallback to type field
-  switch (transfer.type) {
-    case "WAREHOUSE_TO_WAREHOUSE":
-      return "Warehouse to Warehouse";
-    case "WAREHOUSE_TO_STORE":
-      return "Warehouse to Store";
-    case "STORE_TO_WAREHOUSE":
-      return "Store to Warehouse";
-    case "STORE_TO_STORE":
-      return "Store to Store";
+  // Fallback to transferType field
+  switch (transfer.transferType) {
+    case "RESTOCK":
+      return "Restock";
+    case "RETURN":
+      return "Return";
+    case "RELOCATION":
+      return "Relocation";
+    case "ADJUSTMENT":
+      return "Adjustment";
+    case "INITIAL_STOCK":
+      return "Initial Stock";
     default:
-      return transfer.type || "Unknown";
+      return transfer.transferType || "Unknown";
   }
+}
+
+function TransferStatusDropdown({
+  transferId,
+  currentStatus,
+  onStatusChange
+}: {
+  transferId: string;
+  currentStatus: string;
+  onStatusChange: (newStatus: string) => void;
+}) {
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const statusOptions = [
+    { value: "DRAFT", label: "Draft", color: "bg-gray-100 text-gray-800" },
+    { value: "PENDING", label: "Pending", color: "bg-yellow-100 text-yellow-800" },
+    { value: "APPROVED", label: "Approved", color: "bg-blue-100 text-blue-800" },
+    { value: "REJECTED", label: "Rejected", color: "bg-red-100 text-red-800" },
+    { value: "IN_TRANSIT", label: "In Transit", color: "bg-purple-100 text-purple-800" },
+    { value: "COMPLETED", label: "Completed", color: "bg-green-100 text-green-800" },
+    { value: "CANCELLED", label: "Cancelled", color: "bg-red-100 text-red-800" },
+  ];
+
+  const currentStatusOption = statusOptions.find(option => option.value === currentStatus) ||
+    { value: currentStatus, label: currentStatus, color: "bg-gray-100 text-gray-800" };
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === currentStatus || isUpdating) return;
+
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/transfers/${transferId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (response.ok) {
+        onStatusChange(newStatus);
+      } else {
+        console.error('Failed to update status');
+        alert('Failed to update status. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Error updating status. Please try again.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <select
+        value={currentStatus}
+        onChange={(e) => handleStatusChange(e.target.value)}
+        disabled={isUpdating}
+        className={`
+          rounded-full px-3 py-1 text-xs font-medium border-0 cursor-pointer
+          ${currentStatusOption.color}
+          ${isUpdating ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}
+          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
+        `}
+      >
+        {statusOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {isUpdating && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function TransferStatusBadge({ status }: { status: string }) {

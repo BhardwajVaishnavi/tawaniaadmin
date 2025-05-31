@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/select";
 import { Pagination } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Search, Filter } from "lucide-react";
+import { ReturnStatusBadgeDropdown } from "./return-status-dropdown";
 
 interface Store {
   id: string;
@@ -261,7 +262,11 @@ export function ReturnsList({
                       ${returnItem.totalAmount.toFixed(2)}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm">
-                      {getStatusBadge(returnItem.status)}
+                      <ReturnStatusBadgeDropdown
+                        returnId={returnItem.id}
+                        currentStatus={returnItem.status}
+                        returnNumber={returnItem.returnNumber}
+                      />
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm">
                       <Link href={`/returns/${returnItem.id}`}>
