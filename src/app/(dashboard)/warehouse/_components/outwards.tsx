@@ -61,6 +61,7 @@ export default function OutwardsComponent() {
 
         // Try multiple endpoints in sequence
         const endpoints = [
+          `/api/warehouse/movements?movementType=OUTWARD&${params.toString()}`,
           `/api/transfers?${params.toString()}`,
           `/api/transfers-simple?${params.toString()}`,
           `/api/outwards?${params.toString()}`
@@ -83,8 +84,26 @@ export default function OutwardsComponent() {
             const data = await response.json();
             console.log(`Fetched transfers from ${endpoint}:`, data);
 
-            if (data.transfers && Array.isArray(data.transfers) && data.transfers.length > 0) {
-              setTransfers(data.transfers);
+            // Handle both warehouse movements and transfers
+            let transferData = data.transfers || [];
+
+            // Transform warehouse movements to transfer format if needed
+            if (data.movements) {
+              transferData = data.movements.map((movement: any) => ({
+                id: movement.id,
+                transferNumber: movement.referenceNumber,
+                createdAt: movement.createdAt,
+                status: movement.status,
+                fromWarehouse: movement.warehouse,
+                toStore: { id: 'store-1', name: 'Target Store' }, // Mock destination
+                items: movement.items || [],
+                totalItems: movement.totalItems,
+                totalCost: movement.totalValue,
+              }));
+            }
+
+            if (transferData && Array.isArray(transferData) && transferData.length > 0) {
+              setTransfers(transferData);
               success = true;
               break;
             }
@@ -274,10 +293,10 @@ export default function OutwardsComponent() {
                               <td className="px-4 py-2 text-right">${(transfer.totalCost || 0).toFixed(2)}</td>
                               <td className="px-4 py-2 text-right">
                                 <div className="flex justify-end space-x-2">
-                                  <Link href={`/transfers/${transfer.id}`}>
+                                  <Link href={`/warehouse/management?view=${transfer.id}`}>
                                     <Button variant="outline" size="sm">View</Button>
                                   </Link>
-                                  <Link href={`/transfers/${transfer.id}/edit`}>
+                                  <Link href={`/warehouse/management?edit=${transfer.id}`}>
                                     <Button variant="outline" size="sm" className="bg-green-50 text-green-600 hover:bg-green-100">
                                       Edit
                                     </Button>

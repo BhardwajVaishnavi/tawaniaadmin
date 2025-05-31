@@ -64,24 +64,26 @@ model VerificationToken {
 }
 
 model Warehouse {
-  id                                           String           @id @default(cuid())
+  id                                           String              @id @default(cuid())
   name                                         String
-  code                                         String           @unique
+  code                                         String              @unique
   address                                      String?
   contactPerson                                String?
   phone                                        String?
   email                                        String?
-  isActive                                     Boolean          @default(true)
-  createdAt                                    DateTime         @default(now())
-  updatedAt                                    DateTime         @updatedAt
+  isActive                                     Boolean             @default(true)
+  createdAt                                    DateTime            @default(now())
+  updatedAt                                    DateTime            @updatedAt
   audits                                       Audit[]
   inventoryItems                               InventoryItem[]
   purchaseOrders                               PurchaseOrder[]
   QualityControl                               QualityControl[]
-  Transfer_Transfer_fromWarehouseIdToWarehouse Transfer[]       @relation("Transfer_fromWarehouseIdToWarehouse")
-  Transfer_Transfer_toWarehouseIdToWarehouse   Transfer[]       @relation("Transfer_toWarehouseIdToWarehouse")
+  Transfer_Transfer_fromWarehouseIdToWarehouse Transfer[]          @relation("Transfer_fromWarehouseIdToWarehouse")
+  Transfer_Transfer_toWarehouseIdToWarehouse   Transfer[]          @relation("Transfer_toWarehouseIdToWarehouse")
   staff                                        WarehouseStaff[]
   zones                                        WarehouseZone[]
+  movements                                    WarehouseMovement[]
+  stockStatuses                                StockStatus[]
 }
 
 model WarehouseZone {
@@ -296,6 +298,8 @@ model Product {
   ReturnItem         ReturnItem[]
   saleItems          SaleItem[]
   transferItems      TransferItem[]
+  movementItems      WarehouseMovementItem[]
+  stockStatuses      StockStatus[]
 }
 
 model Category {
@@ -332,6 +336,7 @@ model InventoryItem {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   auditItems        AuditItem[]
+  movementItems     WarehouseMovementItem[]
   bin               WarehouseBin?    @relation(fields: [binId], references: [id])
   product           Product          @relation(fields: [productId], references: [id])
   store             Store?           @relation(fields: [storeId], references: [id])
@@ -613,6 +618,62 @@ model Payment {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   Sale            Sale          @relation(fields: [saleId], references: [id])
+}
+
+// Warehouse Movement Tracking Models
+model WarehouseMovement {
+  id              String            @id @default(cuid())
+  referenceNumber String            @unique
+  warehouseId     String
+  movementType    MovementType
+  status          MovementStatus    @default(PENDING)
+  sourceType      String?           // PURCHASE_ORDER, TRANSFER, RETURN, ADJUSTMENT
+  sourceId        String?           // ID of the source document
+  totalItems      Int               @default(0)
+  totalValue      Float             @default(0)
+  notes           String?
+  processedById   String?
+  processedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  warehouse       Warehouse         @relation(fields: [warehouseId], references: [id])
+  items           WarehouseMovementItem[]
+}
+
+model WarehouseMovementItem {
+  id                    String            @id @default(cuid())
+  movementId            String
+  productId             String
+  inventoryItemId       String?
+  quantity              Int
+  unitCost              Float             @default(0)
+  totalCost             Float             @default(0)
+  condition             ProductCondition  @default(NEW)
+  batchNumber           String?
+  expiryDate            DateTime?
+  notes                 String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  movement              WarehouseMovement @relation(fields: [movementId], references: [id])
+  product               Product           @relation(fields: [productId], references: [id])
+  inventoryItem         InventoryItem?    @relation(fields: [inventoryItemId], references: [id])
+}
+
+model StockStatus {
+  id              String        @id @default(cuid())
+  warehouseId     String
+  productId       String
+  currentStock    Int           @default(0)
+  reservedStock   Int           @default(0)
+  availableStock  Int           @default(0)
+  outOfStock      Boolean       @default(false)
+  lastMovementAt  DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  warehouse       Warehouse     @relation(fields: [warehouseId], references: [id])
+  product         Product       @relation(fields: [productId], references: [id])
+
+  @@unique([warehouseId, productId])
 }
 
 model QualityControl {
@@ -901,6 +962,18 @@ enum TransferPriority {
   NORMAL
   HIGH
   URGENT
+}
+
+enum MovementType {
+  INWARD
+  OUTWARD
+}
+
+enum MovementStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 enum TransferStatus {

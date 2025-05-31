@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import InwardsComponent from "../_components/inwards";
 import OutwardsComponent from "../_components/outwards";
-import DamagedComponent from "../_components/damaged";
+import OutOfStockComponent from "../_components/out-of-stock";
 import ClosingStockComponent from "../_components/closing-stock";
 
 export default function WarehouseManagementPage() {
@@ -32,10 +32,10 @@ export default function WarehouseManagementPage() {
         <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             {[
-              { id: "inwards", name: "Inwards" },
-              { id: "outwards", name: "Outwards" },
-              { id: "damaged", name: "Damaged" },
-              { id: "closing-stock", name: "Closing Stock" }
+              { id: "inwards", name: "Inwards", description: "Products coming into warehouse" },
+              { id: "outwards", name: "Outwards", description: "Products going out to inventory" },
+              { id: "out-of-stock", name: "Out of Stock", description: "Products that are finished" },
+              { id: "closing-stock", name: "Closing Stock", description: "Final stock status" }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -55,7 +55,7 @@ export default function WarehouseManagementPage() {
         <div className="mt-6">
           {activeTab === "inwards" && <InwardsComponent />}
           {activeTab === "outwards" && <OutwardsComponent />}
-          {activeTab === "damaged" && <DamagedComponent />}
+          {activeTab === "out-of-stock" && <OutOfStockComponent />}
           {activeTab === "closing-stock" && <ClosingStockComponent />}
         </div>
       </div>

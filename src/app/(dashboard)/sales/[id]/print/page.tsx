@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { Receipt } from "../../_components/receipt";
+import { PrintButton } from "../../_components/print-button";
 import { format } from "date-fns"; // Import format from date-fns
 
 // Define a type for the sale data
@@ -109,12 +110,7 @@ export default async function SalePrintPage({
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-800">Print Receipt</h1>
-          <button
-            onClick={() => window.print()}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 print:hidden"
-          >
-            Print
-          </button>
+          <PrintButton className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 print:hidden" />
         </div>
 
         <div className="rounded-lg border border-gray-200 p-6 print:border-0 print:p-0 print:shadow-none">
