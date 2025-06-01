@@ -80,18 +80,21 @@ export async function GET(req: NextRequest) {
     } catch (dbError) {
       console.log("WarehouseMovement table not found, returning mock data");
 
-      // Return mock data when table doesn't exist
-      const mockMovements = [
+      // Get stored movements from a simple in-memory store (for demo purposes)
+      const storedMovements = global.mockMovements || [];
+
+      // Create base mock movements for both types
+      const baseMockMovements = [
         {
-          id: "mock-1",
-          referenceNumber: `${movementType === "INWARD" ? "INW" : "OUT"}-001`,
+          id: "mock-inward-1",
+          referenceNumber: "INW-001",
           warehouseId: "mock-warehouse-1",
-          movementType: movementType || "INWARD",
+          movementType: "INWARD",
           status: "COMPLETED",
-          sourceType: movementType === "INWARD" ? "PURCHASE_ORDER" : "TRANSFER",
+          sourceType: "PURCHASE_ORDER",
           totalItems: 25,
           totalValue: 1250.00,
-          notes: "Mock movement for testing",
+          notes: "Mock inward movement for testing",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           warehouse: {
@@ -116,15 +119,15 @@ export async function GET(req: NextRequest) {
           ],
         },
         {
-          id: "mock-2",
-          referenceNumber: `${movementType === "INWARD" ? "INW" : "OUT"}-002`,
+          id: "mock-inward-2",
+          referenceNumber: "INW-002",
           warehouseId: "mock-warehouse-1",
-          movementType: movementType || "INWARD",
+          movementType: "INWARD",
           status: "PENDING",
-          sourceType: movementType === "INWARD" ? "RETURN" : "SALE",
+          sourceType: "RETURN",
           totalItems: 8,
           totalValue: 400.00,
-          notes: "Another mock movement",
+          notes: "Another mock inward movement",
           createdAt: new Date(Date.now() - 86400000).toISOString(),
           updatedAt: new Date(Date.now() - 86400000).toISOString(),
           warehouse: {
@@ -148,7 +151,81 @@ export async function GET(req: NextRequest) {
             },
           ],
         },
+        {
+          id: "mock-outward-1",
+          referenceNumber: "OUT-001",
+          warehouseId: "mock-warehouse-1",
+          movementType: "OUTWARD",
+          status: "COMPLETED",
+          sourceType: "TRANSFER",
+          totalItems: 15,
+          totalValue: 750.00,
+          notes: "Mock outward movement for testing",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          warehouse: {
+            id: "mock-warehouse-1",
+            name: "Main Warehouse",
+            code: "WH-001",
+          },
+          items: [
+            {
+              id: "mock-item-4",
+              productId: "mock-product-4",
+              quantity: 15,
+              unitCost: 50.00,
+              totalCost: 750.00,
+              condition: "NEW",
+              product: {
+                id: "mock-product-4",
+                name: "Sample Product D",
+                sku: "SKU-004",
+              },
+            },
+          ],
+        },
+        {
+          id: "mock-outward-2",
+          referenceNumber: "OUT-002",
+          warehouseId: "mock-warehouse-1",
+          movementType: "OUTWARD",
+          status: "PENDING",
+          sourceType: "SALE",
+          totalItems: 5,
+          totalValue: 250.00,
+          notes: "Another mock outward movement",
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          updatedAt: new Date(Date.now() - 86400000).toISOString(),
+          warehouse: {
+            id: "mock-warehouse-1",
+            name: "Main Warehouse",
+            code: "WH-001",
+          },
+          items: [
+            {
+              id: "mock-item-5",
+              productId: "mock-product-5",
+              quantity: 5,
+              unitCost: 50.00,
+              totalCost: 250.00,
+              condition: "NEW",
+              product: {
+                id: "mock-product-5",
+                name: "Sample Product E",
+                sku: "SKU-005",
+              },
+            },
+          ],
+        },
       ];
+
+      // Combine stored movements with base mock movements
+      const allMovements = [...storedMovements, ...baseMockMovements];
+
+      // Filter by movement type if specified
+      const mockMovements = movementType
+        ? allMovements.filter(movement => movement.movementType === movementType)
+        : allMovements;
 
       return NextResponse.json({
         movements: mockMovements,
@@ -246,25 +323,55 @@ export async function POST(req: NextRequest) {
     } catch (dbError) {
       console.log("WarehouseMovement table not found, returning mock response");
 
+      // Initialize global mock movements store if it doesn't exist
+      if (!global.mockMovements) {
+        global.mockMovements = [];
+      }
+
+      // Create new movement object
+      const newMovement = {
+        id: `mock-${Date.now()}`,
+        referenceNumber,
+        warehouseId,
+        movementType,
+        status: "COMPLETED",
+        sourceType,
+        totalItems,
+        totalValue,
+        notes,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        warehouse: {
+          id: warehouseId,
+          name: "Main Warehouse",
+          code: "WH-001",
+        },
+        items: items.map((item: any, index: number) => ({
+          id: `mock-item-${Date.now()}-${index}`,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitCost: item.unitCost || 0,
+          totalCost: item.quantity * (item.unitCost || 0),
+          condition: item.condition || "NEW",
+          batchNumber: item.batchNumber,
+          expiryDate: item.expiryDate,
+          notes: item.notes,
+          product: {
+            id: item.productId,
+            name: `Product ${item.productId}`,
+            sku: `SKU-${item.productId}`,
+          },
+        })),
+      };
+
+      // Add to global store
+      global.mockMovements.unshift(newMovement); // Add to beginning for newest first
+
+      console.log("Added new movement to global store:", newMovement.referenceNumber);
+
       // Return mock success response when table doesn't exist
       return NextResponse.json({
-        movement: {
-          id: `mock-${Date.now()}`,
-          referenceNumber,
-          warehouseId,
-          movementType,
-          status: "COMPLETED",
-          sourceType,
-          totalItems,
-          totalValue,
-          notes,
-          createdAt: new Date().toISOString(),
-          items: items.map((item: any, index: number) => ({
-            id: `mock-item-${index}`,
-            ...item,
-            totalCost: item.quantity * (item.unitCost || 0),
-          })),
-        },
+        movement: newMovement,
         message: "Mock warehouse movement created successfully",
       }, { status: 201 });
     }

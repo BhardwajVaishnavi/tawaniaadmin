@@ -1,16 +1,30 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+"use client";
 
-export default async function Home() {
-  const session = await getServerSession(authOptions);
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
-  if (session) {
-    redirect("/dashboard");
-  } else {
-    redirect("/auth/login");
-  }
+export default function Home() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
 
-  // This will never be reached, but is needed for TypeScript
-  return null;
+  useEffect(() => {
+    if (status === "loading") return; // Still loading
+
+    if (session) {
+      router.push("/dashboard");
+    } else {
+      router.push("/auth/login");
+    }
+  }, [session, status, router]);
+
+  // Show loading while redirecting
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-blue-500 mx-auto"></div>
+        <p className="mt-2 text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
 }

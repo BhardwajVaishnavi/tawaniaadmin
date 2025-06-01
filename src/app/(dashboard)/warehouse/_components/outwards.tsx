@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,6 @@ interface Transfer {
 }
 
 export default function OutwardsComponent() {
-  // We're only using transfers now, not outwards
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [isTransfersLoading, setIsTransfersLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -44,11 +43,8 @@ export default function OutwardsComponent() {
   const [transferTypeFilter, setTransferTypeFilter] = useState("all");
   const [transfersError, setTransfersError] = useState<string | null>(null);
 
-  // We're only using the transfers endpoint now
-
   // Fetch all transfers
-  useEffect(() => {
-    const fetchTransfers = async () => {
+  const fetchTransfers = useCallback(async () => {
       try {
         setIsTransfersLoading(true);
         setTransfersError(null); // Clear any previous errors
@@ -95,7 +91,8 @@ export default function OutwardsComponent() {
                 createdAt: movement.createdAt,
                 status: movement.status,
                 fromWarehouse: movement.warehouse,
-                toStore: { id: 'store-1', name: 'Target Store' }, // Mock destination
+                toStore: movement.toStore || null, // Only use real destination data
+                toWarehouse: movement.toWarehouse || null,
                 items: movement.items || [],
                 totalItems: movement.totalItems,
                 totalCost: movement.totalValue,
@@ -126,10 +123,30 @@ export default function OutwardsComponent() {
       } finally {
         setIsTransfersLoading(false);
       }
-    };
+    }, []);
 
+  useEffect(() => {
     fetchTransfers();
-  }, [searchQuery, statusFilter, transferTypeFilter]);
+  }, [fetchTransfers]);
+
+  // Effect to refetch when filters change
+  useEffect(() => {
+    fetchTransfers();
+  }, [searchQuery, statusFilter, transferTypeFilter, fetchTransfers]);
+
+  // Effect to handle URL parameters for refresh
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('refresh') === 'true') {
+      // Remove the refresh parameter from URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('refresh');
+      window.history.replaceState({}, '', newUrl.toString());
+
+      // Refresh the data
+      fetchTransfers();
+    }
+  }, [fetchTransfers]);
 
   // Helper function to determine transfer type
   const getTransferType = (transfer: Transfer) => {
@@ -171,6 +188,13 @@ export default function OutwardsComponent() {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Outwards</CardTitle>
         <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            onClick={fetchTransfers}
+            disabled={isTransfersLoading}
+          >
+            {isTransfersLoading ? "Refreshing..." : "Refresh"}
+          </Button>
           <Link href="/transfers/new">
             <Button>New Transfer</Button>
           </Link>

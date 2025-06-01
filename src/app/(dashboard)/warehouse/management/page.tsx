@@ -10,7 +10,9 @@ import ClosingStockComponent from "../_components/closing-stock";
 export default function WarehouseManagementPage() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
+  const refreshParam = searchParams.get("refresh");
   const [activeTab, setActiveTab] = useState(tabParam || "inwards");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Update active tab when URL parameter changes
   useEffect(() => {
@@ -18,6 +20,19 @@ export default function WarehouseManagementPage() {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
+
+  // Handle refresh parameter
+  useEffect(() => {
+    if (refreshParam === "true") {
+      // Trigger a refresh by updating the refresh trigger
+      setRefreshTrigger(prev => prev + 1);
+
+      // Clean up the URL by removing the refresh parameter
+      const url = new URL(window.location.href);
+      url.searchParams.delete("refresh");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [refreshParam]);
 
   return (
     <div className="space-y-6">
@@ -53,10 +68,10 @@ export default function WarehouseManagementPage() {
         </div>
 
         <div className="mt-6">
-          {activeTab === "inwards" && <InwardsComponent />}
-          {activeTab === "outwards" && <OutwardsComponent />}
-          {activeTab === "out-of-stock" && <OutOfStockComponent />}
-          {activeTab === "closing-stock" && <ClosingStockComponent />}
+          {activeTab === "inwards" && <InwardsComponent key={`inwards-${refreshTrigger}`} />}
+          {activeTab === "outwards" && <OutwardsComponent key={`outwards-${refreshTrigger}`} />}
+          {activeTab === "out-of-stock" && <OutOfStockComponent key={`out-of-stock-${refreshTrigger}`} />}
+          {activeTab === "closing-stock" && <ClosingStockComponent key={`closing-stock-${refreshTrigger}`} />}
         </div>
       </div>
     </div>

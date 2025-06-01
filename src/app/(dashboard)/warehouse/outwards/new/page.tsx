@@ -221,7 +221,11 @@ export default function NewOutwardPage() {
 
       const result = await response.json();
       showNotification("success", "Success", "Outward movement created successfully!");
-      router.push("/warehouse/management");
+
+      // Add a small delay to ensure the data is saved before redirecting
+      setTimeout(() => {
+        router.push("/warehouse/management?tab=outwards&refresh=true");
+      }, 500);
     } catch (error: any) {
       console.error("Error creating outward movement:", error);
       showNotification("error", "Error", error.message || "Failed to create outward movement");

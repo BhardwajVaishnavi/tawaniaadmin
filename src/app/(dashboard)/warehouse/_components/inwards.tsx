@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import Link from "next/link";
+import { RefreshCw } from "lucide-react";
 
 
 interface InwardItem {
@@ -32,17 +33,19 @@ export default function InwardsComponent() {
   const [error, setError] = useState<string | null>(null);
 
   // Function to refresh data
-  const refreshData = () => {
+  const refreshData = useCallback(() => {
     setInwards([]);
     setError(null);
     setIsLoading(true);
     fetchInwards();
-  };
+  }, []);
 
-  const fetchInwards = async () => {
+  const fetchInwards = useCallback(async () => {
       try {
         setIsLoading(true);
         setError(null); // Clear any previous errors
+
+        console.log("Fetching inward movements...");
 
         // Try multiple endpoints in sequence
         const endpoints = [
@@ -58,10 +61,19 @@ export default function InwardsComponent() {
 
           try {
             console.log(`Trying to fetch inwards from endpoint: ${endpoint}`);
-            const response = await fetch(endpoint);
+            const response = await fetch(endpoint, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+
+            console.log(`Response status from ${endpoint}: ${response.status}`);
 
             if (!response.ok) {
-              console.error(`Error from ${endpoint}: ${response.status}`);
+              console.error(`Error from ${endpoint}: ${response.status} ${response.statusText}`);
+              const errorText = await response.text();
+              console.error(`Error response body:`, errorText);
               continue; // Try next endpoint
             }
 
@@ -69,33 +81,62 @@ export default function InwardsComponent() {
             console.log(`Fetched inwards from ${endpoint}:`, data);
 
             // Transform the data if needed
-            let inwardItems = data.inwards || data.movements || [];
+            let inwardItems = [];
 
-            // Transform warehouse movements to inward items format
-            if (data.movements) {
+            // Handle different API response formats
+            if (data.movements && Array.isArray(data.movements)) {
+              // Transform warehouse movements to inward items format
               inwardItems = data.movements.map((movement: any) => ({
                 id: movement.id,
                 referenceNumber: movement.referenceNumber,
                 date: movement.createdAt,
                 supplier: movement.sourceType === 'PURCHASE_ORDER' ? 'Purchase Order' :
                          movement.sourceType === 'MANUAL' ? 'Manual Entry' :
+                         movement.sourceType === 'RETURN' ? 'Return' :
                          movement.sourceType || 'Unknown',
-                status: movement.status,
-                totalItems: movement.totalItems || 0,
+                status: movement.status || 'PENDING',
+                totalItems: movement.totalItems || movement.items?.length || 0,
                 totalValue: movement.totalValue || 0,
                 hasDamagedItems: movement.items?.some((item: any) => item.condition === 'DAMAGED') || false
               }));
-            } else if (data.inwards) {
+            } else if (data.inwards && Array.isArray(data.inwards)) {
               // Handle inwards API response format
               inwardItems = data.inwards.map((inward: any) => ({
                 id: inward.id,
                 referenceNumber: inward.referenceNumber,
                 date: inward.createdAt || inward.date,
-                supplier: inward.supplier || 'Unknown',
-                status: inward.status,
+                supplier: inward.supplier || inward.sourceType || 'Unknown',
+                status: inward.status || 'PENDING',
                 totalItems: inward.totalItems || 0,
                 totalValue: inward.totalValue || 0,
                 hasDamagedItems: inward.hasDamagedItems || false
+              }));
+            } else if (data.movement) {
+              // Handle single movement response (from creation)
+              const movement = data.movement;
+              inwardItems = [{
+                id: movement.id,
+                referenceNumber: movement.referenceNumber,
+                date: movement.createdAt,
+                supplier: movement.sourceType === 'PURCHASE_ORDER' ? 'Purchase Order' :
+                         movement.sourceType === 'MANUAL' ? 'Manual Entry' :
+                         movement.sourceType || 'Unknown',
+                status: movement.status || 'PENDING',
+                totalItems: movement.totalItems || movement.items?.length || 0,
+                totalValue: movement.totalValue || 0,
+                hasDamagedItems: movement.items?.some((item: any) => item.condition === 'DAMAGED') || false
+              }];
+            } else if (Array.isArray(data)) {
+              // Handle direct array response
+              inwardItems = data.map((item: any) => ({
+                id: item.id,
+                referenceNumber: item.referenceNumber,
+                date: item.createdAt || item.date,
+                supplier: item.supplier || item.sourceType || 'Unknown',
+                status: item.status || 'PENDING',
+                totalItems: item.totalItems || 0,
+                totalValue: item.totalValue || 0,
+                hasDamagedItems: item.hasDamagedItems || false
               }));
             }
 
@@ -112,37 +153,25 @@ export default function InwardsComponent() {
 
         if (!success) {
           // If all endpoints fail, show empty state
-          console.log("All endpoints failed, no inwards available");
           setInwards([]);
           setError("Unable to load inward shipments. Please check your connection and try again.");
+        } else {
+          setError(null);
         }
       } catch (error: any) {
         console.error("Error setting up inward shipments:", error);
         setError(error.message || "Failed to fetch inward shipments. API endpoint may not be implemented yet.");
 
-        // Use mock data on error
-        const mockInwards = [
-          {
-            id: "mock-error-1",
-            referenceNumber: "INW-ERROR-0001",
-            date: new Date().toISOString(),
-            supplier: "Mock Supplier (Error Fallback)",
-            status: "PENDING",
-            totalItems: 3,
-            totalValue: 50.00,
-            hasDamagedItems: false
-          }
-        ];
-
-        setInwards(mockInwards);
+        // No mock data - only show real data
+        setInwards([]);
       } finally {
         setIsLoading(false);
       }
-    };
+    }, []);
 
   useEffect(() => {
     fetchInwards();
-  }, [searchQuery, statusFilter, dateFilter]);
+  }, [fetchInwards, searchQuery, statusFilter, dateFilter]);
 
   // Refresh data when component becomes visible (e.g., when returning from new inward page)
   useEffect(() => {
@@ -152,9 +181,18 @@ export default function InwardsComponent() {
       }
     };
 
+    const handleFocus = () => {
+      fetchInwards();
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchInwards]);
 
   // Filter inwards based on search query, status, and date
   const filteredInwards = inwards.filter(inward => {
@@ -223,6 +261,16 @@ export default function InwardsComponent() {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Inwards</CardTitle>
         <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshData}
+            disabled={isLoading}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           <Link href="/products/new">
             <Button>Add Product</Button>
           </Link>
@@ -266,6 +314,8 @@ export default function InwardsComponent() {
             </Select>
           </div>
         </div>
+
+
 
         {isLoading ? (
           <div className="flex h-40 items-center justify-center">

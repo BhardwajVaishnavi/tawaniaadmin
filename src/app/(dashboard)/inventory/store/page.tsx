@@ -52,24 +52,84 @@ export default async function StoreInventoryPage({
   let totalPages = 1;
 
   if (storeId) {
-    // Fetch inventory for a specific store using the API
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/stores/${storeId}/inventory?${new URLSearchParams({
-      ...(categoryId ? { category: categoryId } : {}),
-      ...(search ? { search } : {}),
-      ...(filter ? { filter } : {}),
-      page: page.toString(),
-      pageSize: pageSize.toString(),
-    }).toString()}`, {
-      headers: {
-        'Cookie': session ? `next-auth.session-token=${session.user.id}` : '',
-      },
-    });
+    // Instead of using fetch, use direct database query for better reliability
+    try {
+      // Build filters for store-specific inventory
+      const storeFilters: any = {
+        storeId,
+        product: {
+          categoryId: categoryId ? categoryId : undefined,
+          name: search ? { contains: search, mode: 'insensitive' } : undefined,
+        },
+      };
 
-    if (response.ok) {
-      const data = await response.json();
-      inventoryItems = data.inventoryItems || [];
-      totalItems = data.totalItems || 0;
-      totalPages = data.totalPages || 1;
+      // Add stock level filters
+      if (filter === "lowStock") {
+        storeFilters.quantity = {
+          gt: 0,
+          lt: {
+            path: ["product", "reorderPoint"],
+          },
+        };
+      } else if (filter === "outOfStock") {
+        storeFilters.quantity = {
+          lte: 0,
+        };
+      } else {
+        storeFilters.quantity = {
+          gt: 0,
+        };
+      }
+
+      // Use select instead of include to avoid schema mismatches
+      [inventoryItems, totalItems] = await Promise.all([
+        prisma.inventoryItem.findMany({
+          where: storeFilters,
+          select: {
+            id: true,
+            quantity: true,
+            costPrice: true,
+            retailPrice: true,
+            status: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                reorderPoint: true,
+                minStockLevel: true,
+                category: {
+                  select: {
+                    id: true,
+                    name: true,
+                  }
+                }
+              }
+            },
+            store: {
+              select: {
+                id: true,
+                name: true,
+              }
+            },
+          },
+          orderBy: [
+            { product: { name: 'asc' } },
+          ],
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }) as unknown as Promise<InventoryItem[]>,
+        prisma.inventoryItem.count({
+          where: storeFilters,
+        }),
+      ]);
+
+      totalPages = Math.ceil(totalItems / pageSize);
+    } catch (error) {
+      console.error("Error fetching store inventory:", error);
+      inventoryItems = [];
+      totalItems = 0;
+      totalPages = 1;
     }
   } else {
     // Fetch all inventory items using a safer approach that avoids schema mismatches

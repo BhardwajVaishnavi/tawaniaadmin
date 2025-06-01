@@ -207,7 +207,11 @@ export default function NewInwardPage() {
 
       const result = await response.json();
       showNotification("success", "Success", "Inward movement created successfully!");
-      router.push("/warehouse/management");
+
+      // Add a small delay to ensure the data is saved before redirecting
+      setTimeout(() => {
+        router.push("/warehouse/management?tab=inwards&refresh=true");
+      }, 500);
     } catch (error: any) {
       console.error("Error creating inward movement:", error);
       showNotification("error", "Error", error.message || "Failed to create inward movement");

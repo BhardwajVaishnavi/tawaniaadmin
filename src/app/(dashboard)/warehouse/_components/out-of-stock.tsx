@@ -92,74 +92,13 @@ export default function OutOfStockComponent() {
         }
 
         if (!success) {
-          // Use mock data if no endpoints work
-          const mockItems: OutOfStockItem[] = [
-            {
-              id: "mock-1",
-              productId: "prod-1",
-              productName: "Sample Product A",
-              productSku: "SKU-001",
-              category: "Electronics",
-              lastStockDate: new Date(Date.now() - 86400000).toISOString(),
-              lastQuantity: 0,
-              warehouseLocation: "Main Warehouse",
-              reorderPoint: 10,
-              status: "OUT_OF_STOCK",
-              estimatedValue: 0,
-              supplier: "Supplier A"
-            },
-            {
-              id: "mock-2",
-              productId: "prod-2",
-              productName: "Sample Product B",
-              productSku: "SKU-002",
-              category: "Clothing",
-              lastStockDate: new Date(Date.now() - 172800000).toISOString(),
-              lastQuantity: 2,
-              warehouseLocation: "Main Warehouse",
-              reorderPoint: 15,
-              status: "CRITICAL",
-              estimatedValue: 200,
-              supplier: "Supplier B"
-            }
-          ];
-          setOutOfStockItems(mockItems);
+          // No mock data - only show real data
+          setOutOfStockItems([]);
           setError(null);
         }
       } catch (error: any) {
-        // Silently handle error and use mock data
-        // Use mock data on error
-        const mockItems: OutOfStockItem[] = [
-          {
-            id: "mock-1",
-            productId: "prod-1",
-            productName: "Sample Product A",
-            productSku: "SKU-001",
-            category: "Electronics",
-            lastStockDate: new Date(Date.now() - 86400000).toISOString(),
-            lastQuantity: 0,
-            warehouseLocation: "Main Warehouse",
-            reorderPoint: 10,
-            status: "OUT_OF_STOCK",
-            estimatedValue: 0,
-            supplier: "Supplier A"
-          },
-          {
-            id: "mock-2",
-            productId: "prod-2",
-            productName: "Sample Product B",
-            productSku: "SKU-002",
-            category: "Clothing",
-            lastStockDate: new Date(Date.now() - 172800000).toISOString(),
-            lastQuantity: 2,
-            warehouseLocation: "Main Warehouse",
-            reorderPoint: 15,
-            status: "CRITICAL",
-            estimatedValue: 200,
-            supplier: "Supplier B"
-          }
-        ];
-        setOutOfStockItems(mockItems);
+        // No mock data - only show real data
+        setOutOfStockItems([]);
         setError(null);
       } finally {
         setIsLoading(false);
@@ -207,10 +146,10 @@ export default function OutOfStockComponent() {
           <p className="text-sm text-gray-600 mt-1">Products that are finished or critically low</p>
         </div>
         <div className="flex space-x-2">
-          <Link href="/purchase-orders/new">
+          <Link href="/warehouse/reorder/new">
             <Button>Create Purchase Order</Button>
           </Link>
-          <Link href="/inventory/adjust">
+          <Link href="/warehouse/adjust-stock">
             <Button variant="outline">Adjust Stock</Button>
           </Link>
         </div>
@@ -318,10 +257,10 @@ export default function OutOfStockComponent() {
                         <td className="px-4 py-2">{item.supplier || 'N/A'}</td>
                         <td className="px-4 py-2 text-right">
                           <div className="flex justify-end space-x-2">
-                            <Link href={`/products/${item.productId}`}>
+                            <Link href={`/warehouse/view/${item.productId}`}>
                               <Button variant="outline" size="sm">View</Button>
                             </Link>
-                            <Link href={`/purchase-orders/new?productId=${item.productId}`}>
+                            <Link href={`/warehouse/reorder/${item.productId}`}>
                               <Button variant="outline" size="sm" className="bg-blue-50 text-blue-600 hover:bg-blue-100">
                                 Reorder
                               </Button>

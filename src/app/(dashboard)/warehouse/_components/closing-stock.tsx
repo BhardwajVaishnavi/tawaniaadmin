@@ -85,68 +85,12 @@ export default function ClosingStockComponent() {
         }
 
         if (!success || !data) {
-          // Use mock data when all endpoints fail
-          const mockStockItems: ClosingStockItem[] = [
-            {
-              id: "stock-1",
-              productId: "prod-1",
-              productName: "Premium Coffee Beans",
-              productSku: "PCB-001",
-              category: "Beverages",
-              quantity: 150,
-              value: 15000,
-              location: "Main Warehouse",
-              lastUpdated: new Date().toISOString()
-            },
-            {
-              id: "stock-2",
-              productId: "prod-2",
-              productName: "Organic Tea Leaves",
-              productSku: "OTL-002",
-              category: "Beverages",
-              quantity: 75,
-              value: 7500,
-              location: "Main Warehouse",
-              lastUpdated: new Date().toISOString()
-            },
-            {
-              id: "stock-3",
-              productId: "prod-3",
-              productName: "Wireless Headphones",
-              productSku: "WH-003",
-              category: "Electronics",
-              quantity: 25,
-              value: 12500,
-              location: "Electronics Section",
-              lastUpdated: new Date().toISOString()
-            }
-          ];
-
-          setStockItems(mockStockItems);
-
-          // Extract unique categories and locations
-          const uniqueCategories = Array.from(new Set(mockStockItems.map(item => item.category)));
-          const uniqueLocations = Array.from(new Set(mockStockItems.map(item => item.location)));
-
-          setCategories(uniqueCategories);
-          setLocations(uniqueLocations);
-
-          // Create category summary for chart
-          const summary: Record<string, CategorySummary> = {};
-          mockStockItems.forEach(item => {
-            if (!summary[item.category]) {
-              summary[item.category] = {
-                name: item.category,
-                quantity: 0,
-                value: 0
-              };
-            }
-            summary[item.category].quantity += item.quantity;
-            summary[item.category].value += item.value;
-          });
-
-          setCategorySummary(Object.values(summary));
-          return; // Exit early with mock data
+          // No mock data - only show real data
+          setStockItems([]);
+          setCategories([]);
+          setLocations([]);
+          setCategorySummary([]);
+          return;
         }
 
         let closingStockItems = [];
@@ -228,69 +172,11 @@ export default function ClosingStockComponent() {
           setCategorySummary(Object.values(summary));
         }
       } catch (error: any) {
-        // Silently handle error and use mock data
-
-        // Use mock data on error
-        const mockStockItems: ClosingStockItem[] = [
-          {
-            id: "stock-1",
-            productId: "prod-1",
-            productName: "Premium Coffee Beans",
-            productSku: "PCB-001",
-            category: "Beverages",
-            quantity: 150,
-            value: 15000,
-            location: "Main Warehouse",
-            lastUpdated: new Date().toISOString()
-          },
-          {
-            id: "stock-2",
-            productId: "prod-2",
-            productName: "Organic Tea Leaves",
-            productSku: "OTL-002",
-            category: "Beverages",
-            quantity: 75,
-            value: 7500,
-            location: "Main Warehouse",
-            lastUpdated: new Date().toISOString()
-          },
-          {
-            id: "stock-3",
-            productId: "prod-3",
-            productName: "Wireless Headphones",
-            productSku: "WH-003",
-            category: "Electronics",
-            quantity: 25,
-            value: 12500,
-            location: "Electronics Section",
-            lastUpdated: new Date().toISOString()
-          }
-        ];
-
-        setStockItems(mockStockItems);
-
-        // Extract unique categories and locations
-        const uniqueCategories = Array.from(new Set(mockStockItems.map(item => item.category)));
-        const uniqueLocations = Array.from(new Set(mockStockItems.map(item => item.location)));
-
-        setCategories(uniqueCategories);
-        setLocations(uniqueLocations);
-
-        // Create category summary for chart
-        const summary: Record<string, CategorySummary> = {};
-        mockStockItems.forEach(item => {
-          if (!summary[item.category]) {
-            summary[item.category] = {
-              name: item.category,
-              quantity: 0,
-              value: 0
-            };
-          }
-          summary[item.category].quantity += item.quantity;
-          summary[item.category].value += item.value;
-        });
-
-        setCategorySummary(Object.values(summary));
+        // No mock data - only show real data
+        setStockItems([]);
+        setCategories([]);
+        setLocations([]);
+        setCategorySummary([]);
         setError(null);
       } finally {
         setIsLoading(false);
