@@ -49,6 +49,8 @@ export default function ClosingStockComponent() {
   const [categorySummary, setCategorySummary] = useState<CategorySummary[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+
+
   useEffect(() => {
     const fetchStockItems = async () => {
       try {
@@ -90,6 +92,7 @@ export default function ClosingStockComponent() {
           setCategories([]);
           setLocations([]);
           setCategorySummary([]);
+          setError('No closing stock data found. Database tables may not be set up yet.');
           return;
         }
 
@@ -140,11 +143,12 @@ export default function ClosingStockComponent() {
         }
 
         if (closingStockItems.length === 0) {
-          // Don't use mock data, just set empty arrays when no items are found
+          // No mock data - only show real data
           setStockItems([]);
           setCategories([]);
           setLocations([]);
           setCategorySummary([]);
+          setError('No closing stock items found.');
         } else {
           setStockItems(closingStockItems);
 
@@ -177,7 +181,7 @@ export default function ClosingStockComponent() {
         setCategories([]);
         setLocations([]);
         setCategorySummary([]);
-        setError(null);
+        setError('Failed to load closing stock data');
       } finally {
         setIsLoading(false);
       }
@@ -381,7 +385,15 @@ export default function ClosingStockComponent() {
                         <td className="px-4 py-2">{item.quantity}</td>
                         <td className="px-4 py-2 text-right">₹{item.value.toFixed(2)}</td>
                         <td className="px-4 py-2">{item.location}</td>
-                        <td className="px-4 py-2">{format(new Date(item.lastUpdated), "MMM dd, yyyy")}</td>
+                        <td className="px-4 py-2">
+                          {(() => {
+                            try {
+                              return format(new Date(item.lastUpdated), "MMM dd, yyyy");
+                            } catch (e) {
+                              return item.lastUpdated;
+                            }
+                          })()}
+                        </td>
                         <td className="px-4 py-2 text-right">
                           <Link href={`/warehouse/stock/${item.productId}`}>
                             <Button variant="outline" size="sm">View</Button>

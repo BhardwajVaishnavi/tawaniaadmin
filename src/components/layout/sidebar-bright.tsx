@@ -14,9 +14,10 @@ interface SidebarItemProps {
   icon: React.ReactNode;
   label: string;
   roles?: UserRole[];
+  onMobileClick?: () => void;
 }
 
-const SidebarItem = ({ href, icon, label, roles }: SidebarItemProps) => {
+const SidebarItem = ({ href, icon, label, roles, onMobileClick }: SidebarItemProps) => {
   const pathname = usePathname();
   const isActive = pathname === href || pathname.startsWith(`${href}/`);
   const { data: session, status } = useSession();
@@ -39,6 +40,7 @@ const SidebarItem = ({ href, icon, label, roles }: SidebarItemProps) => {
     return (
       <Link
         href={href}
+        onClick={onMobileClick}
         className={cn(
           "flex items-center gap-3 rounded-lg px-4 py-2.5 text-gray-800 transition-all duration-200 hover:bg-gradient-to-r hover:from-amber-50 hover:to-amber-100 hover:text-amber-700 hover:shadow-sm",
           isActive ? "bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 font-medium shadow-sm" : ""
@@ -55,6 +57,7 @@ const SidebarItem = ({ href, icon, label, roles }: SidebarItemProps) => {
     return (
       <Link
         href={href}
+        onClick={onMobileClick}
         className={cn(
           "flex items-center gap-3 rounded-lg px-4 py-2.5 text-gray-800 transition-all duration-200 hover:bg-gradient-to-r hover:from-amber-50 hover:to-amber-100 hover:text-amber-700 hover:shadow-sm",
           isActive ? "bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 font-medium shadow-sm" : ""
@@ -75,13 +78,77 @@ const SidebarItem = ({ href, icon, label, roles }: SidebarItemProps) => {
 };
 
 export function Sidebar() {
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  // Close mobile sidebar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const sidebar = document.getElementById('mobile-sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (isMobileOpen && sidebar && !sidebar.contains(event.target as Node)) {
+        setIsMobileOpen(false);
+      }
+    };
+
+    if (isMobileOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      const overlay = document.getElementById('sidebar-overlay');
+      if (overlay) overlay.style.display = 'block';
+    } else {
+      const overlay = document.getElementById('sidebar-overlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMobileOpen]);
+
   return (
-    <div className="flex h-full w-64 flex-col bg-gradient-to-b from-gray-50 to-white shadow-lg">
-      <div className="flex h-16 items-center bg-gradient-to-r from-amber-500 to-amber-600 px-4">
-        <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-          <span className="text-lg font-bold text-white">Tawania's Warehouse Management</span>
-        </Link>
-      </div>
+    <>
+      {/* Mobile menu button */}
+      <button
+        onClick={() => setIsMobileOpen(!isMobileOpen)}
+        className="fixed top-4 left-4 z-50 rounded-md bg-amber-600 p-2 text-white shadow-lg lg:hidden"
+        aria-label="Toggle menu"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+        </svg>
+      </button>
+
+      {/* Sidebar */}
+      <div
+        id="mobile-sidebar"
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col bg-gradient-to-b from-gray-50 to-white shadow-lg transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${
+          isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex h-16 items-center bg-gradient-to-r from-amber-500 to-amber-600 px-4">
+          <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+            <div className="flex items-center gap-2">
+              <Image
+                src="/tawanialogo.jpg"
+                alt="Tawania Smart Bazar"
+                width={32}
+                height={32}
+                className="rounded-md shadow-sm"
+              />
+              <span className="hidden sm:block text-lg font-bold text-white">Tawania Admin</span>
+              <span className="block sm:hidden text-sm font-bold text-white">Tawania</span>
+            </div>
+          </Link>
+          {/* Close button for mobile */}
+          <button
+            onClick={() => setIsMobileOpen(false)}
+            className="ml-auto text-white lg:hidden"
+            aria-label="Close menu"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       <nav className="flex-1 overflow-auto p-5">
         <ul className="flex flex-col gap-2.5">
           <li>
@@ -93,6 +160,7 @@ export function Sidebar() {
                 </svg>
               }
               label="Dashboard"
+              onMobileClick={() => setIsMobileOpen(false)}
             />
           </li>
 
@@ -115,6 +183,7 @@ export function Sidebar() {
                   }
                   label="Stores"
                   roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
               <li>
@@ -127,6 +196,7 @@ export function Sidebar() {
                   }
                   label="Store Inventory"
                   roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
               <li>
@@ -139,6 +209,7 @@ export function Sidebar() {
                   }
                   label="Point of Sale"
                   roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
               <li>
@@ -151,6 +222,7 @@ export function Sidebar() {
                   }
                   label="Returns"
                   roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
 
@@ -164,6 +236,7 @@ export function Sidebar() {
                   }
                   label="Sales History"
                   roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
             </ul>
@@ -187,6 +260,7 @@ export function Sidebar() {
                   }
                   label="Warehouses"
                   roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_STAFF]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
               <li>
@@ -198,6 +272,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Products"
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
               <li>
@@ -209,6 +284,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Categories"
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
               <li>
@@ -220,6 +296,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Suppliers"
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
               <li>
@@ -231,6 +308,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Purchase Orders"
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
               <li>
@@ -243,6 +321,7 @@ export function Sidebar() {
                   }
                   label="Warehouse Inventory"
                   roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_STAFF]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
               <li>
@@ -255,6 +334,7 @@ export function Sidebar() {
                   }
                   label="Warehouse Management"
                   roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_STAFF]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
 
@@ -278,6 +358,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Transfers"
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
             </ul>
@@ -301,6 +382,7 @@ export function Sidebar() {
                   }
                   label="Customers"
                   roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
 
@@ -325,6 +407,7 @@ export function Sidebar() {
                   }
                   label="Audits"
                   roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
               <li>
@@ -337,6 +420,7 @@ export function Sidebar() {
                   }
                   label="Quality Control"
                   roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_STAFF]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
             </ul>
@@ -361,6 +445,7 @@ export function Sidebar() {
                   }
                   label="Users"
                   roles={[UserRole.ADMIN]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
               <li>
@@ -373,6 +458,7 @@ export function Sidebar() {
                   }
                   label="Reports"
                   roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.STORE_MANAGER]}
+                  onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
             </ul>
@@ -383,6 +469,7 @@ export function Sidebar() {
         <Link
           href="/auth/logout"
           className="flex items-center justify-center gap-3 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-4 py-2.5 text-white shadow-sm transition-all hover:shadow-md hover:from-red-600 hover:to-red-700"
+          onClick={() => setIsMobileOpen(false)}
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
@@ -390,6 +477,7 @@ export function Sidebar() {
           <span className="font-medium">Logout</span>
         </Link>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

@@ -13,19 +13,20 @@ export function Header() {
   const { isOpen, toggle } = useSidebarStore();
 
   return (
-    <header className="flex h-14 items-center gap-4 border-b border-gray-200 bg-white px-4 lg:px-6">
+    <header className="flex h-14 items-center gap-2 sm:gap-4 border-b border-gray-200 bg-white px-2 sm:px-4 lg:px-6">
       <div className="flex items-center">
-        <Link href="/dashboard" className="flex items-center gap-2">
+        {/* Logo visible only on mobile, positioned next to hamburger */}
+        <Link href="/dashboard" className="flex items-center gap-2 lg:hidden">
           <Image
             src="/tawanialogo.jpg"
             alt="Tawania Smart Bazar"
-            width={120}
-            height={40}
-            className="rounded-md"
+            width={80}
+            height={26}
+            className="rounded-md ml-12"
           />
         </Link>
       </div>
-      <div className="flex flex-1 items-center justify-end gap-4">
+      <div className="flex flex-1 items-center justify-end gap-2 sm:gap-4">
         <button
           onClick={() => {
             setIsNotificationsOpen(!isNotificationsOpen);
@@ -39,7 +40,7 @@ export function Header() {
             viewBox="0 0 24 24"
             strokeWidth={1.5}
             stroke="currentColor"
-            className="h-6 w-6"
+            className="h-5 w-5 sm:h-6 sm:w-6"
           >
             <path
               strokeLinecap="round"
@@ -49,7 +50,7 @@ export function Header() {
           </svg>
           <span className="absolute right-0 top-0 flex h-2 w-2 rounded-full bg-red-500"></span>
           {isNotificationsOpen && (
-            <div className="absolute right-0 top-full z-10 mt-1 w-80 rounded-lg border border-gray-200 bg-white shadow-lg">
+            <div className="absolute right-0 top-full z-10 mt-1 w-72 sm:w-80 rounded-lg border border-gray-200 bg-white shadow-lg">
               <div className="p-2">
                 <h3 className="mb-2 text-sm font-semibold">Notifications</h3>
                 <div className="space-y-2">
@@ -84,21 +85,21 @@ export function Header() {
               setIsProfileOpen(!isProfileOpen);
               if (isNotificationsOpen) setIsNotificationsOpen(false);
             }}
-            className="flex items-center gap-2 rounded-full p-1 hover:bg-gray-100"
+            className="flex items-center gap-1 sm:gap-2 rounded-full p-1 hover:bg-gray-100"
           >
-            <span className="hidden text-sm font-medium md:block text-gray-800">
+            <span className="hidden text-sm font-medium sm:block text-gray-800">
               {session?.user?.name || "User"}
             </span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-sm font-medium uppercase text-white">
+            <span className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-xs sm:text-sm font-medium uppercase text-white">
               {session?.user?.name?.[0] || "U"}
             </span>
           </button>
           {isProfileOpen && (
-            <div className="absolute right-0 top-full z-10 mt-1 w-64 rounded-lg border border-gray-200 bg-white shadow-lg">
+            <div className="absolute right-0 top-full z-10 mt-1 w-56 sm:w-64 rounded-lg border border-gray-200 bg-white shadow-lg">
               <div className="p-2">
                 <div className="mb-2 rounded-md p-2">
-                  <p className="font-medium">{session?.user?.name || "User"}</p>
-                  <p className="text-sm text-gray-800">{session?.user?.email}</p>
+                  <p className="font-medium text-sm sm:text-base">{session?.user?.name || "User"}</p>
+                  <p className="text-xs sm:text-sm text-gray-800 truncate">{session?.user?.email}</p>
                   <p className="mt-1 text-xs text-gray-800">
                     Role: {session?.user?.role || "User"}
                   </p>

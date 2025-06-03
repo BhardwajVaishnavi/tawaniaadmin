@@ -1,350 +1,305 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-
+import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import Link from "next/link";
 
-interface Transfer {
+interface OutwardItem {
   id: string;
-  transferNumber: string;
-  createdAt: string;
+  referenceNumber: string;
+  date: string;
+  destination: string;
   status: string;
-  fromWarehouse?: {
-    id: string;
-    name: string;
-  } | null;
-  toWarehouse?: {
-    id: string;
-    name: string;
-  } | null;
-  fromStore?: {
-    id: string;
-    name: string;
-  } | null;
-  toStore?: {
-    id: string;
-    name: string;
-  } | null;
-  items: any[];
   totalItems: number;
-  totalCost: number;
+  totalValue: number;
+  transferType: string;
 }
 
 export default function OutwardsComponent() {
-  const [transfers, setTransfers] = useState<Transfer[]>([]);
-  const [isTransfersLoading, setIsTransfersLoading] = useState(true);
+  const [outwards, setOutwards] = useState<OutwardItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [transferTypeFilter, setTransferTypeFilter] = useState("all");
-  const [transfersError, setTransfersError] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState("all");
 
-  // Fetch all transfers
-  const fetchTransfers = useCallback(async () => {
-      try {
-        setIsTransfersLoading(true);
-        setTransfersError(null); // Clear any previous errors
+  useEffect(() => {
+    fetchOutwards();
+  }, [statusFilter]);
 
-        // Build query parameters
-        const params = new URLSearchParams();
-        if (searchQuery) params.append("search", searchQuery);
-        if (statusFilter !== "all") params.append("status", statusFilter);
-        if (transferTypeFilter !== "all") params.append("type", transferTypeFilter);
+  // Separate effect for search and type filters (client-side filtering)
+  useEffect(() => {
+    // Client-side filtering is handled in the filteredOutwards computation
+  }, [searchQuery, typeFilter]);
 
-        // Try multiple endpoints in sequence
-        const endpoints = [
-          `/api/warehouse/movements?movementType=OUTWARD&${params.toString()}`,
-          `/api/transfers?${params.toString()}`,
-          `/api/transfers-simple?${params.toString()}`,
-          `/api/outwards?${params.toString()}`
-        ];
+  const fetchOutwards = async () => {
+    setIsLoading(true);
+    setError(null);
 
-        let success = false;
+    try {
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('movementType', 'OUTWARD');
 
-        for (const endpoint of endpoints) {
-          if (success) break;
-
-          try {
-            console.log(`Trying to fetch transfers from endpoint: ${endpoint}`);
-            const response = await fetch(endpoint);
-
-            if (!response.ok) {
-              console.error(`Error from ${endpoint}: ${response.status}`);
-              continue; // Try next endpoint
-            }
-
-            const data = await response.json();
-            console.log(`Fetched transfers from ${endpoint}:`, data);
-
-            // Handle both warehouse movements and transfers
-            let transferData = data.transfers || [];
-
-            // Transform warehouse movements to transfer format if needed
-            if (data.movements) {
-              transferData = data.movements.map((movement: any) => ({
-                id: movement.id,
-                transferNumber: movement.referenceNumber,
-                createdAt: movement.createdAt,
-                status: movement.status,
-                fromWarehouse: movement.warehouse,
-                toStore: movement.toStore || null, // Only use real destination data
-                toWarehouse: movement.toWarehouse || null,
-                items: movement.items || [],
-                totalItems: movement.totalItems,
-                totalCost: movement.totalValue,
-              }));
-            }
-
-            if (transferData && Array.isArray(transferData) && transferData.length > 0) {
-              setTransfers(transferData);
-              success = true;
-              break;
-            }
-          } catch (endpointError) {
-            console.error(`Error with endpoint ${endpoint}:`, endpointError);
-            // Continue to next endpoint
-          }
-        }
-
-        if (!success) {
-          // If all endpoints fail, show empty state
-          console.log("All endpoints failed, no transfers available");
-          setTransfers([]);
-          setTransfersError("Unable to load transfers. Please check your connection and try again.");
-        }
-      } catch (error: any) {
-        console.error("Error fetching transfers:", error);
-        setTransfersError(error.message || "Failed to fetch transfers");
-        setTransfers([]);
-      } finally {
-        setIsTransfersLoading(false);
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter.toUpperCase());
       }
-    }, []);
 
-  useEffect(() => {
-    fetchTransfers();
-  }, [fetchTransfers]);
+      // Try multiple API endpoints for outwards data
+      const endpoints = [
+        `/api/warehouse/movements?${params.toString()}`,
+        `/api/warehouse/outwards?${params.toString()}`,
+        `/api/outwards?${params.toString()}`
+      ];
 
-  // Effect to refetch when filters change
-  useEffect(() => {
-    fetchTransfers();
-  }, [searchQuery, statusFilter, transferTypeFilter, fetchTransfers]);
+      let success = false;
+      let outwardData: any[] = [];
 
-  // Effect to handle URL parameters for refresh
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('refresh') === 'true') {
-      // Remove the refresh parameter from URL
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('refresh');
-      window.history.replaceState({}, '', newUrl.toString());
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Fetching outwards from: ${endpoint}`);
+          const response = await fetch(endpoint);
 
-      // Refresh the data
-      fetchTransfers();
-    }
-  }, [fetchTransfers]);
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`Outwards API response from ${endpoint}:`, data);
 
-  // Helper function to determine transfer type
-  const getTransferType = (transfer: Transfer) => {
-    if (transfer.fromWarehouse && transfer.toStore) {
-      return "Warehouse to Store";
-    } else if (transfer.fromStore && transfer.toWarehouse) {
-      return "Store to Warehouse";
-    } else if (transfer.fromWarehouse && transfer.toWarehouse) {
-      return "Warehouse to Warehouse";
-    } else if (transfer.fromStore && transfer.toStore) {
-      return "Store to Store";
-    } else {
-      return "Unknown";
+            // Handle different response formats
+            if (data.movements && Array.isArray(data.movements)) {
+              outwardData = data.movements;
+            } else if (data.outwards && Array.isArray(data.outwards)) {
+              outwardData = data.outwards;
+            } else if (Array.isArray(data)) {
+              outwardData = data;
+            }
+
+            // Transform the data to match our interface - show transfers to inventory and returns to suppliers
+            const transformedOutwards = outwardData.map((item: any) => ({
+              id: item.id,
+              referenceNumber: item.referenceNumber,
+              date: item.createdAt || item.date,
+              destination: item.destinationType === 'STORE' ?
+                          `${item.destinationStore?.name || 'Store'} (Inventory)` :
+                          item.destinationType === 'SUPPLIER' ?
+                          `${item.supplier?.name || 'Supplier'} (Return)` :
+                          item.destinationType === 'WAREHOUSE' ?
+                          `${item.destinationWarehouse?.name || 'Warehouse'} (Transfer)` :
+                          item.destination || 'Unknown Destination',
+              status: item.status || 'PENDING',
+              totalItems: item.totalItems || item.items?.length || 0,
+              totalValue: item.totalValue || 0,
+              transferType: item.destinationType === 'STORE' ? 'To Inventory' :
+                           item.destinationType === 'SUPPLIER' ? 'Return to Supplier' :
+                           item.destinationType === 'WAREHOUSE' ? 'Warehouse Transfer' :
+                           item.transferType || 'Transfer',
+              warehouse: item.warehouse,
+              items: item.items || []
+            }));
+
+            setOutwards(transformedOutwards);
+            success = true;
+            console.log(`Successfully fetched ${transformedOutwards.length} outward movements`);
+            break;
+          }
+        } catch (endpointError) {
+          console.log(`Failed to fetch from ${endpoint}:`, endpointError);
+          continue;
+        }
+      }
+
+      if (!success) {
+        console.log('All API endpoints failed, no outward movements found');
+        setOutwards([]);
+        setError('No outward movements found. Database tables may not be set up yet.');
+      }
+
+    } catch (error) {
+      console.error('Error fetching outwards:', error);
+      setError('Failed to load outward movements');
+      setOutwards([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Helper function to get transfer source and destination
-  const getTransferSourceDestination = (transfer: Transfer) => {
-    let source = "";
-    let destination = "";
-
-    if (transfer.fromWarehouse) {
-      source = `Warehouse: ${transfer.fromWarehouse.name}`;
-    } else if (transfer.fromStore) {
-      source = `Store: ${transfer.fromStore.name}`;
-    }
-
-    if (transfer.toWarehouse) {
-      destination = `Warehouse: ${transfer.toWarehouse.name}`;
-    } else if (transfer.toStore) {
-      destination = `Store: ${transfer.toStore.name}`;
-    }
-
-    return { source, destination };
+  // Handle status change for individual items
+  const handleStatusChange = (outwardId: string, newStatus: string) => {
+    setOutwards(prevOutwards =>
+      prevOutwards.map(outward =>
+        outward.id === outwardId
+          ? { ...outward, status: newStatus }
+          : outward
+      )
+    );
   };
+
+  // Filter outwards based on search query, status, and type
+  const filteredOutwards = outwards.filter(outward => {
+    // Search filter
+    const matchesSearch = searchQuery === "" ||
+      outward.referenceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      outward.destination.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Status filter
+    const matchesStatus = statusFilter === "all" ||
+      outward.status.toLowerCase() === statusFilter.toLowerCase();
+
+    // Type filter
+    const matchesType = typeFilter === "all" ||
+      outward.transferType.toLowerCase() === typeFilter.toLowerCase();
+
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "pending":
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+      case "completed":
+        return <Badge variant="outline" className="bg-green-100 text-green-800">Completed</Badge>;
+      case "in transit":
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800">In Transit</Badge>;
+      case "cancelled":
+        return <Badge variant="outline" className="bg-red-100 text-red-800">Cancelled</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-40 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
+        <span className="ml-2">Loading outward movements...</span>
+      </div>
+    );
+  }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Outwards</CardTitle>
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            onClick={fetchTransfers}
-            disabled={isTransfersLoading}
-          >
-            {isTransfersLoading ? "Refreshing..." : "Refresh"}
-          </Button>
-          <Link href="/transfers/new">
-            <Button>New Transfer</Button>
-          </Link>
-          <Link href="/warehouse/outwards/new">
-            <Button>New Outward</Button>
-          </Link>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-800">Outward Movements</h2>
+          <p className="text-gray-600">Products transferred to inventory or returned to suppliers</p>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="w-full">
-            <div className="mb-4 flex flex-col gap-4 md:flex-row">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search transfers..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <div className="w-full md:w-48">
-                <Select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="IN_TRANSIT">In Transit</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="CANCELLED">Cancelled</option>
-                </Select>
-              </div>
-              <div className="w-full md:w-48">
-                <Select
-                  value={transferTypeFilter}
-                  onChange={(e) => setTransferTypeFilter(e.target.value)}
-                  className="w-full"
-                >
-                  <option value="all">All Types</option>
-                  <option value="warehouse-to-store">Warehouse to Store</option>
-                  <option value="store-to-warehouse">Store to Warehouse</option>
-                  <option value="warehouse-to-warehouse">Warehouse to Warehouse</option>
-                  <option value="store-to-store">Store to Store</option>
-                </Select>
+        <div className="flex space-x-2">
+          <Button onClick={fetchOutwards} variant="outline">
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <Input
+                placeholder="Search outward movements..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div>
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="in transit">In Transit</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </Select>
+            </div>
+            <div>
+              <Select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+              >
+                <option value="all">All Types</option>
+                <option value="to inventory">To Inventory</option>
+                <option value="return to supplier">Return to Supplier</option>
+                <option value="warehouse transfer">Warehouse Transfer</option>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Outwards Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Outward Movements ({filteredOutwards.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {filteredOutwards.length > 0 ? (
+            <div className="rounded-md border">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-800">
+                      <th className="px-4 py-2">Reference</th>
+                      <th className="px-4 py-2">Date</th>
+                      <th className="px-4 py-2">Type</th>
+                      <th className="px-4 py-2">Destination</th>
+                      <th className="px-4 py-2">Items</th>
+                      <th className="px-4 py-2">Total Value</th>
+                      <th className="px-4 py-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredOutwards.map((outward) => (
+                      <tr key={outward.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 font-medium">
+                          {outward.referenceNumber}
+                        </td>
+                        <td className="px-4 py-2">
+                          {(() => {
+                            try {
+                              return format(new Date(outward.date), "MMM dd, yyyy");
+                            } catch (e) {
+                              return outward.date;
+                            }
+                          })()}
+                        </td>
+                        <td className="px-4 py-2">{outward.transferType}</td>
+                        <td className="px-4 py-2">{outward.destination}</td>
+                        <td className="px-4 py-2">{outward.totalItems}</td>
+                        <td className="px-4 py-2">${outward.totalValue.toFixed(2)}</td>
+                        <td className="px-4 py-2">
+                          <Select
+                            value={outward.status}
+                            onChange={(e) => handleStatusChange(outward.id, e.target.value)}
+                            className="w-32"
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="In Transit">In Transit</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </Select>
+                        </td>
+
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-
-            {isTransfersLoading ? (
-              <div className="flex h-40 items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
-                <span className="ml-2">Loading...</span>
-              </div>
-            ) : transfersError ? (
-              <div className="flex h-40 flex-col items-center justify-center">
-                <div className="mb-4 rounded-lg bg-red-50 p-4 text-red-800">
-                  <p className="font-medium">Error loading transfers</p>
-                  <p className="mt-1 text-sm">{transfersError}</p>
-                  <p className="mt-2 text-sm">This is expected if the API endpoint is not implemented yet.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-md border">
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-800">
-                        <th className="px-4 py-2">Reference #</th>
-                        <th className="px-4 py-2">Date</th>
-                        <th className="px-4 py-2">Type</th>
-                        <th className="px-4 py-2">From</th>
-                        <th className="px-4 py-2">To</th>
-                        <th className="px-4 py-2">Status</th>
-                        <th className="px-4 py-2 text-right">Items</th>
-                        <th className="px-4 py-2 text-right">Value</th>
-                        <th className="px-4 py-2 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {transfers.length > 0 ? (
-                        transfers.map((transfer) => {
-                          const { source, destination } = getTransferSourceDestination(transfer);
-                          return (
-                            <tr key={transfer.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-2 font-medium">{transfer.transferNumber || `TRF-${transfer.id.substring(0, 8)}`}</td>
-                              <td className="px-4 py-2">
-                                {transfer.createdAt ? (
-                                  (() => {
-                                    try {
-                                      return format(new Date(transfer.createdAt), "MMM dd, yyyy");
-                                    } catch (e) {
-                                      return format(new Date(), "MMM dd, yyyy");
-                                    }
-                                  })()
-                                ) : (
-                                  format(new Date(), "MMM dd, yyyy")
-                                )}
-                              </td>
-                              <td className="px-4 py-2">{getTransferType(transfer)}</td>
-                              <td className="px-4 py-2">{source}</td>
-                              <td className="px-4 py-2">{destination}</td>
-                              <td className="px-4 py-2">
-                                {transfer.status ? (
-                                  <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                                    transfer.status === "COMPLETED"
-                                      ? "bg-green-100 text-green-800"
-                                      : transfer.status === "PENDING"
-                                      ? "bg-yellow-100 text-yellow-800"
-                                      : transfer.status === "IN_TRANSIT"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-red-100 text-red-800"
-                                  }`}>
-                                    {transfer.status.replace ? transfer.status.replace("_", " ") : transfer.status}
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex rounded-full px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800">
-                                    Unknown
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-4 py-2 text-right">{transfer.totalItems || 0}</td>
-                              <td className="px-4 py-2 text-right">${(transfer.totalCost || 0).toFixed(2)}</td>
-                              <td className="px-4 py-2 text-right">
-                                <div className="flex justify-end space-x-2">
-                                  <Link href={`/warehouse/management?view=${transfer.id}`}>
-                                    <Button variant="outline" size="sm">View</Button>
-                                  </Link>
-                                  <Link href={`/warehouse/management?edit=${transfer.id}`}>
-                                    <Button variant="outline" size="sm" className="bg-green-50 text-green-600 hover:bg-green-100">
-                                      Edit
-                                    </Button>
-                                  </Link>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      ) : (
-                        <tr>
-                          <td colSpan={9} className="h-24 px-4 py-2 text-center">
-                            No transfers found.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-        </div>
-      </CardContent>
-    </Card>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-600">
+                {error ? error : "No outward movements found. Products transferred to inventory or returned to suppliers will appear here."}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
-

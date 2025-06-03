@@ -32,6 +32,8 @@ export default function OutOfStockComponent() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [error, setError] = useState<string | null>(null);
 
+
+
   useEffect(() => {
     const fetchOutOfStockItems = async () => {
       try {
@@ -94,12 +96,12 @@ export default function OutOfStockComponent() {
         if (!success) {
           // No mock data - only show real data
           setOutOfStockItems([]);
-          setError(null);
+          setError('No out of stock items found. Database tables may not be set up yet.');
         }
       } catch (error: any) {
         // No mock data - only show real data
         setOutOfStockItems([]);
-        setError(null);
+        setError('Failed to load out of stock items');
       } finally {
         setIsLoading(false);
       }
@@ -249,7 +251,13 @@ export default function OutOfStockComponent() {
                         <td className="px-4 py-2">
                           <div>{item.lastQuantity}</div>
                           <div className="text-xs text-gray-800">
-                            {format(new Date(item.lastStockDate), "MMM dd, yyyy")}
+                            {(() => {
+                              try {
+                                return format(new Date(item.lastStockDate), "MMM dd, yyyy");
+                              } catch (e) {
+                                return item.lastStockDate;
+                              }
+                            })()}
                           </div>
                         </td>
                         <td className="px-4 py-2">{item.reorderPoint}</td>

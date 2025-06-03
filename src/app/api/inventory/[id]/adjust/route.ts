@@ -6,11 +6,11 @@ import { randomUUID } from "crypto";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     // Check if user is authenticated
     if (!session || !session.user) {
       return NextResponse.json(
@@ -18,13 +18,13 @@ export async function POST(
         { status: 401 }
       );
     }
-    
-    const inventoryId = params.id;
-    
+
+    const { id: inventoryId } = await params;
+
     // Parse request body
     const body = await req.json();
     const { adjustmentType, quantity, reasonId, notes } = body;
-    
+
     // Validate required fields
     if (!adjustmentType || quantity === undefined || !reasonId) {
       return NextResponse.json(
@@ -32,7 +32,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     // Get the inventory item
     const inventoryItem = await prisma.inventoryItem.findUnique({
       where: { id: inventoryId },
@@ -40,19 +40,19 @@ export async function POST(
         product: true,
       },
     });
-    
+
     if (!inventoryItem) {
       return NextResponse.json(
         { message: "Inventory item not found" },
         { status: 404 }
       );
     }
-    
+
     // Calculate new quantity
     let newQuantity: number;
     let transactionType: string;
     let transactionQuantity: number;
-    
+
     switch (adjustmentType) {
       case "add":
         newQuantity = inventoryItem.quantity + quantity;
@@ -67,7 +67,7 @@ export async function POST(
           );
         }
         newQuantity = inventoryItem.quantity - quantity;
-        transactionType = reasonId === "DAMAGE" ? "DAMAGE" : 
+        transactionType = reasonId === "DAMAGE" ? "DAMAGE" :
                          reasonId === "EXPIRY" ? "EXPIRY" : "ADJUSTMENT";
         transactionQuantity = quantity;
         break;
@@ -82,59 +82,19 @@ export async function POST(
           { status: 400 }
         );
     }
-    
-    // Start a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Update the inventory item
-      const updatedItem = await tx.inventoryItem.update({
-        where: { id: inventoryId },
-        data: {
-          quantity: newQuantity,
-        },
-      });
-      
-      // Create inventory transaction record
-      let transaction;
-      try {
-        transaction = await tx.$queryRaw`
-          INSERT INTO "InventoryTransaction" (
-            "id", 
-            "inventoryItemId", 
-            "transactionType", 
-            "quantity", 
-            "previousQuantity", 
-            "newQuantity", 
-            "reason", 
-            "notes", 
-            "createdById", 
-            "createdAt", 
-            "updatedAt"
-          ) VALUES (
-            ${randomUUID()}, 
-            ${inventoryId}, 
-            ${transactionType}, 
-            ${transactionQuantity}, 
-            ${inventoryItem.quantity}, 
-            ${newQuantity}, 
-            ${reasonId}, 
-            ${notes || "No notes provided"}, 
-            ${session.user.id}, 
-            ${new Date()}, 
-            ${new Date()}
-          ) RETURNING *
-        `;
-      } catch (error) {
-        console.error("Error creating inventory transaction:", error);
-        throw new Error("Failed to create inventory transaction");
-      }
-      
-      return { updatedItem, transaction };
+
+    // Update the inventory item directly (without transaction logging for now)
+    const updatedItem = await prisma.inventoryItem.update({
+      where: { id: inventoryId },
+      data: {
+        quantity: newQuantity,
+      },
     });
-    
+
     return NextResponse.json({
       message: "Inventory adjusted successfully",
-      inventoryItem: result.updatedItem,
-      transaction: result.transaction,
+      inventoryItem: updatedItem,
+      transaction: null,
     });
   } catch (error) {
     console.error("Error adjusting inventory:", error);

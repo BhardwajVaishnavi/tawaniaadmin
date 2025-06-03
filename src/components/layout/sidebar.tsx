@@ -58,8 +58,8 @@ export function Sidebar() {
               label="Dashboard"
             />
           </li>
-          <li className="mt-6 border-t pt-6">
-            <h3 className="mb-2 text-xs font-semibold text-gray-800 uppercase tracking-wider">
+          <li className="mt-6 border-t border-gray-700 pt-6">
+            <h3 className="mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
               Warehouse Management
             </h3>
             <ul className="flex flex-col gap-1">
@@ -84,7 +84,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Products"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_STAFF]}
+                  roles={["ADMIN", "MANAGER", "WAREHOUSE_MANAGER", "WAREHOUSE_STAFF"]}
                 />
               </li>
               <li>
@@ -96,7 +96,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Categories"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER]}
+                  roles={["ADMIN", "MANAGER", "WAREHOUSE_MANAGER"]}
                 />
               </li>
               <li>
@@ -132,7 +132,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Warehouse Inventory"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_STAFF]}
+                  roles={["ADMIN", "MANAGER", "WAREHOUSE_MANAGER", "WAREHOUSE_STAFF"]}
                 />
               </li>
               <li>
@@ -174,8 +174,8 @@ export function Sidebar() {
 
             </ul>
           </li>
-          <li className="mt-6 border-t pt-6">
-            <h3 className="mb-2 text-xs font-semibold text-gray-800 uppercase tracking-wider">
+          <li className="mt-6 border-t border-gray-700 pt-6">
+            <h3 className="mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
               Store Management
             </h3>
             <ul className="flex flex-col gap-1">
@@ -188,7 +188,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Stores"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
+                  roles={["ADMIN", "MANAGER", "STORE_MANAGER", "STORE_STAFF"]}
                 />
               </li>
               <li>
@@ -200,7 +200,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Store Inventory"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
+                  roles={["ADMIN", "MANAGER", "STORE_MANAGER", "STORE_STAFF"]}
                 />
               </li>
               <li>
@@ -212,7 +212,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Point of Sale"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
+                  roles={["ADMIN", "MANAGER", "STORE_MANAGER", "STORE_STAFF"]}
                 />
               </li>
               <li>
@@ -224,7 +224,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Customers"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
+                  roles={["ADMIN", "MANAGER", "STORE_MANAGER", "STORE_STAFF"]}
                 />
               </li>
               <li>
@@ -236,7 +236,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Sales History"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
+                  roles={["ADMIN", "MANAGER", "STORE_MANAGER", "STORE_STAFF"]}
                 />
               </li>
               <li>
@@ -248,14 +248,14 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Returns"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
+                  roles={["ADMIN", "MANAGER", "STORE_MANAGER", "STORE_STAFF"]}
                 />
               </li>
             </ul>
           </li>
 
-          <li className="mt-6 border-t pt-6">
-            <h3 className="mb-2 text-xs font-semibold text-gray-800 uppercase tracking-wider">
+          <li className="mt-6 border-t border-gray-700 pt-6">
+            <h3 className="mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
               Audit Management
             </h3>
             <ul className="flex flex-col gap-1">
@@ -268,14 +268,14 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Audits"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER]}
+                  roles={["ADMIN", "MANAGER", "WAREHOUSE_MANAGER"]}
                 />
               </li>
             </ul>
           </li>
 
-          <li className="mt-6 border-t pt-6">
-            <h3 className="mb-2 text-xs font-semibold text-gray-800 uppercase tracking-wider">
+          <li className="mt-6 border-t border-gray-700 pt-6">
+            <h3 className="mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
               System
             </h3>
             <ul className="flex flex-col gap-1">
@@ -288,7 +288,7 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Users"
-                  roles={[UserRole.ADMIN]}
+                  roles={["ADMIN"]}
                 />
               </li>
               <li>
@@ -300,17 +300,17 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Reports"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.STORE_MANAGER]}
+                  roles={["ADMIN", "MANAGER", "WAREHOUSE_MANAGER", "STORE_MANAGER"]}
                 />
               </li>
             </ul>
           </li>
         </ul>
       </nav>
-      <div className="border-t p-4">
+      <div className="border-t border-gray-700 p-4">
         <Link
           href="/auth/logout"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-800 transition-all hover:text-gray-900"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-400 transition-all hover:text-white"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />

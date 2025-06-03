@@ -105,3 +105,75 @@ body {
 .print-header {
   display: none;
 }
+
+/* Mobile responsive utilities */
+@media (max-width: 640px) {
+  /* Ensure tables are scrollable on mobile */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Make forms more mobile friendly */
+  .form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* Adjust modal sizes for mobile */
+  .modal-content {
+    margin: 1rem !important;
+    max-height: calc(100vh - 2rem) !important;
+    overflow-y: auto !important;
+  }
+
+  /* Make buttons more touch-friendly */
+  button, .btn {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+
+  /* Improve text readability on mobile */
+  .text-xs {
+    font-size: 0.75rem !important;
+  }
+
+  .text-sm {
+    font-size: 0.875rem !important;
+  }
+}
+
+/* Tablet responsive utilities */
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Adjust grid layouts for tablets */
+  .tablet-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .tablet-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .hover\:bg-gray-100:hover {
+    background-color: inherit;
+  }
+
+  /* Better focus states for touch */
+  button:focus,
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+}

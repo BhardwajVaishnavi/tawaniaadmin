@@ -1,30 +1,22 @@
-"use client";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+export default async function Home() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
 
-export default function Home() {
-  const router = useRouter();
-  const { data: session, status } = useSession();
-
-  useEffect(() => {
-    if (status === "loading") return; // Still loading
-
-    if (session) {
-      router.push("/dashboard");
+    if (token) {
+      redirect("/dashboard");
     } else {
-      router.push("/auth/login");
+      redirect("/auth/login");
     }
-  }, [session, status, router]);
+  } catch (error) {
+    console.error("Auth error:", error);
+    // If there's an auth error, redirect to login
+    redirect("/auth/login");
+  }
 
-  // Show loading while redirecting
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-blue-500 mx-auto"></div>
-        <p className="mt-2 text-gray-600">Loading...</p>
-      </div>
-    </div>
-  );
+  // This will never be reached, but is needed for TypeScript
+  return null;
 }

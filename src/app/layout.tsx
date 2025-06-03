@@ -25,19 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="light" style={{ colorScheme: 'light', backgroundColor: '#ffffff' }}>
-      <head>
-        {/* Suppress hydration warnings in development */}
-        <script src="/suppress-hydration-warnings.js"></script>
-        {/* Keep only essential scripts that exist and are needed */}
-        <script src="/disable-dark-mode.js" defer></script>
-        <script src="/nextauth-fix.js"></script>
-        <script src="/nextauth-session-fix.js" defer></script>
-      </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        style={{ backgroundColor: '#ffffff', color: '#4f4f4f' }}
-      >
+    <html lang="en">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <SessionProvider>
           <NotificationProvider>
             {children}

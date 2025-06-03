@@ -42,7 +42,7 @@ export default function ReorderProductPage() {
 
   const [formData, setFormData] = useState({
     supplierId: "",
-    quantity: 0,
+    quantity: 1,
     unitPrice: 0,
     expectedDeliveryDate: "",
     priority: "NORMAL",
@@ -106,7 +106,9 @@ export default function ReorderProductPage() {
   };
 
   const calculateTotal = () => {
-    return formData.quantity * formData.unitPrice;
+    const quantity = Number(formData.quantity) || 0;
+    const unitPrice = Number(formData.unitPrice) || 0;
+    return quantity * unitPrice;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -218,7 +220,7 @@ export default function ReorderProductPage() {
             </div>
             <div>
               <div className="text-sm font-medium text-gray-800">Last Unit Price</div>
-              <div className="text-lg font-bold text-green-600">${product.unitPrice.toFixed(2)}</div>
+              <div className="text-lg font-bold text-green-600">${(Number(product.unitPrice) || 0).toFixed(2)}</div>
             </div>
           </div>
         </CardContent>
@@ -269,8 +271,8 @@ export default function ReorderProductPage() {
                   type="number"
                   id="quantity"
                   min="1"
-                  value={formData.quantity}
-                  onChange={(e) => handleFormChange("quantity", parseInt(e.target.value) || 0)}
+                  value={formData.quantity || ""}
+                  onChange={(e) => handleFormChange("quantity", parseInt(e.target.value) || 1)}
                   required
                 />
               </div>
@@ -282,7 +284,7 @@ export default function ReorderProductPage() {
                   id="unitPrice"
                   step="0.01"
                   min="0"
-                  value={formData.unitPrice}
+                  value={formData.unitPrice || ""}
                   onChange={(e) => handleFormChange("unitPrice", parseFloat(e.target.value) || 0)}
                   required
                 />
@@ -293,7 +295,7 @@ export default function ReorderProductPage() {
                 <Input
                   type="text"
                   id="total"
-                  value={`$${calculateTotal().toFixed(2)}`}
+                  value={`$${(calculateTotal() || 0).toFixed(2)}`}
                   disabled
                   className="bg-gray-50"
                 />
@@ -341,7 +343,7 @@ export default function ReorderProductPage() {
               </div>
               <div className="flex justify-between">
                 <span>Unit Price:</span>
-                <span className="font-medium">${formData.unitPrice.toFixed(2)}</span>
+                <span className="font-medium">${(Number(formData.unitPrice) || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Priority:</span>
@@ -357,7 +359,7 @@ export default function ReorderProductPage() {
               <hr />
               <div className="flex justify-between text-lg font-bold">
                 <span>Total Amount:</span>
-                <span>${calculateTotal().toFixed(2)}</span>
+                <span>${(calculateTotal() || 0).toFixed(2)}</span>
               </div>
             </div>
           </CardContent>

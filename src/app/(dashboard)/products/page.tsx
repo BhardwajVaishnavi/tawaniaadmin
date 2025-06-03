@@ -124,19 +124,19 @@ export default async function ProductsPage({
   const totalPages = Math.ceil(totalItems / pageSize);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">Products</h1>
-        <div className="flex items-center gap-2">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Products</h1>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <Link
             href="/products/new"
-            className="rounded-md bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors"
+            className="rounded-md bg-blue-100 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-blue-700 hover:bg-blue-200 transition-colors text-center"
           >
             Add Product
           </Link>
           <Link
             href="/categories"
-            className="rounded-md bg-purple-100 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-200 transition-colors"
+            className="rounded-md bg-purple-100 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-purple-700 hover:bg-purple-200 transition-colors text-center"
           >
             Manage Categories
           </Link>

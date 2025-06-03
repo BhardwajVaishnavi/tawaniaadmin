@@ -14,10 +14,31 @@ export function middleware(request: NextRequest) {
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // If the request is for the NextAuth API, ensure it's properly handled
-  if (path.startsWith('/api/auth')) {
-    // Make sure the content type is set correctly for JSON responses
-    response.headers.set('Content-Type', 'application/json');
+  // Check authentication for protected routes
+  const isProtectedRoute = path.startsWith('/dashboard') ||
+                          path.startsWith('/products') ||
+                          path.startsWith('/warehouses') ||
+                          path.startsWith('/stores') ||
+                          path.startsWith('/inventory') ||
+                          path.startsWith('/users') ||
+                          path.startsWith('/audit') ||
+                          path.startsWith('/transfers');
+
+  if (isProtectedRoute) {
+    const token = request.cookies.get('auth-token')?.value;
+
+    if (!token) {
+      return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+  }
+
+  // Redirect authenticated users away from login page
+  if (path === '/auth/login') {
+    const token = request.cookies.get('auth-token')?.value;
+
+    if (token) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
   }
 
   return response;

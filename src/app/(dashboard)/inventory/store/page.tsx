@@ -34,17 +34,27 @@ interface InventoryItem {
 export default async function StoreInventoryPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const session = await getServerSession(authOptions);
 
+  // Await searchParams to fix Next.js 15 compatibility issue
+  const params = await searchParams;
+
   // Parse search parameters
-  const storeId = searchParams.store as string | undefined;
-  const categoryId = searchParams.category as string | undefined;
-  const search = searchParams.search as string | undefined;
-  const filter = searchParams.filter as string | undefined;
-  const page = parseInt(searchParams.page as string || "1");
+  const storeId = params.store as string | undefined;
+  const categoryId = params.category as string | undefined;
+  const search = params.search as string | undefined;
+  const filter = params.filter as string | undefined;
+  const page = parseInt(params.page as string || "1");
   const pageSize = 10;
+
+  // Create a clean params object without symbol properties for client components
+  const cleanParams: Record<string, string> = {};
+  if (storeId) cleanParams.store = storeId;
+  if (categoryId) cleanParams.category = categoryId;
+  if (search) cleanParams.search = search;
+  if (filter) cleanParams.filter = filter;
 
   // Get inventory items with pagination
   let inventoryItems: InventoryItem[] = [];
@@ -370,7 +380,7 @@ export default async function StoreInventoryPage({
                 href={{
                   pathname: '/inventory/store',
                   query: {
-                    ...searchParams,
+                    ...cleanParams,
                     page: page > 1 ? page - 1 : 1,
                   },
                 }}
@@ -382,7 +392,7 @@ export default async function StoreInventoryPage({
                 href={{
                   pathname: '/inventory/store',
                   query: {
-                    ...searchParams,
+                    ...cleanParams,
                     page: page < totalPages ? page + 1 : totalPages,
                   },
                 }}
@@ -407,7 +417,7 @@ export default async function StoreInventoryPage({
                     href={{
                       pathname: '/inventory/store',
                       query: {
-                        ...searchParams,
+                        ...cleanParams,
                         page: page > 1 ? page - 1 : 1,
                       },
                     }}
@@ -426,7 +436,7 @@ export default async function StoreInventoryPage({
                         href={{
                           pathname: '/inventory/store',
                           query: {
-                            ...searchParams,
+                            ...cleanParams,
                             page: pageNum,
                           },
                         }}
@@ -444,7 +454,7 @@ export default async function StoreInventoryPage({
                     href={{
                       pathname: '/inventory/store',
                       query: {
-                        ...searchParams,
+                        ...cleanParams,
                         page: page < totalPages ? page + 1 : totalPages,
                       },
                     }}

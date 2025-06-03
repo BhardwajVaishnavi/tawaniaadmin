@@ -11,7 +11,7 @@ export default function WarehouseManagementPage() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const refreshParam = searchParams.get("refresh");
-  const [activeTab, setActiveTab] = useState(tabParam || "inwards");
+  const [activeTab, setActiveTab] = useState(tabParam || "out-of-stock");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Update active tab when URL parameter changes
@@ -47,8 +47,8 @@ export default function WarehouseManagementPage() {
         <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             {[
-              { id: "inwards", name: "Inwards", description: "Products coming into warehouse" },
-              { id: "outwards", name: "Outwards", description: "Products going out to inventory" },
+              // { id: "inwards", name: "Inwards", description: "Products coming into warehouse" },
+              // { id: "outwards", name: "Outwards", description: "Products going out to inventory" },
               { id: "out-of-stock", name: "Out of Stock", description: "Products that are finished" },
               { id: "closing-stock", name: "Closing Stock", description: "Final stock status" }
             ].map((tab) => (
@@ -68,8 +68,6 @@ export default function WarehouseManagementPage() {
         </div>
 
         <div className="mt-6">
-          {activeTab === "inwards" && <InwardsComponent key={`inwards-${refreshTrigger}`} />}
-          {activeTab === "outwards" && <OutwardsComponent key={`outwards-${refreshTrigger}`} />}
           {activeTab === "out-of-stock" && <OutOfStockComponent key={`out-of-stock-${refreshTrigger}`} />}
           {activeTab === "closing-stock" && <ClosingStockComponent key={`closing-stock-${refreshTrigger}`} />}
         </div>

@@ -153,13 +153,13 @@ export async function GET(req: NextRequest) {
         },
         {
           id: "mock-outward-1",
-          referenceNumber: "OUT-001",
+          referenceNumber: "WM-174929981955-K291KO",
           warehouseId: "mock-warehouse-1",
           movementType: "OUTWARD",
           status: "COMPLETED",
           sourceType: "TRANSFER",
-          totalItems: 15,
-          totalValue: 750.00,
+          totalItems: 2,
+          totalValue: 2400.00,
           notes: "Mock outward movement for testing",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -168,13 +168,17 @@ export async function GET(req: NextRequest) {
             name: "Main Warehouse",
             code: "WH-001",
           },
+          toStore: {
+            id: "store-1",
+            name: "Main Store",
+          },
           items: [
             {
               id: "mock-item-4",
               productId: "mock-product-4",
-              quantity: 15,
-              unitCost: 50.00,
-              totalCost: 750.00,
+              quantity: 2,
+              unitCost: 1200.00,
+              totalCost: 2400.00,
               condition: "NEW",
               product: {
                 id: "mock-product-4",
@@ -190,7 +194,7 @@ export async function GET(req: NextRequest) {
           warehouseId: "mock-warehouse-1",
           movementType: "OUTWARD",
           status: "PENDING",
-          sourceType: "SALE",
+          sourceType: "TRANSFER",
           totalItems: 5,
           totalValue: 250.00,
           notes: "Another mock outward movement",
@@ -200,6 +204,10 @@ export async function GET(req: NextRequest) {
             id: "mock-warehouse-1",
             name: "Main Warehouse",
             code: "WH-001",
+          },
+          toStore: {
+            id: "store-2",
+            name: "Branch Store",
           },
           items: [
             {

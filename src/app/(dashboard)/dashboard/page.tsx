@@ -6,26 +6,26 @@ import { TransferStatus } from "@prisma/client"; // Import the enum from Prisma
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
-
+  
   // Get counts for dashboard
   const warehouseCount = await prisma.warehouse.count();
   const storeCount = await prisma.store.count();
   const productCount = await prisma.product.count();
-
+  
   // Find low stock items by joining with products and comparing quantity to reorderPoint
   const lowStockItems = await prisma.$queryRaw`
-    SELECT COUNT(*) as count
-    FROM "InventoryItem" i
-    JOIN "Product" p ON i."productId" = p.id
+    SELECT COUNT(*) as count 
+    FROM "InventoryItem" i 
+    JOIN "Product" p ON i."productId" = p.id 
     WHERE i.quantity < p."reorderPoint"
   `.then((result: any) => Number(result[0].count));
-
+  
   const pendingTransfers = await prisma.transfer.count({
     where: {
       status: TransferStatus.PENDING // Use the enum instead of string
     }
   });
-
+  
   return (
     <div className="space-y-6">
       <div className="mb-8 flex items-center justify-between rounded-lg bg-white p-6 shadow-md">
@@ -34,7 +34,7 @@ export default async function DashboardPage() {
           Welcome back, {session?.user?.name}
         </div>
       </div>
-
+      
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <DashboardCard
           title="Warehouses"
@@ -82,7 +82,7 @@ export default async function DashboardPage() {
           alert={lowStockItems > 0}
         />
       </div>
-
+      
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="mb-4 flex items-center justify-between">
@@ -119,7 +119,7 @@ export default async function DashboardPage() {
             </div>
           )}
         </div>
-
+        
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-orange-600">Recent Activities</h2>
@@ -150,7 +150,7 @@ export default async function DashboardPage() {
             <div className="flex gap-4 rounded-lg border border-purple-100 bg-purple-50 p-3">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-600">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0 1.125.504 1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
                 </svg>
               </div>
               <div>

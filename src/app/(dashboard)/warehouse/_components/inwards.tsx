@@ -1,15 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import Link from "next/link";
-import { RefreshCw } from "lucide-react";
-
 
 interface InwardItem {
   id: string;
@@ -20,179 +17,154 @@ interface InwardItem {
   totalItems: number;
   totalValue: number;
   hasDamagedItems: boolean;
+  warehouse?: any;
+  items?: ProductItem[];
 }
 
-
+interface ProductItem {
+  id: string;
+  productId: string;
+  product?: {
+    id: string;
+    name: string;
+    sku: string;
+    category?: string;
+  };
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+  condition: string;
+  batchNumber?: string;
+  expiryDate?: string;
+  notes?: string;
+}
 
 export default function InwardsComponent() {
   const [inwards, setInwards] = useState<InwardItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
-  const [error, setError] = useState<string | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  // Function to refresh data
-  const refreshData = useCallback(() => {
-    setInwards([]);
-    setError(null);
+  useEffect(() => {
+    fetchInwards();
+  }, [statusFilter]);
+
+  // Separate effect for search and date filters (client-side filtering)
+  useEffect(() => {
+    // Client-side filtering is handled in the filteredInwards computation
+  }, [searchQuery, dateFilter]);
+
+  const fetchInwards = async () => {
     setIsLoading(true);
-    fetchInwards();
-  }, []);
+    setError(null);
 
-  const fetchInwards = useCallback(async () => {
-      try {
-        setIsLoading(true);
-        setError(null); // Clear any previous errors
+    try {
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('movementType', 'INWARD');
 
-        console.log("Fetching inward movements...");
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter.toUpperCase());
+      }
 
-        // Try multiple endpoints in sequence
-        const endpoints = [
-          "/api/warehouse/movements?movementType=INWARD",
-          "/api/warehouse/inwards",
-          "/api/inwards"
-        ];
+      // Try multiple API endpoints for inwards data
+      const endpoints = [
+        `/api/warehouse/movements?${params.toString()}`,
+        `/api/warehouse/inwards?${params.toString()}`,
+        `/api/inwards?${params.toString()}`
+      ];
 
-        let success = false;
+      let success = false;
+      let inwardData: any[] = [];
 
-        for (const endpoint of endpoints) {
-          if (success) break;
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Fetching inwards from: ${endpoint}`);
+          const response = await fetch(endpoint);
 
-          try {
-            console.log(`Trying to fetch inwards from endpoint: ${endpoint}`);
-            const response = await fetch(endpoint, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
-
-            console.log(`Response status from ${endpoint}: ${response.status}`);
-
-            if (!response.ok) {
-              console.error(`Error from ${endpoint}: ${response.status} ${response.statusText}`);
-              const errorText = await response.text();
-              console.error(`Error response body:`, errorText);
-              continue; // Try next endpoint
-            }
-
+          if (response.ok) {
             const data = await response.json();
-            console.log(`Fetched inwards from ${endpoint}:`, data);
+            console.log(`Inwards API response from ${endpoint}:`, data);
 
-            // Transform the data if needed
-            let inwardItems = [];
-
-            // Handle different API response formats
+            // Handle different response formats
             if (data.movements && Array.isArray(data.movements)) {
-              // Transform warehouse movements to inward items format
-              inwardItems = data.movements.map((movement: any) => ({
-                id: movement.id,
-                referenceNumber: movement.referenceNumber,
-                date: movement.createdAt,
-                supplier: movement.sourceType === 'PURCHASE_ORDER' ? 'Purchase Order' :
-                         movement.sourceType === 'MANUAL' ? 'Manual Entry' :
-                         movement.sourceType === 'RETURN' ? 'Return' :
-                         movement.sourceType || 'Unknown',
-                status: movement.status || 'PENDING',
-                totalItems: movement.totalItems || movement.items?.length || 0,
-                totalValue: movement.totalValue || 0,
-                hasDamagedItems: movement.items?.some((item: any) => item.condition === 'DAMAGED') || false
-              }));
+              inwardData = data.movements;
             } else if (data.inwards && Array.isArray(data.inwards)) {
-              // Handle inwards API response format
-              inwardItems = data.inwards.map((inward: any) => ({
-                id: inward.id,
-                referenceNumber: inward.referenceNumber,
-                date: inward.createdAt || inward.date,
-                supplier: inward.supplier || inward.sourceType || 'Unknown',
-                status: inward.status || 'PENDING',
-                totalItems: inward.totalItems || 0,
-                totalValue: inward.totalValue || 0,
-                hasDamagedItems: inward.hasDamagedItems || false
-              }));
-            } else if (data.movement) {
-              // Handle single movement response (from creation)
-              const movement = data.movement;
-              inwardItems = [{
-                id: movement.id,
-                referenceNumber: movement.referenceNumber,
-                date: movement.createdAt,
-                supplier: movement.sourceType === 'PURCHASE_ORDER' ? 'Purchase Order' :
-                         movement.sourceType === 'MANUAL' ? 'Manual Entry' :
-                         movement.sourceType || 'Unknown',
-                status: movement.status || 'PENDING',
-                totalItems: movement.totalItems || movement.items?.length || 0,
-                totalValue: movement.totalValue || 0,
-                hasDamagedItems: movement.items?.some((item: any) => item.condition === 'DAMAGED') || false
-              }];
+              inwardData = data.inwards;
             } else if (Array.isArray(data)) {
-              // Handle direct array response
-              inwardItems = data.map((item: any) => ({
-                id: item.id,
-                referenceNumber: item.referenceNumber,
-                date: item.createdAt || item.date,
-                supplier: item.supplier || item.sourceType || 'Unknown',
-                status: item.status || 'PENDING',
-                totalItems: item.totalItems || 0,
-                totalValue: item.totalValue || 0,
-                hasDamagedItems: item.hasDamagedItems || false
-              }));
+              inwardData = data;
             }
 
-            if (inwardItems.length > 0) {
-              setInwards(inwardItems);
-              success = true;
-              break;
-            }
-          } catch (endpointError) {
-            console.error(`Error with endpoint ${endpoint}:`, endpointError);
-            // Continue to next endpoint
+            // Transform the data to match our interface - only show products incoming to warehouse
+            const transformedInwards = inwardData.map((item: any) => ({
+              id: item.id,
+              referenceNumber: item.referenceNumber,
+              date: item.createdAt || item.date,
+              supplier: item.sourceType === 'PURCHASE_ORDER' ? 'Purchase Order' :
+                       item.sourceType === 'RETURN' ? 'Customer Return' :
+                       item.sourceType === 'TRANSFER' ? 'Transfer from Store' :
+                       item.sourceType === 'MANUAL' ? 'Manual Entry' :
+                       item.supplier || item.sourceType || 'Unknown Source',
+              status: item.status || 'PENDING',
+              totalItems: item.totalItems || item.items?.length || 0,
+              totalValue: item.totalValue || 0,
+              hasDamagedItems: item.items?.some((i: any) => i.condition === 'DAMAGED') || false,
+              warehouse: item.warehouse,
+              items: item.items || []
+            }));
+
+            setInwards(transformedInwards);
+            success = true;
+            console.log(`Successfully fetched ${transformedInwards.length} inward movements`);
+            break;
           }
+        } catch (endpointError) {
+          console.log(`Failed to fetch from ${endpoint}:`, endpointError);
+          continue;
         }
+      }
 
-        if (!success) {
-          // If all endpoints fail, show empty state
-          setInwards([]);
-          setError("Unable to load inward shipments. Please check your connection and try again.");
-        } else {
-          setError(null);
-        }
-      } catch (error: any) {
-        console.error("Error setting up inward shipments:", error);
-        setError(error.message || "Failed to fetch inward shipments. API endpoint may not be implemented yet.");
-
-        // No mock data - only show real data
+      if (!success) {
+        console.log('All API endpoints failed, no inward movements found');
         setInwards([]);
-      } finally {
-        setIsLoading(false);
+        setError('No inward movements found. Database tables may not be set up yet.');
       }
-    }, []);
 
-  useEffect(() => {
-    fetchInwards();
-  }, [fetchInwards, searchQuery, statusFilter, dateFilter]);
+    } catch (error) {
+      console.error('Error fetching inwards:', error);
+      setError('Failed to load inward movements');
+      setInwards([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  // Refresh data when component becomes visible (e.g., when returning from new inward page)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        fetchInwards();
+  // Handle status change for individual items
+  const handleStatusChange = (inwardId: string, newStatus: string) => {
+    setInwards(prevInwards =>
+      prevInwards.map(inward =>
+        inward.id === inwardId
+          ? { ...inward, status: newStatus }
+          : inward
+      )
+    );
+  };
+
+  // Toggle row expansion to show/hide products
+  const toggleRowExpansion = (inwardId: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(inwardId)) {
+        newSet.delete(inwardId);
+      } else {
+        newSet.add(inwardId);
       }
-    };
-
-    const handleFocus = () => {
-      fetchInwards();
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [fetchInwards]);
+      return newSet;
+    });
+  };
 
   // Filter inwards based on search query, status, and date
   const filteredInwards = inwards.filter(inward => {
@@ -202,205 +174,299 @@ export default function InwardsComponent() {
       inward.supplier.toLowerCase().includes(searchQuery.toLowerCase());
 
     // Status filter
-    const matchesStatus = statusFilter === "all" || inward.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchesStatus = statusFilter === "all" ||
+      inward.status.toLowerCase() === statusFilter.toLowerCase();
 
     // Date filter
-    let matchesDate = true;
-    if (dateFilter === "today") {
-      const today = new Date().toISOString().split("T")[0];
-      matchesDate = inward.date.startsWith(today);
-    } else if (dateFilter === "week") {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      matchesDate = new Date(inward.date) >= weekAgo;
-    } else if (dateFilter === "month") {
-      const monthAgo = new Date();
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-      matchesDate = new Date(inward.date) >= monthAgo;
-    }
+    const matchesDate = dateFilter === "all" || (() => {
+      const inwardDate = new Date(inward.date);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const lastWeek = new Date(today);
+      lastWeek.setDate(lastWeek.getDate() - 7);
+
+      switch (dateFilter) {
+        case "today":
+          return inwardDate.toDateString() === today.toDateString();
+        case "yesterday":
+          return inwardDate.toDateString() === yesterday.toDateString();
+        case "last7days":
+          return inwardDate >= lastWeek;
+        default:
+          return true;
+      }
+    })();
 
     return matchesSearch && matchesStatus && matchesDate;
   });
 
-  // Handle status change for individual items
-  const handleStatusChange = (inwardId: string, newStatus: string) => {
-    // Update the local state immediately
-    setInwards(prevInwards =>
-      prevInwards.map(inward =>
-        inward.id === inwardId
-          ? { ...inward, status: newStatus }
-          : inward
-      )
-    );
-
-    // Note: Status changes are stored locally only
-    // In a production environment, you would make an API call here
-    console.log(`Status updated for inward ${inwardId} to ${newStatus}`);
-  };
-
-  // Get status badge color (kept for reference but not used in dropdown)
   const getStatusBadge = (status: string) => {
-    switch (status.toUpperCase()) {
-      case "PENDING":
+    switch (status.toLowerCase()) {
+      case "pending":
         return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      case "COMPLETED":
+      case "completed":
         return <Badge variant="outline" className="bg-green-100 text-green-800">Completed</Badge>;
-      case "IN_PROGRESS":
+      case "in progress":
         return <Badge variant="outline" className="bg-blue-100 text-blue-800">In Progress</Badge>;
-      case "CANCELLED":
+      case "cancelled":
         return <Badge variant="outline" className="bg-red-100 text-red-800">Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
   };
 
-
+  if (isLoading) {
+    return (
+      <div className="flex h-40 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
+        <span className="ml-2">Loading inward movements...</span>
+      </div>
+    );
+  }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Inwards</CardTitle>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-800">Inward Movements</h2>
+          <p className="text-gray-600">Products incoming to the warehouse from suppliers, returns, and transfers</p>
+        </div>
         <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refreshData}
-            disabled={isLoading}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          <Button onClick={fetchInwards} variant="outline">
             Refresh
           </Button>
-          <Link href="/products/new">
-            <Button>Add Product</Button>
-          </Link>
-          <Link href="/warehouse/inwards/new">
-            <Button>New Inward</Button>
-          </Link>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-4 flex flex-col gap-4 md:flex-row">
-          <div className="flex-1">
-            <Input
-              placeholder="Search inward movements..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="w-full md:w-48">
-            <Select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full"
-            >
-              <option value="all">All Statuses</option>
-              <option value="PENDING">Pending</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="CANCELLED">Cancelled</option>
-            </Select>
-          </div>
-          <div className="w-full md:w-48">
-            <Select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full"
-            >
-              <option value="all">All Dates</option>
-              <option value="today">Today</option>
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
-            </Select>
-          </div>
-        </div>
+      </div>
 
-
-
-        {isLoading ? (
-          <div className="flex h-40 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
-            <span className="ml-2">Loading inward movements...</span>
-          </div>
-        ) : error ? (
-          <div className="flex h-40 flex-col items-center justify-center">
-            <div className="mb-4 rounded-lg bg-red-50 p-4 text-red-800">
-              <p className="font-medium">Error loading inward movements</p>
-              <p className="mt-1 text-sm">{error}</p>
-              <p className="mt-2 text-sm">This is expected if the API endpoint is not implemented yet.</p>
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <Input
+                placeholder="Search inward movements..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div>
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="in progress">In Progress</option>
+                <option value="cancelled">Cancelled</option>
+              </Select>
+            </div>
+            <div>
+              <Select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+              >
+                <option value="all">All Dates</option>
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="last7days">Last 7 Days</option>
+              </Select>
             </div>
           </div>
-        ) : (
-          <div className="rounded-md border">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-800">
-                    <th className="px-4 py-2">Reference</th>
-                    <th className="px-4 py-2">Date</th>
-                    <th className="px-4 py-2">Supplier</th>
-                    <th className="px-4 py-2">Items</th>
-                    <th className="px-4 py-2">Total Value</th>
-                    <th className="px-4 py-2">Status</th>
-                    <th className="px-4 py-2">Damaged</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredInwards.length > 0 ? (
-                    filteredInwards.map((inward) => (
-                      <tr key={inward.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 font-medium">
-                          <Link href={`/warehouse/inwards/${inward.id}`} className="text-blue-600 hover:underline">
-                            {inward.referenceNumber}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-800">
-                          {format(new Date(inward.date), "MMM dd, yyyy")}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-800">{inward.supplier}</td>
-                        <td className="px-4 py-2 text-sm text-gray-800">{inward.totalItems}</td>
-                        <td className="px-4 py-2 text-sm text-gray-800">${inward.totalValue.toFixed(2)}</td>
-                        <td className="px-4 py-2">
-                          <Select
-                            value={inward.status}
-                            onChange={(e) => handleStatusChange(inward.id, e.target.value)}
-                            className="w-full"
-                          >
-                            <option value="PENDING">Pending</option>
-                            <option value="COMPLETED">Completed</option>
-                            <option value="IN_PROGRESS">In Progress</option>
-                            <option value="CANCELLED">Cancelled</option>
-                          </Select>
-                        </td>
-                        <td className="px-4 py-2">
-                          {inward.hasDamagedItems ? (
-                            <span className="inline-flex rounded-full px-2 py-1 text-xs font-medium bg-red-100 text-red-800">
-                              Yes
-                            </span>
-                          ) : (
-                            <span className="inline-flex rounded-full px-2 py-1 text-xs font-medium bg-green-100 text-green-800">
-                              No
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={7} className="h-24 px-4 py-2 text-center">
-                        No inward movements found.
-                      </td>
+        </CardContent>
+      </Card>
+
+      {/* Inwards Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Inward Movements ({filteredInwards.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {filteredInwards.length > 0 ? (
+            <div className="rounded-md border">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-800">
+                      <th className="px-4 py-2 w-8"></th>
+                      <th className="px-4 py-2">Reference</th>
+                      <th className="px-4 py-2">Date</th>
+                      <th className="px-4 py-2">Supplier</th>
+                      <th className="px-4 py-2">Items</th>
+                      <th className="px-4 py-2">Total Value</th>
+                      <th className="px-4 py-2">Status</th>
+                      <th className="px-4 py-2">Damaged</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredInwards.map((inward) => (
+                      <React.Fragment key={inward.id}>
+                        <tr className="hover:bg-gray-50">
+                          <td className="px-4 py-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => toggleRowExpansion(inward.id)}
+                              className="p-1 h-6 w-6"
+                            >
+                              {expandedRows.has(inward.id) ? '−' : '+'}
+                            </Button>
+                          </td>
+                          <td className="px-4 py-2 font-medium">
+                            {inward.referenceNumber}
+                          </td>
+                          <td className="px-4 py-2">
+                            {(() => {
+                              try {
+                                return format(new Date(inward.date), "MMM dd, yyyy");
+                              } catch (e) {
+                                return inward.date;
+                              }
+                            })()}
+                          </td>
+                          <td className="px-4 py-2">{inward.supplier}</td>
+                          <td className="px-4 py-2">{inward.totalItems}</td>
+                          <td className="px-4 py-2">${inward.totalValue.toFixed(2)}</td>
+                          <td className="px-4 py-2">
+                            <Select
+                              value={inward.status}
+                              onChange={(e) => handleStatusChange(inward.id, e.target.value)}
+                              className="w-32"
+                            >
+                              <option value="Pending">Pending</option>
+                              <option value="Completed">Completed</option>
+                              <option value="In Progress">In Progress</option>
+                              <option value="Cancelled">Cancelled</option>
+                            </Select>
+                          </td>
+                          <td className="px-4 py-2">
+                            {inward.hasDamagedItems ? (
+                              <span className="text-red-600">Yes</span>
+                            ) : (
+                              <span className="text-green-600">No</span>
+                            )}
+                          </td>
+
+                        </tr>
+
+                        {/* Expanded Product Details Row */}
+                        {expandedRows.has(inward.id) && (
+                          <tr key={`${inward.id}-details`} className="bg-gray-50">
+                            <td colSpan={8} className="px-4 py-4">
+                              <div className="space-y-4">
+                                <h4 className="font-semibold text-gray-800">Products Added to Warehouse:</h4>
+                                {inward.items && inward.items.length > 0 ? (
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-sm border border-gray-200 rounded-lg">
+                                      <thead>
+                                        <tr className="bg-gray-100 border-b">
+                                          <th className="px-3 py-2 text-left">Product Name</th>
+                                          <th className="px-3 py-2 text-left">SKU</th>
+                                          <th className="px-3 py-2 text-left">Category</th>
+                                          <th className="px-3 py-2 text-right">Quantity</th>
+                                          <th className="px-3 py-2 text-right">Unit Cost</th>
+                                          <th className="px-3 py-2 text-right">Total Cost</th>
+                                          <th className="px-3 py-2 text-left">Condition</th>
+                                          <th className="px-3 py-2 text-left">Batch</th>
+                                          <th className="px-3 py-2 text-left">Expiry</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-gray-200">
+                                        {inward.items.map((item, index) => (
+                                          <tr key={item.id || index} className="hover:bg-gray-50">
+                                            <td className="px-3 py-2 font-medium">
+                                              {item.product?.name || `Product ${item.productId}`}
+                                            </td>
+                                            <td className="px-3 py-2 text-gray-600">
+                                              {item.product?.sku || 'N/A'}
+                                            </td>
+                                            <td className="px-3 py-2 text-gray-600">
+                                              {item.product?.category || 'N/A'}
+                                            </td>
+                                            <td className="px-3 py-2 text-right font-medium">
+                                              {item.quantity}
+                                            </td>
+                                            <td className="px-3 py-2 text-right">
+                                              ${item.unitCost?.toFixed(2) || '0.00'}
+                                            </td>
+                                            <td className="px-3 py-2 text-right font-medium">
+                                              ${item.totalCost?.toFixed(2) || (item.quantity * (item.unitCost || 0)).toFixed(2)}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                              <Badge
+                                                variant={item.condition === 'DAMAGED' ? 'destructive' : 'default'}
+                                                className={item.condition === 'DAMAGED' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}
+                                              >
+                                                {item.condition || 'NEW'}
+                                              </Badge>
+                                            </td>
+                                            <td className="px-3 py-2 text-gray-600">
+                                              {item.batchNumber || 'N/A'}
+                                            </td>
+                                            <td className="px-3 py-2 text-gray-600">
+                                              {item.expiryDate ?
+                                                (() => {
+                                                  try {
+                                                    return format(new Date(item.expiryDate), "MMM dd, yyyy");
+                                                  } catch (e) {
+                                                    return item.expiryDate;
+                                                  }
+                                                })()
+                                                : 'N/A'
+                                              }
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <p className="text-gray-500 italic">No product details available for this inward movement.</p>
+                                )}
+
+                                {/* Summary */}
+                                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                      <span className="font-medium text-gray-700">Total Items:</span>
+                                      <span className="ml-2 font-semibold text-blue-600">{inward.totalItems}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Total Value:</span>
+                                      <span className="ml-2 font-semibold text-blue-600">${inward.totalValue.toFixed(2)}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Warehouse:</span>
+                                      <span className="ml-2 font-semibold text-blue-600">{inward.warehouse?.name || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Damaged Items:</span>
+                                      <span className={`ml-2 font-semibold ${inward.hasDamagedItems ? 'text-red-600' : 'text-green-600'}`}>
+                                        {inward.hasDamagedItems ? 'Yes' : 'No'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-
-
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-600">
+                {error ? error : "No inward movements found. Products incoming to the warehouse will appear here."}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
-
