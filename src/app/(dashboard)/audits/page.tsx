@@ -149,6 +149,12 @@ export default async function AuditsPage({
 
   const totalPages = Math.ceil(totalItems / pageSize);
 
+  // Create a clean search params object without symbol properties
+  const cleanSearchParams: { [key: string]: string } = {};
+  if (status) cleanSearchParams.status = status;
+  if (warehouseId) cleanSearchParams.warehouse = warehouseId;
+  if (search) cleanSearchParams.search = search;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -361,7 +367,7 @@ export default async function AuditsPage({
                 href={{
                   pathname: '/audits',
                   query: {
-                    ...resolvedSearchParams,
+                    ...cleanSearchParams,
                     page: page > 1 ? page - 1 : 1,
                   },
                 }}
@@ -373,7 +379,7 @@ export default async function AuditsPage({
                 href={{
                   pathname: '/audits',
                   query: {
-                    ...resolvedSearchParams,
+                    ...cleanSearchParams,
                     page: page < totalPages ? page + 1 : totalPages,
                   },
                 }}
@@ -398,7 +404,7 @@ export default async function AuditsPage({
                     href={{
                       pathname: '/audits',
                       query: {
-                        ...resolvedSearchParams,
+                        ...cleanSearchParams,
                         page: page > 1 ? page - 1 : 1,
                       },
                     }}
@@ -417,7 +423,7 @@ export default async function AuditsPage({
                         href={{
                           pathname: '/audits',
                           query: {
-                            ...resolvedSearchParams,
+                            ...cleanSearchParams,
                             page: pageNum,
                           },
                         }}
@@ -435,7 +441,7 @@ export default async function AuditsPage({
                     href={{
                       pathname: '/audits',
                       query: {
-                        ...resolvedSearchParams,
+                        ...cleanSearchParams,
                         page: page < totalPages ? page + 1 : totalPages,
                       },
                     }}

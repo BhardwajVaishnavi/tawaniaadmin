@@ -118,6 +118,12 @@ export default async function PurchaseOrdersPage({
 
   const totalPages = Math.ceil(totalItems / pageSize);
 
+  // Create a clean search params object without symbol properties
+  const cleanSearchParams: { [key: string]: string } = {};
+  if (supplierId) cleanSearchParams.supplier = supplierId;
+  if (status) cleanSearchParams.status = status;
+  if (search) cleanSearchParams.search = search;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -245,7 +251,7 @@ export default async function PurchaseOrdersPage({
                 href={{
                   pathname: '/purchase-orders',
                   query: {
-                    ...resolvedSearchParams,
+                    ...cleanSearchParams,
                     page: page > 1 ? page - 1 : 1,
                   },
                 }}
@@ -257,7 +263,7 @@ export default async function PurchaseOrdersPage({
                 href={{
                   pathname: '/purchase-orders',
                   query: {
-                    ...resolvedSearchParams,
+                    ...cleanSearchParams,
                     page: page < totalPages ? page + 1 : totalPages,
                   },
                 }}
@@ -282,7 +288,7 @@ export default async function PurchaseOrdersPage({
                     href={{
                       pathname: '/purchase-orders',
                       query: {
-                        ...resolvedSearchParams,
+                        ...cleanSearchParams,
                         page: page > 1 ? page - 1 : 1,
                       },
                     }}
@@ -301,7 +307,7 @@ export default async function PurchaseOrdersPage({
                         href={{
                           pathname: '/purchase-orders',
                           query: {
-                            ...resolvedSearchParams,
+                            ...cleanSearchParams,
                             page: pageNum,
                           },
                         }}
@@ -319,7 +325,7 @@ export default async function PurchaseOrdersPage({
                     href={{
                       pathname: '/purchase-orders',
                       query: {
-                        ...resolvedSearchParams,
+                        ...cleanSearchParams,
                         page: page < totalPages ? page + 1 : totalPages,
                       },
                     }}
