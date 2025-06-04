@@ -12,7 +12,7 @@ const { sql } = Prisma;
 export default async function WarehouseInventoryPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const session = await getServerSession(authOptions);
 
@@ -20,13 +20,24 @@ export default async function WarehouseInventoryPage({
     redirect("/auth/signin");
   }
 
+  // Await search parameters
+  const resolvedSearchParams = await searchParams;
+
   // Parse search parameters
-  const warehouseId = searchParams.warehouse as string | undefined;
-  const categoryId = searchParams.category as string | undefined;
-  const search = searchParams.search as string | undefined;
-  const filter = searchParams.filter as string | undefined;
-  const page = parseInt(searchParams.page as string || "1");
+  const warehouseId = resolvedSearchParams.warehouse as string | undefined;
+  const categoryId = resolvedSearchParams.category as string | undefined;
+  const search = resolvedSearchParams.search as string | undefined;
+  const filter = resolvedSearchParams.filter as string | undefined;
+  const page = parseInt(resolvedSearchParams.page as string || "1");
   const pageSize = 10;
+
+  // Create clean search params for pagination (without symbol properties)
+  const cleanSearchParams = {
+    ...(warehouseId && { warehouse: warehouseId }),
+    ...(categoryId && { category: categoryId }),
+    ...(search && { search }),
+    ...(filter && { filter }),
+  };
 
   // Build query filters
   const filters: any = {
@@ -322,7 +333,7 @@ export default async function WarehouseInventoryPage({
                   href={{
                     pathname: '/inventory/warehouse',
                     query: {
-                      ...searchParams,
+                      ...cleanSearchParams,
                       page: page > 1 ? page - 1 : 1,
                     },
                   }}
@@ -334,7 +345,7 @@ export default async function WarehouseInventoryPage({
                   href={{
                     pathname: '/inventory/warehouse',
                     query: {
-                      ...searchParams,
+                      ...cleanSearchParams,
                       page: page < totalPages ? page + 1 : totalPages,
                     },
                   }}
@@ -359,7 +370,7 @@ export default async function WarehouseInventoryPage({
                       href={{
                         pathname: '/inventory/warehouse',
                         query: {
-                          ...searchParams,
+                          ...cleanSearchParams,
                           page: page > 1 ? page - 1 : 1,
                         },
                       }}
@@ -378,7 +389,7 @@ export default async function WarehouseInventoryPage({
                           href={{
                             pathname: '/inventory/warehouse',
                             query: {
-                              ...searchParams,
+                              ...cleanSearchParams,
                               page: pageNum,
                             },
                           }}
@@ -396,7 +407,7 @@ export default async function WarehouseInventoryPage({
                       href={{
                         pathname: '/inventory/warehouse',
                         query: {
-                          ...searchParams,
+                          ...cleanSearchParams,
                           page: page < totalPages ? page + 1 : totalPages,
                         },
                       }}

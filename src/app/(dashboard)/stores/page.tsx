@@ -22,6 +22,12 @@ export default async function StoresPage({
   const page = parseInt(searchParams.page as string || "1");
   const pageSize = 10;
 
+  // Create a clean query object without symbol properties
+  const cleanSearchParams = {
+    ...(search && { search }),
+    ...(status && { status }),
+  };
+
   // Get stores with pagination
   const { stores: storesWithStats, totalItems, totalPages } = await getStores({
     isActive: status === "active" ? true : status === "inactive" ? false : undefined,
@@ -202,7 +208,7 @@ export default async function StoresPage({
                 href={{
                   pathname: '/stores',
                   query: {
-                    ...searchParams,
+                    ...cleanSearchParams,
                     page: page > 1 ? page - 1 : 1,
                   },
                 }}
@@ -214,7 +220,7 @@ export default async function StoresPage({
                 href={{
                   pathname: '/stores',
                   query: {
-                    ...searchParams,
+                    ...cleanSearchParams,
                     page: page < totalPages ? page + 1 : totalPages,
                   },
                 }}
@@ -239,7 +245,7 @@ export default async function StoresPage({
                     href={{
                       pathname: '/stores',
                       query: {
-                        ...searchParams,
+                        ...cleanSearchParams,
                         page: page > 1 ? page - 1 : 1,
                       },
                     }}
@@ -258,7 +264,7 @@ export default async function StoresPage({
                         href={{
                           pathname: '/stores',
                           query: {
-                            ...searchParams,
+                            ...cleanSearchParams,
                             page: pageNum,
                           },
                         }}
@@ -276,7 +282,7 @@ export default async function StoresPage({
                     href={{
                       pathname: '/stores',
                       query: {
-                        ...searchParams,
+                        ...cleanSearchParams,
                         page: page < totalPages ? page + 1 : totalPages,
                       },
                     }}
