@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ interface InventoryItem {
   status: string;
 }
 
-export default function AdjustStoreInventoryPage() {
+function AdjustStoreInventoryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   let initialStoreId = searchParams?.get('store') || '';
@@ -409,5 +409,35 @@ export default function AdjustStoreInventoryPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-800">Adjust Store Inventory</h1>
+        <Link
+          href="/inventory/store"
+          className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200 transition-colors"
+        >
+          Back to Store Inventory
+        </Link>
+      </div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+          <p className="mt-2 text-gray-600">Loading inventory adjustment...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AdjustStoreInventoryPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AdjustStoreInventoryContent />
+    </Suspense>
   );
 }

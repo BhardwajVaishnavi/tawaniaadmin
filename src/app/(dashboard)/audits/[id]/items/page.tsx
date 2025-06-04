@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -56,13 +56,7 @@ interface AuditItem {
   };
 }
 
-export default function AuditItemsPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const resolvedParams = use(params);
-  const auditId = resolvedParams.id;
+function AuditItemsContent({ auditId }: { auditId: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -236,5 +230,31 @@ export default function AuditItemsPage({
         )}
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="flex h-64 items-center justify-center">
+      <div className="text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+        <p className="mt-2 text-gray-600">Loading audit items...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function AuditItemsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const resolvedParams = use(params);
+  const auditId = resolvedParams.id;
+
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AuditItemsContent auditId={auditId} />
+    </Suspense>
   );
 }

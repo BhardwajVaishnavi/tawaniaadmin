@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import InwardsComponent from "../_components/inwards";
 import OutwardsComponent from "../_components/outwards";
 import OutOfStockComponent from "../_components/out-of-stock";
 import ClosingStockComponent from "../_components/closing-stock";
 
-export default function WarehouseManagementPage() {
+function WarehouseManagementContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const refreshParam = searchParams.get("refresh");
@@ -73,5 +73,32 @@ export default function WarehouseManagementPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-800">Warehouse Management</h1>
+        <p className="text-gray-800">
+          Manage warehouse inventory, transfers, and stock levels
+        </p>
+      </div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+          <p className="mt-2 text-gray-600">Loading warehouse management...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function WarehouseManagementPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <WarehouseManagementContent />
+    </Suspense>
   );
 }
