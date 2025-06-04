@@ -1,7 +1,13 @@
-{
-  "buildCommand": "npx prisma generate && next build",
-  "installCommand": "npm install && npx prisma generate",
-  "framework": "nextjs"
+﻿{
+  "framework": "nextjs",
+  "buildCommand": "npx prisma generate && npm run build",
+  "installCommand": "npm install",
+  "functions": {
+    "app/api/**/*.js": {
+      "maxDuration": 30
+    }
+  },
+  "env": {
+    "SKIP_ENV_VALIDATION": "1"
+  }
 }
-
-

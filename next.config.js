@@ -12,6 +12,12 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  // Fix for Vercel deployment
+  experimental: {
+    serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
+  },
+  // Optimize for production
+  swcMinify: true,
   // Removed tracing option as it's not supported
 
   // Add configuration for NextAuth
