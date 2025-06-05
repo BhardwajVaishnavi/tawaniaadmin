@@ -13,23 +13,23 @@ interface SalesChartProps {
 export function SalesChart({ data }: SalesChartProps) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
-  
+
   useEffect(() => {
     if (!chartRef.current) return;
-    
+
     // Destroy previous chart if it exists
     if (chartInstance.current) {
       chartInstance.current.destroy();
     }
-    
+
     // Prepare data for chart
     const labels = data.map(item => formatDate(item.date));
     const values = data.map(item => item.value);
-    
+
     // Create new chart
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
-    
+
     chartInstance.current = new Chart(ctx, {
       type: "line",
       data: {
@@ -58,7 +58,7 @@ export function SalesChart({ data }: SalesChartProps) {
           tooltip: {
             callbacks: {
               label: function(context) {
-                return `$${context.parsed.y.toFixed(2)}`;
+                return `₹${context.parsed.y.toFixed(2)}`;
               },
             },
           },
@@ -77,14 +77,14 @@ export function SalesChart({ data }: SalesChartProps) {
             beginAtZero: true,
             ticks: {
               callback: function(value) {
-                return `$${value}`;
+                return `₹${value}`;
               },
             },
           },
         },
       },
     });
-    
+
     // Cleanup on unmount
     return () => {
       if (chartInstance.current) {
@@ -92,7 +92,7 @@ export function SalesChart({ data }: SalesChartProps) {
       }
     };
   }, [data]);
-  
+
   return (
     <div className="h-80">
       <canvas ref={chartRef}></canvas>

@@ -5,9 +5,9 @@
 - **Local Build**: ✅ Successful
 - **Dependencies**: ✅ Fixed (added @tailwindcss/postcss, postcss, autoprefixer)
 - **Configuration**: ✅ vercel.json, next.config.js, postcss.config.js ready
-- **Deployment URLs**: 
-  - **Inspect**: https://vercel.com/bhardwajvaishnavis-projects/tawaniaadmin/DhYLU2Pm7B8ACbP1fFHgVwTknasD
-  - **Production**: https://tawaniaadmin-frtufaxzl-bhardwajvaishnavis-projects.vercel.app
+- **Deployment URLs**:
+  - **Inspect**: https://vercel.com/bhardwajvaishnavis-projects/tawaniaadmin/5FiXVcUeHFFXyDvDJyd6FsCWtvUE
+  - **Production**: https://tawaniaadmin-ljpiu8f9q-bhardwajvaishnavis-projects.vercel.app
 
 ## 🔧 **CRITICAL: Set Environment Variables**
 
@@ -19,7 +19,7 @@ DATABASE_URL=postgresql://neondb_owner:npg_fRBe6IuaS5cb@ep-aged-breeze-a466koxy-
 
 DIRECT_URL=postgresql://neondb_owner:npg_fRBe6IuaS5cb@ep-aged-breeze-a466koxy.us-east-1.aws.neon.tech/neondb?sslmode=require
 
-NEXTAUTH_URL=https://tawaniaadmin-frtufaxzl-bhardwajvaishnavis-projects.vercel.app
+NEXTAUTH_URL=https://tawaniaadmin-ljpiu8f9q-bhardwajvaishnavis-projects.vercel.app
 
 NEXTAUTH_SECRET=UpmPzkOejjjMTReLmyQVwJ4S8+eCRairz4KZ2/Hh5Hs=
 
@@ -74,7 +74,7 @@ After setting environment variables and redeploying:
 ## 📱 **Test Your Deployment**
 
 Once deployed successfully:
-1. **Visit**: https://tawaniaadmin-frtufaxzl-bhardwajvaishnavis-projects.vercel.app
+1. **Visit**: https://tawaniaadmin-ljpiu8f9q-bhardwajvaishnavis-projects.vercel.app
 2. **Test Login**: Use your admin credentials
 3. **Check Dashboard**: Verify all sections load
 4. **Test Features**: Try creating products, transfers, etc.

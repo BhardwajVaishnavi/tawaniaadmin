@@ -1,5 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,7 +11,21 @@ export default async function WarehouseDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  // Check for auth token in cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
+
+  if (!token) {
+    redirect("/auth/login");
+  }
+
+  // Verify the JWT token
+  try {
+    jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+  } catch (error) {
+    redirect("/auth/login");
+  }
+
   const resolvedParams = await params;
 
   // Get warehouse details

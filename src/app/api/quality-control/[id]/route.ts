@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/lib/audit";
 
@@ -9,9 +9,20 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    // Check JWT authentication
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
 
-    if (!session?.user?.id) {
+    if (!token) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    try {
+      jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+    } catch (error) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -102,9 +113,20 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    // Check JWT authentication
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
 
-    if (!session?.user?.id) {
+    if (!token) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    try {
+      jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+    } catch (error) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }

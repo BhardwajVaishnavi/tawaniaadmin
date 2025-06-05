@@ -15,19 +15,19 @@ interface InventoryByCategoryChartProps {
 export function InventoryByCategoryChart({ data }: InventoryByCategoryChartProps) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
-  
+
   useEffect(() => {
     if (!chartRef.current) return;
-    
+
     // Destroy previous chart if it exists
     if (chartInstance.current) {
       chartInstance.current.destroy();
     }
-    
+
     // Prepare data for chart
     const labels = data.map(item => item.name);
     const values = data.map(item => item.value);
-    
+
     // Generate colors
     const backgroundColors = [
       'rgba(54, 162, 235, 0.7)',
@@ -41,11 +41,11 @@ export function InventoryByCategoryChart({ data }: InventoryByCategoryChartProps
       'rgba(75, 192, 192, 0.5)',
       'rgba(153, 102, 255, 0.5)',
     ];
-    
+
     // Create new chart
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
-    
+
     chartInstance.current = new Chart(ctx, {
       type: "pie",
       data: {
@@ -71,15 +71,15 @@ export function InventoryByCategoryChart({ data }: InventoryByCategoryChartProps
               generateLabels: function(chart) {
                 const original = Chart.overrides.pie.plugins.legend.labels.generateLabels;
                 const labels = original.call(this, chart);
-                
+
                 labels.forEach((label, i) => {
                   if (i < data.length) {
                     const item = data[i];
                     const percentage = ((item.value / data.reduce((sum, d) => sum + d.value, 0)) * 100).toFixed(1);
-                    label.text = `${item.name}: $${item.value.toFixed(2)} (${percentage}%)`;
+                    label.text = `${item.name}: ₹${item.value.toFixed(2)} (${percentage}%)`;
                   }
                 });
-                
+
                 return labels;
               },
             },
@@ -89,7 +89,7 @@ export function InventoryByCategoryChart({ data }: InventoryByCategoryChartProps
               label: function(context) {
                 const item = data[context.dataIndex];
                 const percentage = ((item.value / data.reduce((sum, d) => sum + d.value, 0)) * 100).toFixed(1);
-                return `${item.name}: $${item.value.toFixed(2)} (${percentage}%)`;
+                return `${item.name}: ₹${item.value.toFixed(2)} (${percentage}%)`;
               },
               afterLabel: function(context) {
                 const item = data[context.dataIndex];
@@ -100,7 +100,7 @@ export function InventoryByCategoryChart({ data }: InventoryByCategoryChartProps
         },
       },
     });
-    
+
     // Cleanup on unmount
     return () => {
       if (chartInstance.current) {
@@ -108,7 +108,7 @@ export function InventoryByCategoryChart({ data }: InventoryByCategoryChartProps
       }
     };
   }, [data]);
-  
+
   return (
     <div className="h-80">
       <canvas ref={chartRef}></canvas>

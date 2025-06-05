@@ -4,76 +4,33 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { useSession } from "next-auth/react";
-import { UserRole } from "@prisma/client";
 import { useState, useEffect } from "react";
-import { ClientOnly } from "@/components/client-only";
 
 interface SidebarItemProps {
   href: string;
   icon: React.ReactNode;
   label: string;
-  roles?: UserRole[];
   onMobileClick?: () => void;
 }
 
-const SidebarItem = ({ href, icon, label, roles, onMobileClick }: SidebarItemProps) => {
+const SidebarItem = ({ href, icon, label, onMobileClick }: SidebarItemProps) => {
   const pathname = usePathname();
   const isActive = pathname === href || pathname.startsWith(`${href}/`);
-  const { data: session, status } = useSession();
 
-  // Create a fallback component that matches the expected structure
-  const fallbackComponent = (
-    <div className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-gray-800 transition-all duration-200 hover:bg-gradient-to-r hover:from-amber-50 hover:to-amber-100 hover:text-amber-700 hover:shadow-sm">
+  // Since we're using JWT authentication, we'll show all items for now
+  // Role-based access control will be handled at the page level
+  return (
+    <Link
+      href={href}
+      onClick={onMobileClick}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-4 py-2.5 text-gray-800 transition-all duration-200 hover:bg-gradient-to-r hover:from-amber-50 hover:to-amber-100 hover:text-amber-700 hover:shadow-sm",
+        isActive ? "bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 font-medium shadow-sm" : ""
+      )}
+    >
       <span className="flex h-6 w-6 items-center justify-center">{icon}</span>
       <span className="font-medium">{label}</span>
-    </div>
-  );
-
-  // The actual component that will be rendered on the client
-  const clientComponent = () => {
-    // If roles are specified, check if user has permission
-    if (roles && session?.user?.role && !roles.includes(session.user.role as UserRole)) {
-      return null;
-    }
-
-    return (
-      <Link
-        href={href}
-        onClick={onMobileClick}
-        className={cn(
-          "flex items-center gap-3 rounded-lg px-4 py-2.5 text-gray-800 transition-all duration-200 hover:bg-gradient-to-r hover:from-amber-50 hover:to-amber-100 hover:text-amber-700 hover:shadow-sm",
-          isActive ? "bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 font-medium shadow-sm" : ""
-        )}
-      >
-        <span className="flex h-6 w-6 items-center justify-center">{icon}</span>
-        <span className="font-medium">{label}</span>
-      </Link>
-    );
-  };
-
-  // For items without role restrictions, render directly to avoid hydration issues
-  if (!roles) {
-    return (
-      <Link
-        href={href}
-        onClick={onMobileClick}
-        className={cn(
-          "flex items-center gap-3 rounded-lg px-4 py-2.5 text-gray-800 transition-all duration-200 hover:bg-gradient-to-r hover:from-amber-50 hover:to-amber-100 hover:text-amber-700 hover:shadow-sm",
-          isActive ? "bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 font-medium shadow-sm" : ""
-        )}
-      >
-        <span className="flex h-6 w-6 items-center justify-center">{icon}</span>
-        <span className="font-medium">{label}</span>
-      </Link>
-    );
-  }
-
-  // For items with role restrictions, use ClientOnly to prevent hydration mismatches
-  return (
-    <ClientOnly fallback={fallbackComponent}>
-      {clientComponent()}
-    </ClientOnly>
+    </Link>
   );
 };
 
@@ -84,7 +41,6 @@ export function Sidebar() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const sidebar = document.getElementById('mobile-sidebar');
-      const overlay = document.getElementById('sidebar-overlay');
       if (isMobileOpen && sidebar && !sidebar.contains(event.target as Node)) {
         setIsMobileOpen(false);
       }
@@ -182,7 +138,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Stores"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
@@ -195,7 +150,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Store Inventory"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
@@ -208,7 +162,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Point of Sale"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
@@ -221,7 +174,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Returns"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
@@ -235,7 +187,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Sales History"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
@@ -259,7 +210,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Warehouses"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_STAFF]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
@@ -320,7 +270,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Warehouse Inventory"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_STAFF]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
@@ -333,7 +282,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Warehouse Management"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_STAFF]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
@@ -381,7 +329,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Customers"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.STORE_MANAGER, UserRole.STORE_STAFF]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
@@ -406,7 +353,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Audits"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
@@ -419,7 +365,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Quality Control"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.WAREHOUSE_STAFF]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
@@ -444,7 +389,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Users"
-                  roles={[UserRole.ADMIN]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>
@@ -457,7 +401,6 @@ export function Sidebar() {
                     </svg>
                   }
                   label="Reports"
-                  roles={[UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE_MANAGER, UserRole.STORE_MANAGER]}
                   onMobileClick={() => setIsMobileOpen(false)}
                 />
               </li>

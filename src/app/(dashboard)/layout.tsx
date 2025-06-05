@@ -1,17 +1,28 @@
 import { Sidebar } from "@/components/layout/sidebar-bright";
 import { Header } from "@/components/layout/header-bright";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import jwt from "jsonwebtoken";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  // Check for auth token in cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
 
-  if (!session) {
+  if (!token) {
+    redirect("/auth/login");
+  }
+
+  // Verify the JWT token
+  try {
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+    // Token is valid, user is authenticated
+  } catch (error) {
+    // Token is invalid, redirect to login
     redirect("/auth/login");
   }
 

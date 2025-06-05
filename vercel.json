@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npx prisma generate && npm run build",
+  "buildCommand": "npm run build:vercel",
   "installCommand": "npm install",
   "functions": {
     "app/api/**/*.js": {
@@ -8,6 +8,14 @@
     }
   },
   "env": {
-    "SKIP_ENV_VALIDATION": "1"
-  }
+    "SKIP_ENV_VALIDATION": "1",
+    "NODE_ENV": "production"
+  },
+  "build": {
+    "env": {
+      "SKIP_ENV_VALIDATION": "1",
+      "NODE_ENV": "production"
+    }
+  },
+  "outputDirectory": ".next"
 }

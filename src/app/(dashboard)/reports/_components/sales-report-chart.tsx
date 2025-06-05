@@ -66,7 +66,7 @@ export function SalesReportChart({ data, groupBy }: SalesReportChartProps) {
           labels,
           datasets: [
             {
-              label: 'Sales Amount ($)',
+              label: 'Sales Amount (₹)',
               data: totals,
               backgroundColor: 'rgba(59, 130, 246, 0.5)',
               borderColor: 'rgba(59, 130, 246, 1)',
@@ -97,7 +97,7 @@ export function SalesReportChart({ data, groupBy }: SalesReportChartProps) {
               position: 'left',
               title: {
                 display: true,
-                text: 'Sales Amount ($)',
+                text: 'Sales Amount (₹)',
               },
               beginAtZero: true,
             },
@@ -122,7 +122,7 @@ export function SalesReportChart({ data, groupBy }: SalesReportChartProps) {
                   const label = context.dataset.label || '';
                   const value = context.raw;
                   if (label.includes('Amount')) {
-                    return `${label}: $${value}`;
+                    return `${label}: ₹${value}`;
                   }
                   return `${label}: ${value}`;
                 }

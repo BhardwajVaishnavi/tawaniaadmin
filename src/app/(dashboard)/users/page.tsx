@@ -1,5 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { UserRoleBadge } from "./_components/user-role-badge";
@@ -10,10 +11,25 @@ export default async function UsersPage({
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const session = await getServerSession(authOptions);
+  // Check for auth token in cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
+
+  if (!token) {
+    redirect("/auth/login");
+  }
+
+  // Verify the JWT token and check admin role
+  let currentUser;
+  try {
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret") as any;
+    currentUser = decoded;
+  } catch (error) {
+    redirect("/auth/login");
+  }
 
   // Check if user has admin role
-  if (!session?.user?.role || session.user.role !== "ADMIN") {
+  if (!currentUser?.role || currentUser.role !== "ADMIN") {
     return (
       <div className="flex h-full flex-col items-center justify-center">
         <h1 className="text-2xl font-bold text-gray-800">Access Denied</h1>
@@ -206,7 +222,7 @@ export default async function UsersPage({
                             <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                           </svg>
                         </Link>
-                        {user.id !== session.user.id && (
+                        {user.id !== currentUser.userId && (
                           <Link
                             href={`/users/${user.id}/delete`}
                             className="rounded bg-red-50 p-1 text-red-600 hover:bg-red-100"

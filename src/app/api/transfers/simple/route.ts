@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 
 // Simple transfer creation API that works with clean schema
@@ -8,13 +8,24 @@ export async function POST(req: NextRequest) {
   console.log("=== SIMPLE TRANSFER API CALLED ===");
 
   try {
-    // Check session
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      console.log("No session found");
+    // Check JWT authentication
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
+      console.log("No auth token found");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    console.log("Session valid for user:", session.user.id);
+
+    let userId: string;
+    try {
+      const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret") as any;
+      userId = decoded.userId;
+      console.log("JWT valid for user:", userId);
+    } catch (error) {
+      console.log("Invalid JWT token");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // Parse request
     const data = await req.json();
@@ -76,7 +87,7 @@ export async function POST(req: NextRequest) {
         totalRetail,
         notes,
         requestedDate: new Date(),
-        requestedById: session.user.id,
+        requestedById: userId,
       },
     });
 
@@ -150,8 +161,17 @@ export async function GET(req: NextRequest) {
   try {
     console.log("=== FETCHING TRANSFERS ===");
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // Check JWT authentication
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    try {
+      jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+    } catch (error) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

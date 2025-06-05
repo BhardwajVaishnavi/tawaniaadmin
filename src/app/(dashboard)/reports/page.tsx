@@ -1,5 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
@@ -15,7 +16,20 @@ export default async function ReportsPage({
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const session = await getServerSession(authOptions);
+  // Check for auth token in cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
+
+  if (!token) {
+    redirect("/auth/login");
+  }
+
+  // Verify the JWT token
+  try {
+    jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+  } catch (error) {
+    redirect("/auth/login");
+  }
 
   // Parse date parameters
   const startDate = searchParams.startDate as string || getDefaultStartDate();
@@ -145,7 +159,7 @@ export default async function ReportsPage({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-800">Total Sales</p>
-              <p className="text-2xl font-bold text-gray-900">${totalSales.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900">₹{totalSales.toFixed(2)}</p>
             </div>
             <div className="rounded-full bg-blue-100 p-3 text-blue-600">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
@@ -162,7 +176,7 @@ export default async function ReportsPage({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-800">Average Order Value</p>
-              <p className="text-2xl font-bold text-gray-900">${averageOrderValue.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900">₹{averageOrderValue.toFixed(2)}</p>
             </div>
             <div className="rounded-full bg-green-100 p-3 text-green-600">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
@@ -179,7 +193,7 @@ export default async function ReportsPage({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-800">Inventory Value</p>
-              <p className="text-2xl font-bold text-gray-900">${totalInventoryValue.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900">₹{totalInventoryValue.toFixed(2)}</p>
             </div>
             <div className="rounded-full bg-purple-100 p-3 text-purple-600">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
@@ -287,17 +301,17 @@ export default async function ReportsPage({
                 {recentAudits.map((audit: any) => {
                   // Calculate audit statistics
                   const totalItems = audit.items.length;
-                  const countedItems = audit.items.filter((item: any) => 
-                    item.status === "COUNTED" || 
-                    item.status === "RECONCILED" || 
+                  const countedItems = audit.items.filter((item: any) =>
+                    item.status === "COUNTED" ||
+                    item.status === "RECONCILED" ||
                     item.status === "DISCREPANCY"
                   ).length;
-                  const discrepancyItems = audit.items.filter((item: any) => 
-                    item.status === "DISCREPANCY" || 
+                  const discrepancyItems = audit.items.filter((item: any) =>
+                    item.status === "DISCREPANCY" ||
                     (item.variance !== null && item.variance !== 0)
                   ).length;
                   const accuracyRate = countedItems > 0 ? ((countedItems - discrepancyItems) / countedItems) * 100 : 0;
-                  
+
                   return (
                     <tr key={audit.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-blue-600">
@@ -416,7 +430,7 @@ function getDefaultEndDate(): string {
 function getSalesByDay(salesData: any[], startDate: Date, endDate: Date): { date: string; value: number }[] {
   // Create a map to store sales by day
   const salesByDay = new Map();
-  
+
   // Initialize all dates in the range
   const currentDate = new Date(startDate);
   while (currentDate <= endDate) {
@@ -424,20 +438,20 @@ function getSalesByDay(salesData: any[], startDate: Date, endDate: Date): { date
     salesByDay.set(dateString, 0);
     currentDate.setDate(currentDate.getDate() + 1);
   }
-  
+
   // Aggregate sales by day
   salesData.forEach(sale => {
     const dateString = new Date(sale.createdAt).toISOString().split('T')[0];
     const rawSale = sale as any;
     const saleTotal = rawSale.total || 0;
-    
+
     if (salesByDay.has(dateString)) {
       salesByDay.set(dateString, salesByDay.get(dateString) + saleTotal);
     } else {
       salesByDay.set(dateString, saleTotal);
     }
   });
-  
+
   // Convert map to array with the correct property name (value instead of total)
   return Array.from(salesByDay, ([date, total]) => ({
     date,
@@ -525,14 +539,14 @@ function calculateAuditAccuracy(audit: { items: any[] }): number {
   if (!audit || !audit.items || audit.items.length === 0) {
     return 0;
   }
-  
+
   // Count items with discrepancies
   const totalItems = audit.items.length;
-  const itemsWithDiscrepancies = audit.items.filter(item => 
-    item.status === "DISCREPANCY" || 
+  const itemsWithDiscrepancies = audit.items.filter(item =>
+    item.status === "DISCREPANCY" ||
     (item.variance !== null && item.variance !== 0)
   ).length;
-  
+
   // Calculate accuracy percentage
   return ((totalItems - itemsWithDiscrepancies) / totalItems) * 100;
 }

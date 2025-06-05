@@ -1,5 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { ReportDateFilter } from "../_components/report-date-filter";
@@ -25,7 +26,20 @@ export default async function ProductPerformancePage({
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const session = await getServerSession(authOptions);
+  // Check for auth token in cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
+
+  if (!token) {
+    redirect("/auth/login");
+  }
+
+  // Verify the JWT token
+  try {
+    jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+  } catch (error) {
+    redirect("/auth/login");
+  }
 
   // Parse search parameters
   const startDate = searchParams.startDate as string || getDefaultStartDate();
@@ -156,7 +170,7 @@ export default async function ProductPerformancePage({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-800">Total Sales</p>
-              <p className="text-2xl font-bold text-gray-900">${totalSales.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900">₹{totalSales.toFixed(2)}</p>
             </div>
             <div className="rounded-full bg-blue-100 p-3 text-blue-600">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
@@ -173,7 +187,7 @@ export default async function ProductPerformancePage({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-800">Total Profit</p>
-              <p className="text-2xl font-bold text-gray-900">${totalProfit.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900">₹{totalProfit.toFixed(2)}</p>
             </div>
             <div className="rounded-full bg-green-100 p-3 text-green-600">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
@@ -267,13 +281,13 @@ export default async function ProductPerformancePage({
                     {product.quantitySold}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
-                    ${product.totalSales.toFixed(2)}
+                    ₹{product.totalSales.toFixed(2)}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
-                    ${product.totalCost.toFixed(2)}
+                    ₹{product.totalCost.toFixed(2)}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
-                    ${product.profit.toFixed(2)}
+                    ₹{product.profit.toFixed(2)}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
                     {product.profitMargin.toFixed(2)}%

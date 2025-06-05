@@ -1,9 +1,9 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { InventoryFilters } from "../_components/inventory-filters";
 
 // Import the sql tag for safe SQL queries
@@ -14,10 +14,19 @@ export default async function WarehouseInventoryPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const session = await getServerSession(authOptions);
+  // Check for auth token in cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
 
-  if (!session) {
-    redirect("/auth/signin");
+  if (!token) {
+    redirect("/auth/login");
+  }
+
+  // Verify the JWT token
+  try {
+    jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+  } catch (error) {
+    redirect("/auth/login");
   }
 
   // Await search parameters

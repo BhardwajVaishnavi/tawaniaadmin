@@ -1,5 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { InventoryReportFilters } from "./_components/inventory-report-filters";
@@ -11,31 +12,44 @@ export default async function InventoryReportPage({
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const session = await getServerSession(authOptions);
-  
+  // Check for auth token in cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
+
+  if (!token) {
+    redirect("/auth/login");
+  }
+
+  // Verify the JWT token
+  try {
+    jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+  } catch (error) {
+    redirect("/auth/login");
+  }
+
   // Parse search parameters
   const warehouseId = searchParams.warehouse as string | undefined;
   const storeId = searchParams.store as string | undefined;
   const categoryId = searchParams.category as string | undefined;
   const stockStatus = searchParams.status as string | undefined;
-  
+
   // Build query filters for inventory items
   const filters: any = {};
-  
+
   if (warehouseId) {
     filters.warehouseId = warehouseId;
   }
-  
+
   if (storeId) {
     filters.storeId = storeId;
   }
-  
+
   if (categoryId) {
     filters.product = {
       categoryId,
     };
   }
-  
+
   if (stockStatus === "low") {
     filters.quantity = {
       gt: 0,
@@ -54,7 +68,7 @@ export default async function InventoryReportPage({
       },
     };
   }
-  
+
   // Get inventory data
   const [inventoryItems, warehouses, stores, categories] = await Promise.all([
     prisma.inventoryItem.findMany({
@@ -81,35 +95,35 @@ export default async function InventoryReportPage({
       orderBy: { name: 'asc' },
     }),
   ]);
-  
+
   // Calculate total inventory value
   const totalInventoryValue = inventoryItems.reduce((sum, item) => {
     return sum + (item.quantity * item.costPrice);
   }, 0);
-  
+
   // Calculate total inventory items
   const totalInventoryItems = inventoryItems.reduce((sum, item) => sum + item.quantity, 0);
-  
+
   // Calculate low stock items
-  const lowStockItems = inventoryItems.filter(item => 
-    item.quantity > 0 && 
+  const lowStockItems = inventoryItems.filter(item =>
+    item.quantity > 0 &&
     item.quantity < item.product.reorderPoint
   );
-  
+
   // Calculate out of stock items
-  const outOfStockItems = inventoryItems.filter(item => 
+  const outOfStockItems = inventoryItems.filter(item =>
     item.quantity <= 0
   );
-  
+
   // Group inventory by category
   const inventoryByCategory = groupInventoryByCategory(inventoryItems);
-  
+
   // Group inventory by location
   const inventoryByLocation = groupInventoryByLocation(inventoryItems);
-  
+
   // Get top inventory value products
   const topValueProducts = getTopValueProducts(inventoryItems);
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -123,9 +137,9 @@ export default async function InventoryReportPage({
           </Link>
         </div>
       </div>
-      
-      <InventoryReportFilters 
-        warehouses={warehouses} 
+
+      <InventoryReportFilters
+        warehouses={warehouses}
         stores={stores}
         categories={categories}
         currentWarehouseId={warehouseId}
@@ -133,14 +147,14 @@ export default async function InventoryReportPage({
         currentCategoryId={categoryId}
         currentStockStatus={stockStatus}
       />
-      
+
       {/* Summary Cards */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-800">Total Inventory Value</p>
-              <p className="text-2xl font-bold text-gray-900">${totalInventoryValue.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900">₹{totalInventoryValue.toFixed(2)}</p>
             </div>
             <div className="rounded-full bg-blue-100 p-3 text-blue-600">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-6 w-6">
@@ -152,7 +166,7 @@ export default async function InventoryReportPage({
             At cost price
           </p>
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -169,7 +183,7 @@ export default async function InventoryReportPage({
             In stock
           </p>
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -186,7 +200,7 @@ export default async function InventoryReportPage({
             Below reorder point
           </p>
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
@@ -204,20 +218,20 @@ export default async function InventoryReportPage({
           </p>
         </div>
       </div>
-      
+
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg bg-white p-6 shadow-md">
           <h2 className="mb-4 text-lg font-semibold text-gray-800">Inventory Value by Category</h2>
           <InventoryByCategoryChart data={inventoryByCategory} />
         </div>
-        
+
         <div className="rounded-lg bg-white p-6 shadow-md">
           <h2 className="mb-4 text-lg font-semibold text-gray-800">Inventory Value by Location</h2>
           <InventoryByLocationChart data={inventoryByLocation} />
         </div>
       </div>
-      
+
       {/* Top Value Products Table */}
       <div className="rounded-lg bg-white p-6 shadow-md">
         <h2 className="mb-4 text-lg font-semibold text-gray-800">Top Inventory Value Products</h2>
@@ -252,10 +266,10 @@ export default async function InventoryReportPage({
                     {product.quantity}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-800">
-                    ${product.costPrice.toFixed(2)}
+                    ₹{product.costPrice.toFixed(2)}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm font-medium">
-                    ${product.value.toFixed(2)}
+                    ₹{product.value.toFixed(2)}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm">
                     <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStockStatusClass(product.status)}`}>
@@ -268,7 +282,7 @@ export default async function InventoryReportPage({
           </table>
         </div>
       </div>
-      
+
       {/* Low Stock Items Table */}
       {lowStockItems.length > 0 && (
         <div className="rounded-lg bg-white p-6 shadow-md">
@@ -288,10 +302,10 @@ export default async function InventoryReportPage({
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {lowStockItems.slice(0, 10).map((item) => {
-                  const location = item.warehouseId 
+                  const location = item.warehouseId
                     ? `Warehouse: ${item.warehouse?.name}`
                     : `Store: ${item.store?.name}`;
-                  
+
                   return (
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-blue-600">
@@ -317,7 +331,7 @@ export default async function InventoryReportPage({
                       <td className="whitespace-nowrap px-6 py-4 text-sm">
                         <div className="flex items-center gap-2">
                           <Link
-                            href={item.warehouseId 
+                            href={item.warehouseId
                               ? `/inventory/warehouse/adjust/${item.id}`
                               : `/inventory/store/adjust/${item.id}`
                             }
@@ -335,7 +349,7 @@ export default async function InventoryReportPage({
                 })}
               </tbody>
             </table>
-            
+
             {lowStockItems.length > 10 && (
               <div className="mt-4 text-center">
                 <Link
@@ -356,12 +370,12 @@ export default async function InventoryReportPage({
 // Helper functions
 function groupInventoryByCategory(inventoryItems: any[]): any[] {
   const categoryMap = new Map();
-  
+
   inventoryItems.forEach(item => {
     const categoryId = item.product.categoryId;
     const categoryName = item.product.category.name;
     const value = item.quantity * item.costPrice;
-    
+
     if (categoryMap.has(categoryId)) {
       categoryMap.set(categoryId, {
         ...categoryMap.get(categoryId),
@@ -377,7 +391,7 @@ function groupInventoryByCategory(inventoryItems: any[]): any[] {
       });
     }
   });
-  
+
   return Array.from(categoryMap.values())
     .sort((a, b) => b.value - a.value);
 }
@@ -385,14 +399,14 @@ function groupInventoryByCategory(inventoryItems: any[]): any[] {
 function groupInventoryByLocation(inventoryItems: any[]): any[] {
   const warehouseMap = new Map();
   const storeMap = new Map();
-  
+
   inventoryItems.forEach(item => {
     const value = item.quantity * item.costPrice;
-    
+
     if (item.warehouseId) {
       const warehouseId = item.warehouseId;
       const warehouseName = item.warehouse.name;
-      
+
       if (warehouseMap.has(warehouseId)) {
         warehouseMap.set(warehouseId, {
           ...warehouseMap.get(warehouseId),
@@ -411,7 +425,7 @@ function groupInventoryByLocation(inventoryItems: any[]): any[] {
     } else if (item.storeId) {
       const storeId = item.storeId;
       const storeName = item.store.name;
-      
+
       if (storeMap.has(storeId)) {
         storeMap.set(storeId, {
           ...storeMap.get(storeId),
@@ -429,10 +443,10 @@ function groupInventoryByLocation(inventoryItems: any[]): any[] {
       }
     }
   });
-  
+
   const warehouseData = Array.from(warehouseMap.values());
   const storeData = Array.from(storeMap.values());
-  
+
   return [...warehouseData, ...storeData]
     .sort((a, b) => b.value - a.value);
 }
@@ -442,7 +456,7 @@ function getTopValueProducts(inventoryItems: any[]): any[] {
     .map(item => {
       const value = item.quantity * item.costPrice;
       let status = "Normal";
-      
+
       if (item.quantity <= 0) {
         status = "Out of Stock";
       } else if (item.quantity < item.product.reorderPoint) {
@@ -450,11 +464,11 @@ function getTopValueProducts(inventoryItems: any[]): any[] {
       } else if (item.quantity < item.product.minStockLevel) {
         status = "Below Min";
       }
-      
-      const location = item.warehouseId 
+
+      const location = item.warehouseId
         ? `Warehouse: ${item.warehouse?.name}`
         : `Store: ${item.store?.name}`;
-      
+
       return {
         id: item.id,
         productId: item.productId,

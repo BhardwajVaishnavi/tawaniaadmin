@@ -15,19 +15,19 @@ interface TopProductsChartProps {
 export function TopProductsChart({ data }: TopProductsChartProps) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
-  
+
   useEffect(() => {
     if (!chartRef.current) return;
-    
+
     // Destroy previous chart if it exists
     if (chartInstance.current) {
       chartInstance.current.destroy();
     }
-    
+
     // Prepare data for chart
     const labels = data.map(item => truncateString(item.name, 20));
     const values = data.map(item => item.total);
-    
+
     // Generate colors
     const backgroundColors = [
       'rgba(54, 162, 235, 0.7)',
@@ -41,11 +41,11 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
       'rgba(75, 192, 192, 0.5)',
       'rgba(153, 102, 255, 0.5)',
     ];
-    
+
     // Create new chart
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
-    
+
     chartInstance.current = new Chart(ctx, {
       type: "bar",
       data: {
@@ -70,7 +70,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
           tooltip: {
             callbacks: {
               label: function(context) {
-                return `$${context.parsed.x.toFixed(2)}`;
+                return `₹${context.parsed.x.toFixed(2)}`;
               },
               afterLabel: function(context) {
                 const product = data[context.dataIndex];
@@ -84,7 +84,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
             beginAtZero: true,
             ticks: {
               callback: function(value) {
-                return `$${value}`;
+                return `₹${value}`;
               },
             },
           },
@@ -98,7 +98,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
         },
       },
     });
-    
+
     // Cleanup on unmount
     return () => {
       if (chartInstance.current) {
@@ -106,7 +106,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
       }
     };
   }, [data]);
-  
+
   return (
     <div className="h-80">
       <canvas ref={chartRef}></canvas>

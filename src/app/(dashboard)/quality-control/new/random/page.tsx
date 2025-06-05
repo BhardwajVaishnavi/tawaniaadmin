@@ -1,14 +1,23 @@
-import { getServerSession } from "next-auth";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import { QualityControlForm } from "../../_components/quality-control-form";
 
 export default async function NewRandomQCPage() {
-  const session = await getServerSession(authOptions);
+  // Check for auth token in cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
 
-  if (!session) {
-    redirect("/auth/signin");
+  if (!token) {
+    redirect("/auth/login");
+  }
+
+  // Verify the JWT token
+  try {
+    jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+  } catch (error) {
+    redirect("/auth/login");
   }
 
   // Fetch warehouses and products for the form
@@ -29,7 +38,7 @@ export default async function NewRandomQCPage() {
         <h1 className="text-2xl font-bold text-gray-800">New Random Quality Control</h1>
       </div>
 
-      <QualityControlForm 
+      <QualityControlForm
         warehouses={warehouses}
         products={products}
         type="RANDOM"

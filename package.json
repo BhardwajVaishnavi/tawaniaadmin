@@ -8,7 +8,7 @@
     "build:with-prisma": "npx prisma generate && next build --no-lint",
     "build:full": "npx prisma generate && next build",
     "build:production": "npx prisma generate && next build",
-    "build:vercel": "node scripts/fix-vercel-build.js && npx prisma generate && next build",
+    "build:vercel": "node scripts/create-manifest.js && node scripts/fix-vercel-build.js && npx prisma generate && next build && node scripts/create-manifest.js",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "echo 'Skipping prisma generate due to Windows permission issues'",
@@ -24,6 +24,7 @@
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.0.1",
     "@prisma/client": "^6.8.2",
+    "@tailwindcss/typography": "^0.5.16",
     "@tanstack/react-table": "^8.21.3",
     "@types/jsonwebtoken": "^9.0.9",
     "autoprefixer": "^10.4.21",
@@ -60,7 +61,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
     "prisma": "^6.8.2",
-    "tailwindcss": "^4",
+    "tailwindcss": "^3.4.17",
     "ts-node": "^10.9.2",
     "typescript": "^5"
   }

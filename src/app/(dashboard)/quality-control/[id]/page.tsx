@@ -1,6 +1,6 @@
-import { getServerSession } from "next-auth";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import jwt from "jsonwebtoken";
 import { QualityControlDetail } from "../_components/quality-control-detail";
 
 // This function is used to generate static params for the page
@@ -17,10 +17,19 @@ export default async function QualityControlDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  // Check for auth token in cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
 
-  if (!session) {
-    redirect("/auth/signin");
+  if (!token) {
+    redirect("/auth/login");
+  }
+
+  // Verify the JWT token
+  try {
+    jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+  } catch (error) {
+    redirect("/auth/login");
   }
 
   const resolvedParams = await params;

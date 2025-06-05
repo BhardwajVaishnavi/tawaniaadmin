@@ -16,19 +16,19 @@ interface ProductProfitChartProps {
 export function ProductProfitChart({ data }: ProductProfitChartProps) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
-  
+
   useEffect(() => {
     if (!chartRef.current) return;
-    
+
     // Destroy previous chart if it exists
     if (chartInstance.current) {
       chartInstance.current.destroy();
     }
-    
+
     // Prepare data for chart
     const labels = data.map(item => truncateString(item.name, 20));
     const values = data.map(item => item.profit);
-    
+
     // Generate colors
     const backgroundColors = [
       'rgba(75, 192, 192, 0.7)',
@@ -42,11 +42,11 @@ export function ProductProfitChart({ data }: ProductProfitChartProps) {
       'rgba(54, 162, 235, 0.5)',
       'rgba(153, 102, 255, 0.5)',
     ];
-    
+
     // Create new chart
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
-    
+
     chartInstance.current = new Chart(ctx, {
       type: "bar",
       data: {
@@ -71,7 +71,7 @@ export function ProductProfitChart({ data }: ProductProfitChartProps) {
           tooltip: {
             callbacks: {
               label: function(context) {
-                return `Profit: $${context.parsed.x.toFixed(2)}`;
+                return `Profit: ₹${context.parsed.x.toFixed(2)}`;
               },
               afterLabel: function(context) {
                 const product = data[context.dataIndex];
@@ -85,7 +85,7 @@ export function ProductProfitChart({ data }: ProductProfitChartProps) {
             beginAtZero: true,
             ticks: {
               callback: function(value) {
-                return `$${value}`;
+                return `₹${value}`;
               },
             },
           },
@@ -99,7 +99,7 @@ export function ProductProfitChart({ data }: ProductProfitChartProps) {
         },
       },
     });
-    
+
     // Cleanup on unmount
     return () => {
       if (chartInstance.current) {
@@ -107,7 +107,7 @@ export function ProductProfitChart({ data }: ProductProfitChartProps) {
       }
     };
   }, [data]);
-  
+
   return (
     <div className="h-80">
       <canvas ref={chartRef}></canvas>

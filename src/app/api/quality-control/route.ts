@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Check JWT authentication
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
 
-    if (!session?.user?.id) {
+    if (!token) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    try {
+      jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+    } catch (error) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -123,9 +134,22 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Check JWT authentication
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
 
-    if (!session?.user?.id) {
+    if (!token) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    let userId: string;
+    try {
+      const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret") as any;
+      userId = decoded.userId;
+    } catch (error) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -134,7 +158,7 @@ export async function POST(req: NextRequest) {
 
     // Check if the user exists in the database
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
     });
 
     if (!user) {
@@ -148,8 +172,8 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Update the session user id to the fallback user
-      session.user.id = fallbackUser.id;
+      // Update the userId to the fallback user
+      userId = fallbackUser.id;
     }
 
     const data = await req.json();
@@ -202,7 +226,7 @@ export async function POST(req: NextRequest) {
         purchaseOrderId: purchaseOrderId || null,
         returnId: returnId || null,
         inspectionDate: new Date(),
-        inspectedById: session.user.id,
+        inspectedById: userId,
         notes,
         updatedAt: new Date(),
         QualityControlItem: {

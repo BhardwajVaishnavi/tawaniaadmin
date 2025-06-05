@@ -1,5 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import { ReturnsList } from "./_components/returns-list";
 
@@ -8,15 +9,21 @@ export default async function ReturnsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const session = await getServerSession(authOptions);
+  // Check for auth token in cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
 
-  if (!session?.user) {
-    return {
-      redirect: {
-        destination: "/auth/login",
-        permanent: false,
-      },
-    };
+  if (!token) {
+    redirect("/auth/login");
+  }
+
+  // Verify the JWT token
+  let user;
+  try {
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret") as any;
+    user = decoded;
+  } catch (error) {
+    redirect("/auth/login");
   }
 
   const resolvedSearchParams = await searchParams;

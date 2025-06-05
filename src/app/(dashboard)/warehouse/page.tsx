@@ -1,15 +1,24 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function WarehouseDashboardPage() {
-  const session = await getServerSession(authOptions);
+  // Check for auth token in cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
 
-  if (!session) {
-    redirect("/auth/signin");
+  if (!token) {
+    redirect("/auth/login");
+  }
+
+  // Verify the JWT token
+  try {
+    jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+  } catch (error) {
+    redirect("/auth/login");
   }
 
   // Get the main warehouse (assuming there's only one)
@@ -50,7 +59,7 @@ export default async function WarehouseDashboardPage() {
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-3xl font-bold">Warehouse Dashboard</h1>
         </div>
-        
+
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
           <h2 className="mb-4 text-xl font-semibold text-red-800">No Warehouse Found</h2>
           <p className="mb-6 text-red-700">

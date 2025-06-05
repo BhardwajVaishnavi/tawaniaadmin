@@ -14,19 +14,19 @@ interface SalesByCategoryChartProps {
 export function SalesByCategoryChart({ data }: SalesByCategoryChartProps) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
-  
+
   useEffect(() => {
     if (!chartRef.current) return;
-    
+
     // Destroy previous chart if it exists
     if (chartInstance.current) {
       chartInstance.current.destroy();
     }
-    
+
     // Prepare data for chart
     const labels = data.map(item => item.name);
     const values = data.map(item => item.total);
-    
+
     // Generate colors
     const backgroundColors = [
       'rgba(54, 162, 235, 0.7)',
@@ -40,11 +40,11 @@ export function SalesByCategoryChart({ data }: SalesByCategoryChartProps) {
       'rgba(75, 192, 192, 0.5)',
       'rgba(153, 102, 255, 0.5)',
     ];
-    
+
     // Create new chart
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
-    
+
     chartInstance.current = new Chart(ctx, {
       type: "doughnut",
       data: {
@@ -70,15 +70,15 @@ export function SalesByCategoryChart({ data }: SalesByCategoryChartProps) {
               generateLabels: function(chart) {
                 const original = Chart.overrides.doughnut.plugins.legend.labels.generateLabels;
                 const labels = original.call(this, chart);
-                
+
                 labels.forEach((label, i) => {
                   if (i < data.length) {
                     const item = data[i];
                     const percentage = ((item.total / data.reduce((sum, d) => sum + d.total, 0)) * 100).toFixed(1);
-                    label.text = `${item.name}: $${item.total.toFixed(2)} (${percentage}%)`;
+                    label.text = `${item.name}: ₹${item.total.toFixed(2)} (${percentage}%)`;
                   }
                 });
-                
+
                 return labels;
               },
             },
@@ -88,14 +88,14 @@ export function SalesByCategoryChart({ data }: SalesByCategoryChartProps) {
               label: function(context) {
                 const item = data[context.dataIndex];
                 const percentage = ((item.total / data.reduce((sum, d) => sum + d.total, 0)) * 100).toFixed(1);
-                return `${item.name}: $${item.total.toFixed(2)} (${percentage}%)`;
+                return `${item.name}: ₹${item.total.toFixed(2)} (${percentage}%)`;
               },
             },
           },
         },
       },
     });
-    
+
     // Cleanup on unmount
     return () => {
       if (chartInstance.current) {
@@ -103,7 +103,7 @@ export function SalesByCategoryChart({ data }: SalesByCategoryChartProps) {
       }
     };
   }, [data]);
-  
+
   return (
     <div className="h-80">
       <canvas ref={chartRef}></canvas>

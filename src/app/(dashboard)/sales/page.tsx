@@ -1,5 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import jwt from "jsonwebtoken";
 import Link from "next/link";
 import { format } from "date-fns";
 import { SalesFilters } from "./_components/sales-filters";
@@ -16,16 +17,30 @@ try {
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const session = await getServerSession(authOptions);
+  // Check for auth token in cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
+
+  if (!token) {
+    redirect("/auth/login");
+  }
+
+  // Verify the JWT token
+  try {
+    jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+  } catch (error) {
+    redirect("/auth/login");
+  }
 
   // Parse search parameters
-  const storeId = searchParams.store as string | undefined;
-  const customerId = searchParams.customer as string | undefined;
-  const startDate = searchParams.startDate as string | undefined;
-  const endDate = searchParams.endDate as string | undefined;
-  const page = parseInt(searchParams.page as string || "1");
+  const resolvedSearchParams = await searchParams;
+  const storeId = resolvedSearchParams.store as string | undefined;
+  const customerId = resolvedSearchParams.customer as string | undefined;
+  const startDate = resolvedSearchParams.startDate as string | undefined;
+  const endDate = resolvedSearchParams.endDate as string | undefined;
+  const page = parseInt(resolvedSearchParams.page as string || "1");
   const pageSize = 10;
 
   // Build query filters
@@ -292,7 +307,7 @@ export default async function SalesPage({
                 href={{
                   pathname: '/sales',
                   query: {
-                    ...searchParams,
+                    ...resolvedSearchParams,
                     page: page > 1 ? page - 1 : 1,
                   },
                 }}
@@ -304,7 +319,7 @@ export default async function SalesPage({
                 href={{
                   pathname: '/sales',
                   query: {
-                    ...searchParams,
+                    ...resolvedSearchParams,
                     page: page < totalPages ? page + 1 : totalPages,
                   },
                 }}
@@ -329,7 +344,7 @@ export default async function SalesPage({
                     href={{
                       pathname: '/sales',
                       query: {
-                        ...searchParams,
+                        ...resolvedSearchParams,
                         page: page > 1 ? page - 1 : 1,
                       },
                     }}
@@ -348,7 +363,7 @@ export default async function SalesPage({
                         href={{
                           pathname: '/sales',
                           query: {
-                            ...searchParams,
+                            ...resolvedSearchParams,
                             page: pageNum,
                           },
                         }}
@@ -366,7 +381,7 @@ export default async function SalesPage({
                     href={{
                       pathname: '/sales',
                       query: {
-                        ...searchParams,
+                        ...resolvedSearchParams,
                         page: page < totalPages ? page + 1 : totalPages,
                       },
                     }}

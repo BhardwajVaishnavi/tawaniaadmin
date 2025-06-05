@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { verifyAuthToken, createUnauthorizedResponse } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await verifyAuthToken(req);
 
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+    if (!user) {
+      return createUnauthorizedResponse();
     }
 
     // Parse query parameters
@@ -91,15 +87,12 @@ export async function POST(req: NextRequest) {
     console.log("POST /api/suppliers - Starting request");
 
     // Check authentication
-    const session = await getServerSession(authOptions);
-    console.log("Session:", session ? "Valid" : "Invalid");
+    const user = await verifyAuthToken(req);
+    console.log("User:", user ? "Valid" : "Invalid");
 
-    if (!session?.user?.id) {
-      console.log("Unauthorized - No valid session");
-      return NextResponse.json(
-        { error: "Unauthorized - Please log in to continue" },
-        { status: 401 }
-      );
+    if (!user) {
+      console.log("Unauthorized - No valid user");
+      return createUnauthorizedResponse();
     }
 
     // Parse request data
@@ -170,8 +163,8 @@ export async function POST(req: NextRequest) {
         paymentTerms: paymentTerms || "",
         notes: notes || "",
         isActive: isActive !== undefined ? isActive : true,
-        createdById: session.user.id,
-        updatedById: session.user.id,
+        createdById: user.userId,
+        updatedById: user.userId,
       },
     });
 

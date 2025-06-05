@@ -14,19 +14,19 @@ interface SalesByStoreChartProps {
 export function SalesByStoreChart({ data }: SalesByStoreChartProps) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
-  
+
   useEffect(() => {
     if (!chartRef.current) return;
-    
+
     // Destroy previous chart if it exists
     if (chartInstance.current) {
       chartInstance.current.destroy();
     }
-    
+
     // Prepare data for chart
     const labels = data.map(item => item.name);
     const values = data.map(item => item.total);
-    
+
     // Generate colors
     const backgroundColors = [
       'rgba(54, 162, 235, 0.7)',
@@ -40,11 +40,11 @@ export function SalesByStoreChart({ data }: SalesByStoreChartProps) {
       'rgba(75, 192, 192, 0.5)',
       'rgba(153, 102, 255, 0.5)',
     ];
-    
+
     // Create new chart
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
-    
+
     chartInstance.current = new Chart(ctx, {
       type: "bar",
       data: {
@@ -68,7 +68,7 @@ export function SalesByStoreChart({ data }: SalesByStoreChartProps) {
           tooltip: {
             callbacks: {
               label: function(context) {
-                return `Sales: $${context.parsed.y.toFixed(2)}`;
+                return `Sales: ₹${context.parsed.y.toFixed(2)}`;
               },
               afterLabel: function(context) {
                 const item = data[context.dataIndex];
@@ -83,14 +83,14 @@ export function SalesByStoreChart({ data }: SalesByStoreChartProps) {
             beginAtZero: true,
             ticks: {
               callback: function(value) {
-                return `$${value}`;
+                return `₹${value}`;
               },
             },
           },
         },
       },
     });
-    
+
     // Cleanup on unmount
     return () => {
       if (chartInstance.current) {
@@ -98,7 +98,7 @@ export function SalesByStoreChart({ data }: SalesByStoreChartProps) {
       }
     };
   }, [data]);
-  
+
   return (
     <div className="h-80">
       <canvas ref={chartRef}></canvas>

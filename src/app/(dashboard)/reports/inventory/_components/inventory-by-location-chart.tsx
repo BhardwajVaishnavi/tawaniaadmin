@@ -16,28 +16,28 @@ interface InventoryByLocationChartProps {
 export function InventoryByLocationChart({ data }: InventoryByLocationChartProps) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
-  
+
   useEffect(() => {
     if (!chartRef.current) return;
-    
+
     // Destroy previous chart if it exists
     if (chartInstance.current) {
       chartInstance.current.destroy();
     }
-    
+
     // Prepare data for chart
     const labels = data.map(item => `${item.name} (${item.type})`);
     const values = data.map(item => item.value);
-    
+
     // Generate colors based on type
-    const backgroundColors = data.map(item => 
+    const backgroundColors = data.map(item =>
       item.type === 'Warehouse' ? 'rgba(153, 102, 255, 0.7)' : 'rgba(75, 192, 192, 0.7)'
     );
-    
+
     // Create new chart
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
-    
+
     chartInstance.current = new Chart(ctx, {
       type: "bar",
       data: {
@@ -62,7 +62,7 @@ export function InventoryByLocationChart({ data }: InventoryByLocationChartProps
           tooltip: {
             callbacks: {
               label: function(context) {
-                return `Value: $${context.parsed.x.toFixed(2)}`;
+                return `Value: ₹${context.parsed.x.toFixed(2)}`;
               },
               afterLabel: function(context) {
                 const item = data[context.dataIndex];
@@ -76,7 +76,7 @@ export function InventoryByLocationChart({ data }: InventoryByLocationChartProps
             beginAtZero: true,
             ticks: {
               callback: function(value) {
-                return `$${value}`;
+                return `₹${value}`;
               },
             },
           },
@@ -90,7 +90,7 @@ export function InventoryByLocationChart({ data }: InventoryByLocationChartProps
         },
       },
     });
-    
+
     // Cleanup on unmount
     return () => {
       if (chartInstance.current) {
@@ -98,7 +98,7 @@ export function InventoryByLocationChart({ data }: InventoryByLocationChartProps
       }
     };
   }, [data]);
-  
+
   return (
     <div className="h-80">
       <canvas ref={chartRef}></canvas>
