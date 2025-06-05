@@ -13,11 +13,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   // Fix for Vercel deployment
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
-  },
-  // Optimize for production
-  swcMinify: true,
+  serverExternalPackages: ['@prisma/client', 'prisma'],
   // Removed tracing option as it's not supported
 
   // Add configuration for NextAuth
