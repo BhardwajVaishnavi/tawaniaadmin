@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 
 interface SaleItem {
@@ -13,10 +13,22 @@ interface SaleItem {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Check JWT authentication
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
 
-    // Check if user is authenticated
-    if (!session || !session.user) {
+    if (!token) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    let userId: string;
+    try {
+      const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret") as any;
+      userId = decoded.userId;
+    } catch (error) {
       return NextResponse.json(
         { message: "Unauthorized" },
         { status: 401 }
@@ -26,7 +38,7 @@ export async function POST(req: NextRequest) {
     // Parse request body
     const body = await req.json();
     console.log("🚀 POS Sale API - Received sale data:", body);
-    console.log("🔍 Session user ID:", session.user.id);
+    console.log("🔍 User ID:", userId);
 
     const {
       storeId,
@@ -100,11 +112,11 @@ export async function POST(req: NextRequest) {
 
     // Verify user exists before creating sale
     let user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
     });
 
     if (!user) {
-      console.error("User not found:", session.user.id);
+      console.error("User not found:", userId);
       console.log("Looking for any existing user to use as fallback...");
 
       // Try to find any existing user as fallback

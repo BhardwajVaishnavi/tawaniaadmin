@@ -17,7 +17,10 @@
     "prisma:seed": "ts-node --project prisma/tsconfig.json prisma/seed.ts",
     "prisma:studio": "prisma studio",
     "setup:transfers": "node scripts/setup-transfer-tables.js",
-    "check:transfers": "node scripts/check-transfer-data.js"
+    "check:transfers": "node scripts/check-transfer-data.js",
+    "db:clear": "ts-node --project scripts/tsconfig.json scripts/clear-database.ts",
+    "db:seed": "ts-node --project scripts/tsconfig.json scripts/seed-fresh-data.ts",
+    "db:reset": "ts-node --project scripts/tsconfig.json scripts/reset-database.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.9.0",

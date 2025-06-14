@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
+    // Check JWT authentication
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    try {
+      jwt.verify(token, process.env.NEXTAUTH_SECRET || "fallback-secret");
+    } catch (error) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -18,19 +29,19 @@ export async function GET(req: NextRequest) {
     const [stores, products, inventoryItems, customers] = await Promise.all([
       prisma.store.findMany({
         where: { isActive: true },
-        select: { 
-          id: true, 
-          name: true, 
-          code: true 
+        select: {
+          id: true,
+          name: true,
+          code: true
         },
         orderBy: { name: 'asc' },
       }),
       prisma.product.findMany({
         where: { isActive: true },
-        select: { 
-          id: true, 
-          name: true, 
-          sku: true, 
+        select: {
+          id: true,
+          name: true,
+          sku: true,
           retailPrice: true,
           wholesalePrice: true,
           costPrice: true,
